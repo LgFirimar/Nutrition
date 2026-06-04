@@ -827,6 +827,20 @@ function AskClaude({foodName, amount, unit, onAddToDay, onSaved}){
   const [errorMsg,setErrorMsg]=useState(null);
   const [saveName,setSaveName]=useState("");
   const [savedOk,setSavedOk]=useState(false);
+  const [localAmt,setLocalAmt]=useState(amount||"100");
+  const [localUnit,setLocalUnit]=useState(unit||"g");
+
+  const calcFromRaw=(d,qty,u)=>{
+    const divisor=d.cubes_per_bar?d.cubes_per_bar:d.serving_size?d.serving_size:100;
+    const per1={kcal:d.kcal/divisor,carbs:(d.carbs||0)/divisor,protein:(d.protein||0)/divisor,fat:(d.fat||0)/divisor};
+    return {kcal:Math.round(per1.kcal*qty),carbs:parseFloat((per1.carbs*qty).toFixed(1)),protein:parseFloat((per1.protein*qty).toFixed(1)),fat:parseFloat((per1.fat*qty).toFixed(1))};
+  };
+
+  const recalc=()=>{
+    if(!preview)return;
+    const qty=parseFloat(localAmt)||1;
+    setPreview(p=>({...p,calc:calcFromRaw(p.raw,qty,localUnit),qty,unit:localUnit}));
+  };
 
   const ask=async()=>{
     if(!foodName.trim())return;
@@ -835,17 +849,14 @@ function AskClaude({foodName, amount, unit, onAddToDay, onSaved}){
       const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{
         method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({foodName,amount,unit})
+        body:JSON.stringify({foodName,amount:localAmt,unit:localUnit})
       });
       if(!res.ok) throw new Error(`שגיאת שרת ${res.status}`);
       const d=await res.json();
       if(d.error) throw new Error(d.error);
       if(!d.kcal) throw new Error("תגובה לא תקינה");
-      const qty=parseFloat(amount)||d.defaultAmt||100;
-      const divisor=d.cubes_per_bar?d.cubes_per_bar:d.serving_size?d.serving_size:100;
-      const per1={kcal:d.kcal/divisor,carbs:(d.carbs||0)/divisor,protein:(d.protein||0)/divisor,fat:(d.fat||0)/divisor};
-      const calc={kcal:Math.round(per1.kcal*qty),carbs:parseFloat((per1.carbs*qty).toFixed(1)),protein:parseFloat((per1.protein*qty).toFixed(1)),fat:parseFloat((per1.fat*qty).toFixed(1))};
-      setPreview({calc,raw:d,qty,unit:unit||d.unit||"g"});
+      const qty=parseFloat(localAmt)||d.defaultAmt||100;
+      setPreview({calc:calcFromRaw(d,qty,localUnit),raw:d,qty,unit:localUnit||d.unit||"g"});
       setSaveName(d.name||d.label||foodName);
     }catch(e){
       setErrorMsg(e.message||"שגיאה");
@@ -893,7 +904,16 @@ function AskClaude({foodName, amount, unit, onAddToDay, onSaved}){
       )}
       {preview&&(
         <div className="green-box fade">
-          <div style={{fontSize:11,color:C.accent,fontWeight:700,marginBottom:8}}>✨ {preview.raw.label||foodName} — {preview.qty}{preview.unit}</div>
+          <div style={{fontSize:11,color:C.accent,fontWeight:700,marginBottom:8}}>✨ {preview.raw.label||foodName}</div>
+          <div style={{display:"flex",gap:6,marginBottom:10,alignItems:"center"}}>
+            <input type="number" value={localAmt} onChange={e=>setLocalAmt(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&recalc()}
+              className="inp" style={{flex:1,textAlign:"center",padding:"7px 6px",fontSize:13}}/>
+            <select value={localUnit} onChange={e=>setLocalUnit(e.target.value)} className="inp" style={{flex:1,padding:"7px 6px",fontSize:12,cursor:"pointer"}}>
+              <option value="g">גר׳</option><option value="ml">מ״ל</option><option value="יח׳">יח׳</option><option value="קוביות">קוביות</option><option value="כף">כף</option><option value="כפית">כפית</option>
+            </select>
+            <button onClick={recalc} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"7px 12px",fontSize:16,cursor:"pointer",lineHeight:1}}>🔄</button>
+          </div>
           <div className="g3" style={{marginBottom:10}}>
             {[{l:"קק״ל",v:preview.calc.kcal,c:C.accent},{l:"פחמ׳g",v:preview.calc.carbs,c:C.warn},{l:"חלבוןg",v:preview.calc.protein,c:C.blue}].map(({l,v,c})=>(
               <div key={l} className="preview-box"><div className="preview-val" style={{color:c}}>{v}</div><div className="preview-lbl">{l}</div></div>
