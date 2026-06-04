@@ -17,12 +17,19 @@ export default {
     try {
       const { foodName, mealDescription } = await request.json();
 
-      let prompt;
+      let prompt, model;
       if (mealDescription) {
-        prompt = `Analyze this meal and return ONLY a JSON object with total nutritional values. Estimate realistic values for all ingredients mentioned.
+        model = 'claude-sonnet-4-6';
+        prompt = `You are a precise nutrition calculator. Calculate the TOTAL nutritional values for ALL ingredients in this meal combined.
+Use standard nutritional databases. Be accurate with portion sizes — tablespoons of oil, grams of tofu, etc. all contribute significant calories.
+Do NOT underestimate. Sum every ingredient carefully.
+
 Meal: ${mealDescription}
-Return exactly: {"label":"short Hebrew meal name","kcal":0,"carbs":0,"protein":0,"fat":0}`;
+
+Return ONLY this JSON (total for ALL ingredients combined, not per 100g):
+{"label":"short Hebrew meal name","kcal":0,"carbs":0,"protein":0,"fat":0}`;
       } else {
+        model = 'claude-haiku-4-5-20251001';
         prompt = `Nutritional values per 100g for: ${foodName}
 Return exactly this JSON structure:
 {"name":"Hebrew name","label":"emoji + Hebrew name","names":["Hebrew","English"],"kcal":0,"carbs":0,"protein":0,"fat":0,"unit":"g","defaultAmt":100}`;
@@ -36,7 +43,7 @@ Return exactly this JSON structure:
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
+          model,
           max_tokens: 300,
           system: 'You are a nutrition database. Respond with ONLY a valid JSON object, no markdown, no explanation.',
           messages: [{ role: 'user', content: prompt }]
