@@ -15,7 +15,18 @@ export default {
     }
 
     try {
-      const { foodName } = await request.json();
+      const { foodName, mealDescription } = await request.json();
+
+      let prompt;
+      if (mealDescription) {
+        prompt = `Analyze this meal and return ONLY a JSON object with total nutritional values. Estimate realistic values for all ingredients mentioned.
+Meal: ${mealDescription}
+Return exactly: {"label":"short Hebrew meal name","kcal":0,"carbs":0,"protein":0,"fat":0}`;
+      } else {
+        prompt = `Nutritional values per 100g for: ${foodName}
+Return exactly this JSON structure:
+{"name":"Hebrew name","label":"emoji + Hebrew name","names":["Hebrew","English"],"kcal":0,"carbs":0,"protein":0,"fat":0,"unit":"g","defaultAmt":100}`;
+      }
 
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -28,12 +39,7 @@ export default {
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 300,
           system: 'You are a nutrition database. Respond with ONLY a valid JSON object, no markdown, no explanation.',
-          messages: [{
-            role: 'user',
-            content: `Nutritional values per 100g for: ${foodName}
-Return exactly this JSON structure:
-{"name":"Hebrew name","label":"emoji + Hebrew name","names":["Hebrew","English"],"kcal":0,"carbs":0,"protein":0,"fat":0,"unit":"g","defaultAmt":100}`
-          }]
+          messages: [{ role: 'user', content: prompt }]
         })
       });
 

@@ -868,6 +868,73 @@ function AskClaude({foodName, amount, unit, onAddToDay, onSaved}){
     </div>
   );
 }
+// ── MealPanel ──────────────────────────────────────────────────────────────────
+function MealPanel({onAdd,onClose}){
+  const [text,setText]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [preview,setPreview]=useState(null);
+  const [error,setError]=useState(null);
+
+  const ask=async()=>{
+    if(!text.trim())return;
+    setLoading(true);setPreview(null);setError(null);
+    try{
+      const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({mealDescription:text})
+      });
+      if(!res.ok) throw new Error("שגיאת שרת "+res.status);
+      const d=await res.json();
+      if(d.error||!d.kcal) throw new Error(d.error||"תגובה לא תקינה");
+      setPreview(d);
+    }catch(e){setError(e.message);}
+    setLoading(false);
+  };
+
+  const addToDay=()=>{
+    if(!preview)return;
+    onAdd({uid:Date.now()+Math.random(),
+      label:`🍽 ${preview.label||text.slice(0,30)}`,
+      kcal:preview.kcal,carbs:preview.carbs||0,protein:preview.protein||0,fat:preview.fat||0});
+    onClose();
+  };
+
+  return (
+    <div className="panel fade">
+      <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>🍽 ניתוח ארוחה מורכבת</div>
+      <textarea value={text} onChange={e=>setText(e.target.value)} rows={4}
+        placeholder={"תארי את הארוחה בחופשיות, למשל:\nסלט עם 100g קינואה, גבינת פטה, עגבניות, מלפפון, 15ml שמן זית"}
+        className="inp" style={{marginBottom:10,resize:"none",lineHeight:1.6,fontSize:13}}/>
+      {!preview&&(
+        <button onClick={ask} disabled={!text.trim()||loading}
+          style={{width:"100%",background:text.trim()?"linear-gradient(135deg,#5a9e1e,#7bc42e)":"#ddd",border:"none",borderRadius:8,color:text.trim()?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:text.trim()?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:8}}>
+          {loading?<span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>⟳</span>:"✨"}
+          {loading?"מנתח ארוחה...":"שאל את Claude"}
+        </button>
+      )}
+      {error&&(
+        <div style={{background:"#fff0f0",border:`1px solid ${C.danger}`,borderRadius:8,padding:"8px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
+          <span style={{fontSize:11,color:C.danger}}>⚠ {error}</span>
+          <button onClick={ask} style={{background:C.danger,border:"none",borderRadius:6,color:"#fff",padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>נסה שוב</button>
+        </div>
+      )}
+      {preview&&(
+        <div className="green-box fade" style={{marginBottom:8}}>
+          <div style={{fontSize:11,color:C.accent,fontWeight:700,marginBottom:8}}>✨ {preview.label}</div>
+          <div className="g3" style={{marginBottom:10}}>
+            {[{l:"קק״ל",v:preview.kcal,c:C.accent},{l:"פחמ׳g",v:preview.carbs||0,c:C.warn},{l:"חלבוןg",v:preview.protein||0,c:C.blue}].map(({l,v,c})=>(
+              <div key={l} className="preview-box"><div className="preview-val" style={{color:c}}>{v}</div><div className="preview-lbl">{l}</div></div>
+            ))}
+          </div>
+          <button onClick={addToDay} style={{width:"100%",background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ הוסף ליום</button>
+        </div>
+      )}
+      <button onClick={onClose} className="btn-muted" style={{marginTop:4}}>ביטול</button>
+    </div>
+  );
+}
+
 // ── SmartAddPanel ──────────────────────────────────────────────────────────────
 function SmartAddPanel({onAdd,onClose}){
   const [query,setQuery]=useState("");
@@ -1416,6 +1483,7 @@ function App(){
   };
 
   const [showSmart,setShowSmart]=useState(false);
+  const [showMeal,setShowMeal]=useState(false);
   const [showJournal,setShowJournal]=useState(false);
   const [showNewBtn,setShowNewBtn]=useState(false);
   const [showDB,setShowDB]=useState(false);
@@ -1588,10 +1656,12 @@ function App(){
               <button onClick={()=>removeBtn(btn.id)} style={{position:"absolute",top:4,left:6,background:"none",border:"none",color:"#ccc",fontSize:13,cursor:"pointer",lineHeight:1,padding:0}}>×</button>
             </div>
           ))}
-          <button onClick={()=>setShowSmart(v=>!v)} style={{background:showSmart?C.accent:"transparent",border:`1px dashed ${showSmart?C.accent:"#e0e0e5"}`,color:showSmart?"#fff":C.muted,padding:"8px 14px",borderRadius:20,fontSize:12,cursor:"pointer",fontWeight:600}}>+ הוספה</button>
+          <button onClick={()=>{setShowMeal(v=>!v);setShowSmart(false);}} style={{background:showMeal?"#5a3e8e":"transparent",border:`1px dashed ${showMeal?"#5a3e8e":"#e0e0e5"}`,color:showMeal?"#fff":C.muted,padding:"8px 14px",borderRadius:20,fontSize:12,cursor:"pointer",fontWeight:600}}>🍽 ארוחה</button>
+          <button onClick={()=>{setShowSmart(v=>!v);setShowMeal(false);}} style={{background:showSmart?C.accent:"transparent",border:`1px dashed ${showSmart?C.accent:"#e0e0e5"}`,color:showSmart?"#fff":C.muted,padding:"8px 14px",borderRadius:20,fontSize:12,cursor:"pointer",fontWeight:600}}>+ הוספה</button>
         </div>
       </div>
 
+      {showMeal && <MealPanel onAdd={addEntry} onClose={()=>setShowMeal(false)}/>}
       {showSmart && <SmartAddPanel onAdd={addEntry} onClose={()=>setShowSmart(false)}/>}
 
       {/* Log */}
