@@ -17,19 +17,23 @@ export default {
     try {
       const { foodName, mealDescription } = await request.json();
 
-      let prompt, model;
+      let prompt, model, system, max_tokens;
       if (mealDescription) {
         model = 'claude-sonnet-4-6';
-        prompt = `You are a precise nutrition calculator. Calculate the TOTAL nutritional values for ALL ingredients in this meal combined.
-Use standard nutritional databases. Be accurate with portion sizes — tablespoons of oil, grams of tofu, etc. all contribute significant calories.
-Do NOT underestimate. Sum every ingredient carefully.
+        max_tokens = 1024;
+        system = 'You are a precise nutrition calculator with expert knowledge of food composition databases (USDA, Israeli food tables).';
+        prompt = `Calculate the total nutritional values for this meal.
+
+First, break down EACH ingredient separately with its exact quantity and calories. Be precise — oil (1 tbsp = 120 kcal), cornstarch (1 tbsp = 28 kcal), avocado (~200g = 320 kcal), etc.
 
 Meal: ${mealDescription}
 
-Return ONLY this JSON (total for ALL ingredients combined, not per 100g):
-{"label":"short Hebrew meal name","kcal":0,"carbs":0,"protein":0,"fat":0}`;
+After your calculation, output ONLY this JSON on the very last line (no markdown):
+{"label":"short Hebrew meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT}`;
       } else {
         model = 'claude-haiku-4-5-20251001';
+        max_tokens = 300;
+        system = 'You are a nutrition database. Respond with ONLY a valid JSON object, no markdown, no explanation.';
         prompt = `Nutritional values per 100g for: ${foodName}
 Return exactly this JSON structure:
 {"name":"Hebrew name","label":"emoji + Hebrew name","names":["Hebrew","English"],"kcal":0,"carbs":0,"protein":0,"fat":0,"unit":"g","defaultAmt":100}`;
@@ -43,9 +47,7 @@ Return exactly this JSON structure:
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model,
-          max_tokens: 300,
-          system: 'You are a nutrition database. Respond with ONLY a valid JSON object, no markdown, no explanation.',
+          model, max_tokens, system,
           messages: [{ role: 'user', content: prompt }]
         })
       });
@@ -60,7 +62,9 @@ Return exactly this JSON structure:
 
       const data = await response.json();
       const text = data.content[0].text.trim();
-      const json = JSON.parse(text.replace(/```json|```/g, '').trim());
+      // Extract JSON — may have reasoning text before it
+      const jsonMatch = text.match(/\{[^{}]*"kcal"[^{}]*\}/s);
+      const json = JSON.parse(jsonMatch ? jsonMatch[0] : text.replace(/```json|```/g, '').trim());
 
       return new Response(JSON.stringify(json), {
         headers: { ...cors, 'Content-Type': 'application/json' }
