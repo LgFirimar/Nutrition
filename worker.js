@@ -15,10 +15,19 @@ export default {
     }
 
     try {
-      const { foodName, mealDescription } = await request.json();
+      const { foodName, mealDescription, imageData, imageMediaType } = await request.json();
 
-      let prompt, model, system, max_tokens;
-      if (mealDescription) {
+      let prompt, model, system, max_tokens, messages;
+      if (imageData) {
+        model = 'claude-sonnet-4-6';
+        max_tokens = 1024;
+        system = 'You are a precise nutrition calculator with expert knowledge of food composition databases.';
+        const analysisPrompt = `Analyze this meal photo and calculate total nutritional values. Think through each visible ingredient and its estimated portion size. Then output ONLY this JSON on the very last line:\n{"label":"Hebrew meal name","kcal":0,"carbs":0,"protein":0,"fat":0}`;
+        messages = [{role:'user', content:[
+          {type:'image', source:{type:'base64', media_type:imageMediaType||'image/jpeg', data:imageData}},
+          {type:'text', text:analysisPrompt}
+        ]}];
+      } else if (mealDescription) {
         model = 'claude-sonnet-4-6';
         max_tokens = 1024;
         system = 'You are a precise nutrition calculator with expert knowledge of food composition databases (USDA, Israeli food tables).';
@@ -48,7 +57,7 @@ Return exactly this JSON structure:
         },
         body: JSON.stringify({
           model, max_tokens, system,
-          messages: [{ role: 'user', content: prompt }]
+          messages: messages || [{ role: 'user', content: prompt }]
         })
       });
 
