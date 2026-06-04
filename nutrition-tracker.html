@@ -788,28 +788,12 @@ function AskClaude({foodName, amount, unit, onAddToDay, onSaved}){
   const [loading,setLoading]=useState(false);
   const [preview,setPreview]=useState(null);
   const [errorMsg,setErrorMsg]=useState(null);
-
-  const autoSaveToDB=(d)=>{
-    const entry={
-      names:[...(d.names||[d.name||foodName]).map(n=>n.toLowerCase())].filter((v,i,a)=>a.indexOf(v)===i),
-      label:d.label||d.name||foodName,
-      kcal:d.kcal, carbs:d.carbs||0, protein:d.protein||0, fat:d.fat||0,
-      defaultAmt:d.defaultAmt||100,
-      unit:d.unit||"g",
-      ...(d.serving_size&&{serving_size:d.serving_size}),
-      ...(d.cubes_per_bar&&{cubes_per_bar:d.cubes_per_bar}),
-    };
-    const db=loadCustomDB(window._activePid||"default");
-    const exists=db.some(f=>f.names.some(n=>entry.names.includes(n)));
-    if(!exists){
-      saveCustomDB([...db,entry],window._activePid||"default");
-      setTimeout(()=>{onSaved();},300);
-    }
-  };
+  const [saveName,setSaveName]=useState("");
+  const [savedOk,setSavedOk]=useState(false);
 
   const ask=async()=>{
     if(!foodName.trim())return;
-    setLoading(true);setPreview(null);setErrorMsg(null);
+    setLoading(true);setPreview(null);setErrorMsg(null);setSavedOk(false);
     try{
       const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{
         method:"POST",
@@ -824,16 +808,33 @@ function AskClaude({foodName, amount, unit, onAddToDay, onSaved}){
       const divisor=d.cubes_per_bar?d.cubes_per_bar:d.serving_size?d.serving_size:100;
       const per1={kcal:d.kcal/divisor,carbs:(d.carbs||0)/divisor,protein:(d.protein||0)/divisor,fat:(d.fat||0)/divisor};
       const calc={kcal:Math.round(per1.kcal*qty),carbs:parseFloat((per1.carbs*qty).toFixed(1)),protein:parseFloat((per1.protein*qty).toFixed(1)),fat:parseFloat((per1.fat*qty).toFixed(1))};
-      autoSaveToDB(d);
       setPreview({calc,raw:d,qty,unit:unit||d.unit||"g"});
+      setSaveName(d.name||d.label||foodName);
     }catch(e){
       setErrorMsg(e.message||"שגיאה");
     }
     setLoading(false);
   };
 
-  const addToDay=()=>{
+  const doSave=(name)=>{
+    const d=preview.raw;
+    const entry={
+      names:[name.toLowerCase(),...(d.names||[]).map(n=>n.toLowerCase())].filter((v,i,a)=>a.indexOf(v)===i),
+      label:d.label||name,
+      kcal:d.kcal,carbs:d.carbs||0,protein:d.protein||0,fat:d.fat||0,
+      defaultAmt:d.defaultAmt||100,unit:d.unit||"g",
+      ...(d.serving_size&&{serving_size:d.serving_size}),
+      ...(d.cubes_per_bar&&{cubes_per_bar:d.cubes_per_bar}),
+    };
+    const db=loadCustomDB(window._activePid||"default");
+    saveCustomDB([...db.filter(f=>!f.names.some(n=>entry.names.includes(n))),entry],window._activePid||"default");
+    setSavedOk(true);
+    setTimeout(()=>{onSaved();},300);
+  };
+
+  const addToDay=(withSave)=>{
     if(!preview)return;
+    if(withSave&&saveName) doSave(saveName);
     onAddToDay({uid:Date.now()+Math.random(),
       label:`${preview.raw.label||foodName} (${preview.qty}${preview.unit})`,
       kcal:preview.calc.kcal,carbs:preview.calc.carbs,protein:preview.calc.protein,fat:preview.calc.fat});
@@ -855,14 +856,31 @@ function AskClaude({foodName, amount, unit, onAddToDay, onSaved}){
       )}
       {preview&&(
         <div className="green-box fade">
-          <div style={{fontSize:11,color:C.accent,fontWeight:700,marginBottom:4}}>✨ {preview.raw.label||foodName}</div>
-          <div style={{fontSize:10,color:C.muted,marginBottom:8}}>נשמר למאגר · {preview.qty}{preview.unit}</div>
+          <div style={{fontSize:11,color:C.accent,fontWeight:700,marginBottom:8}}>✨ {preview.raw.label||foodName} — {preview.qty}{preview.unit}</div>
           <div className="g3" style={{marginBottom:10}}>
             {[{l:"קק״ל",v:preview.calc.kcal,c:C.accent},{l:"פחמ׳g",v:preview.calc.carbs,c:C.warn},{l:"חלבוןg",v:preview.calc.protein,c:C.blue}].map(({l,v,c})=>(
               <div key={l} className="preview-box"><div className="preview-val" style={{color:c}}>{v}</div><div className="preview-lbl">{l}</div></div>
             ))}
           </div>
-          <button onClick={addToDay} style={{width:"100%",background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ הוסף ליום</button>
+          {!savedOk?(
+            <>
+              <div style={{fontSize:10,color:C.muted,marginBottom:4}}>שם לשמירה במאגר (ניתן לעריכה):</div>
+              <input value={saveName} onChange={e=>setSaveName(e.target.value)} className="inp"
+                style={{marginBottom:8,fontSize:13,borderColor:saveName?C.accent:C.border}}/>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>addToDay(true)} disabled={!saveName}
+                  style={{flex:2,background:saveName?C.accent:"#ddd",border:"none",borderRadius:8,color:saveName?"#fff":"#aaa",padding:"9px 6px",fontSize:12,fontWeight:700,cursor:saveName?"pointer":"default"}}>
+                  + הוסף + שמור
+                </button>
+                <button onClick={()=>addToDay(false)}
+                  style={{flex:1,background:"#f5f5f7",border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,padding:"9px 6px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                  ללא שמירה
+                </button>
+              </div>
+            </>
+          ):(
+            <button onClick={()=>addToDay(false)} style={{width:"100%",background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ הוסף ליום</button>
+          )}
         </div>
       )}
     </div>
