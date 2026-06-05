@@ -26,6 +26,13 @@ button:active{opacity:0.75;transform:scale(0.97)}
 .fade{animation:fadeIn 0.2s ease}
 .slide{animation:slideUp 0.25s ease}
 
+/* Splash */
+@keyframes splashGrow{from{opacity:0;transform:scale(0.6)}to{opacity:1;transform:scale(1)}}
+@keyframes splashFloat{0%,100%{transform:translate(-50%,-50%) translateY(0)}50%{transform:translate(-50%,-50%) translateY(-10px)}}
+@keyframes splashPop{from{opacity:0;transform:translate(-50%,-50%) scale(0) rotate(-20deg)}to{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0)}}
+@keyframes splashDot{0%,100%{opacity:0.3;transform:scale(0.7)}50%{opacity:1;transform:scale(1.3)}}
+@keyframes splashOut{to{opacity:0;transform:scale(1.04)}}
+
 /* Layout */
 #header{background:#fff;border-bottom:1px solid #e0e0e5;padding:16px 20px;position:sticky;top:0;z-index:10}
 .stat-box{background:#f0f0f4;border-radius:10px;padding:10px 12px}
@@ -1786,6 +1793,67 @@ function EditQuickFoodModal({food,onSave,onClose}){
   );
 }
 
+// ── SplashScreen ───────────────────────────────────────────────────────────────
+function SplashScreen({onDone}){
+  const [hiding,setHiding]=useState(false);
+  useEffect(()=>{
+    const t1=setTimeout(()=>setHiding(true),2000);
+    const t2=setTimeout(onDone,2500);
+    return()=>{clearTimeout(t1);clearTimeout(t2);};
+  },[]);
+
+  const items=[
+    {e:"🥑",x:-72,y:-78,d:0.15,s:26},{e:"🍎",x:68,y:-82,d:0.25,s:24},
+    {e:"🥕",x:-88,y:5,d:0.1,s:22},{e:"🫐",x:84,y:10,d:0.3,s:22},
+    {e:"🌿",x:-58,y:78,d:0.2,s:20},{e:"🫘",x:62,y:82,d:0.05,s:20},
+    {e:"🍳",x:0,y:-96,d:0.35,s:22},{e:"🥗",x:0,y:96,d:0.4,s:22},
+  ];
+
+  return (
+    <div style={{
+      position:"fixed",inset:0,zIndex:9999,
+      background:"linear-gradient(150deg,#0b3205 0%,#1a5c0a 45%,#3d8a12 80%,#5a9e1e 100%)",
+      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+      transition:"opacity 0.55s ease, transform 0.55s ease",
+      opacity:hiding?0:1,transform:hiding?"scale(1.03)":"scale(1)",
+      pointerEvents:hiding?"none":"all"
+    }}>
+      {/* Glow circle */}
+      <div style={{position:"absolute",width:280,height:280,borderRadius:"50%",background:"radial-gradient(circle,rgba(90,158,30,0.35) 0%,transparent 70%)"}}/>
+
+      {/* Orbiting food */}
+      <div style={{position:"relative",width:170,height:170,marginBottom:28}}>
+        {items.map((f,i)=>(
+          <div key={i} style={{
+            position:"absolute",top:`calc(50% + ${f.y}px)`,left:`calc(50% + ${f.x}px)`,
+            fontSize:f.s,
+            animation:`splashPop 0.45s cubic-bezier(.34,1.56,.64,1) ${f.d+0.2}s both, splashFloat ${1.8+i*0.15}s ease-in-out ${f.d}s infinite`
+          }}>{f.e}</div>
+        ))}
+        {/* Central main icon */}
+        <div style={{
+          position:"absolute",top:"50%",left:"50%",fontSize:68,
+          animation:"splashGrow 0.5s cubic-bezier(.34,1.56,.64,1) 0.05s both, splashFloat 2.2s ease-in-out infinite"
+        }}>🥙</div>
+      </div>
+
+      <div style={{color:"#fff",fontSize:30,fontWeight:900,letterSpacing:0.5,
+        animation:"splashGrow 0.5s ease 0.35s both",
+        textShadow:"0 2px 16px rgba(0,0,0,0.25)"}}>מעקב תזונה</div>
+
+      <div style={{color:"rgba(255,255,255,0.65)",fontSize:13,marginTop:6,letterSpacing:1,
+        animation:"splashGrow 0.5s ease 0.5s both"}}>חכם · מהיר · מדויק</div>
+
+      <div style={{display:"flex",gap:9,marginTop:38}}>
+        {[0,1,2,3].map(i=>(
+          <div key={i} style={{width:6,height:6,borderRadius:"50%",background:"rgba(255,255,255,0.5)",
+            animation:`splashDot 1.1s ease-in-out ${i*0.18}s infinite`}}/>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── App ────────────────────────────────────────────────────────────────────────
 function App(){
   const [profiles,setProfiles]=useState(()=>loadProfiles());
@@ -1795,6 +1863,7 @@ function App(){
     return all.find(p=>p.id===id)||all[0]||null;
   });
   const [showSetup,setShowSetup]=useState(()=>loadProfiles().length===0);
+  const [showSplash,setShowSplash]=useState(true);
   const pid=activeProfile?.id||"default";
   window._activePid=pid;
   const MAX_KCAL=activeProfile?.maxKcal||1800;
@@ -1908,6 +1977,7 @@ function App(){
 
   return (
     <div>
+      {showSplash && <SplashScreen onDone={()=>setShowSplash(false)}/>}
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)}/>}
       {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)}/>}
       {showJournal && <JournalView pid={pid} onClose={()=>setShowJournal(false)} onLoadDay={saved=>{setEntries(saved.map(e=>({...e,uid:Date.now()+Math.random()})));setShowJournal(false);}}/>}
