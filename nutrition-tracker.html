@@ -443,7 +443,7 @@ function calcNutrition(f, amt, unit) {
 }
 
 const C = { accent:"#0d9488", warn:"#d97706", danger:"#dc2626", blue:"#2563eb", muted:"#64748b", text:"#0f172a", border:"rgba(148,163,184,.25)" };
-const sugarColor = v => { const n=Number(v); return n>=100?'#dc2626':n>=86?'#d97706':n>0?'#0d9488':'#e03e3e'; };
+const sugarColor = v => { const n=Number(v); return n>=100?'#dc2626':n>=86?'#f59e0b':n>0?'#0d9488':'#94a3b8'; };
 const MAX_KCAL=1800, MAX_CARBS=80;
 const QUICK_FOODS = [
   {id:"cheese",label:"🧀 אצבע גבינה",kcal:60,carbs:1,protein:6,fat:3.5},
@@ -1507,11 +1507,14 @@ function NewButtonModal({onClose,onSave}){
 
 // ── SugarWeekChart ─────────────────────────────────────────────────────────────
 function SugarWeekChart({journal}){
-  const H=70;
-  const xs=[20,60,100,140,180,220,260];
+  // Scale: range 60-140 (80 units) mapped to H=54px
+  const H=54, W=280, PAD=14, RANGE=80, MIN_V=60;
+  const toY=v=>Math.max(2,Math.min(H-2, H-(Number(v)-MIN_V)/RANGE*H));
+  // x positions evenly distributed (LTR: index 0 = oldest = left, index 6 = today = right)
+  const xs=Array.from({length:7},(_,i)=>Math.round(PAD+i*(W-2*PAD)/6));
+  const y100=H-(100-MIN_V)/RANGE*H; // ≈27
+  const y86 =H-(86 -MIN_V)/RANGE*H; // ≈37
   const HE=['א','ב','ג','ד','ה','ו','ש'];
-  const toY=v=>Math.max(2,Math.min(H-2,H-(Number(v)-60)));
-  const y100=H-(100-60), y86=H-(86-60); // =30, =44
 
   const days=[];
   for(let i=6;i>=0;i--){
@@ -1524,85 +1527,58 @@ function SugarWeekChart({journal}){
   if(!known.length)return null;
 
   const crPath=ps=>{
-    if(ps.length<2)return`M ${ps[0].x},${ps[0].y}`;
+    if(ps.length<2)return null;
     const s=[`M ${ps[0].x},${ps[0].y}`];
     for(let i=0;i<ps.length-1;i++){
       const p0=ps[Math.max(0,i-1)],p1=ps[i],p2=ps[i+1],p3=ps[Math.min(ps.length-1,i+2)];
-      const c1x=(p1.x+(p2.x-p0.x)/6).toFixed(1),c1y=(p1.y+(p2.y-p0.y)/6).toFixed(1);
-      const c2x=(p2.x-(p3.x-p1.x)/6).toFixed(1),c2y=(p2.y-(p3.y-p1.y)/6).toFixed(1);
-      s.push(`C ${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`);
+      s.push(`C ${(p1.x+(p2.x-p0.x)/6).toFixed(1)},${(p1.y+(p2.y-p0.y)/6).toFixed(1)} ${(p2.x-(p3.x-p1.x)/6).toFixed(1)},${(p2.y-(p3.y-p1.y)/6).toFixed(1)} ${p2.x},${p2.y}`);
     }
     return s.join(' ');
   };
-
-  const p=known.length>=2?crPath(known):null;
-  const fill=p?`${p} L ${known[known.length-1].x},${H} L ${known[0].x},${H} Z`:null;
+  const linePath=known.length>=2?crPath(known):null;
 
   return(
-    <div style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:"1px solid rgba(255,255,255,.88)",borderRadius:20,padding:"16px 18px",marginBottom:16,boxShadow:"0 4px 20px rgba(80,130,180,.1)"}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-        <div style={{fontSize:10,color:"#94a3b8",letterSpacing:1.5,textTransform:"uppercase"}}>🩸 סוכר — שבוע נוכחי</div>
+    <div style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:"1px solid rgba(255,255,255,.88)",borderRadius:18,padding:"12px 14px 10px",marginBottom:16,boxShadow:"0 4px 20px rgba(80,130,180,.1)"}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+        <div style={{fontSize:9.5,color:"#94a3b8",letterSpacing:1.4,textTransform:"uppercase"}}>🩸 סוכר — שבוע נוכחי</div>
         <div style={{display:"flex",gap:8}}>
-          {[["≤85","#0d9488"],["86–99","#d97706"],["≥100","#dc2626"]].map(([l,c])=>(
-            <span key={l} style={{fontSize:8,color:c,display:"inline-flex",alignItems:"center",gap:2}}>
-              <span style={{width:8,height:2,borderRadius:1,background:"currentColor",display:"inline-block"}}></span>{l}
+          {[["≤85","#0d9488"],["86–99","#f59e0b"],["≥100","#dc2626"]].map(([l,c])=>(
+            <span key={l} style={{fontSize:7.5,color:c,display:"inline-flex",alignItems:"center",gap:2}}>
+              <span style={{width:6,height:2,borderRadius:1,background:"currentColor",display:"inline-block"}}></span>{l}
             </span>
           ))}
         </div>
       </div>
-      <div style={{paddingTop:12}}>
-        <svg width="100%" viewBox={`0 0 280 ${H+5}`} style={{display:"block",overflow:"visible"}}>
-          <defs>
-            <linearGradient id="sg-w" x1="0" y1="0" x2="0" y2={H} gradientUnits="userSpaceOnUse">
-              <stop offset="0%"   stopColor="#ef4444"/>
-              <stop offset="30%"  stopColor="#dc2626"/>
-              <stop offset="43%"  stopColor="#fb923c"/>
-              <stop offset="55%"  stopColor="#d97706"/>
-              <stop offset="63%"  stopColor="#d97706"/>
-              <stop offset="78%"  stopColor="#10b981"/>
-              <stop offset="100%" stopColor="#0d9488"/>
-            </linearGradient>
-            <linearGradient id="sf-w" x1="0" y1="0" x2="0" y2={H} gradientUnits="userSpaceOnUse">
-              <stop offset="0%"   stopColor="rgba(239,68,68,.15)"/>
-              <stop offset="43%"  stopColor="rgba(251,146,60,.10)"/>
-              <stop offset="63%"  stopColor="rgba(16,185,129,.06)"/>
-              <stop offset="100%" stopColor="rgba(13,148,136,0)"/>
-            </linearGradient>
-            <filter id="sg-gw" x="-60%" y="-60%" width="220%" height="220%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
-              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-            </filter>
-          </defs>
-          <rect x="0" y="0"    width="248" height={y100}      fill="rgba(220,38,38,.05)" rx="2"/>
-          <rect x="0" y={y100} width="248" height={y86-y100}  fill="rgba(217,119,6,.04)"/>
-          <rect x="0" y={y86}  width="248" height={H-y86}     fill="rgba(13,148,136,.05)"/>
-          <line x1="0" y1={y100} x2="248" y2={y100} stroke="rgba(220,38,38,.22)" strokeWidth="0.8" strokeDasharray="4,3"/>
-          <line x1="0" y1={y86}  x2="248" y2={y86}  stroke="rgba(217,119,6,.18)"  strokeWidth="0.8" strokeDasharray="4,3"/>
-          <text x="251" y={y100-1} fontSize="6.5" fill="rgba(220,38,38,.7)"  fontFamily="Heebo,sans-serif" fontWeight="700">100</text>
-          <text x="251" y={y86-1}  fontSize="6.5" fill="rgba(217,119,6,.75)" fontFamily="Heebo,sans-serif" fontWeight="700">86</text>
-          {fill&&<path d={fill} fill="url(#sf-w)"/>}
-          {p&&<path d={p} fill="none" stroke="url(#sg-w)" strokeWidth="8"   opacity="0.15" filter="url(#sg-gw)"/>}
-          {p&&<path d={p} fill="none" stroke="url(#sg-w)" strokeWidth="4"   opacity="0.25" style={{filter:"blur(1.5px)"}}/>}
-          {p&&<path d={p} fill="none" stroke="url(#sg-w)" strokeWidth="2.5" strokeLinecap="round"/>}
-          {p&&<path d={p} fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="1" strokeLinecap="round"/>}
+
+      {/* SVG — clipped, no overflow */}
+      <div style={{overflow:"hidden",borderRadius:8}}>
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block"}}>
+          {/* Subtle threshold lines */}
+          <line x1={PAD} y1={y100} x2={W-PAD} y2={y100} stroke="rgba(220,38,38,.15)" strokeWidth="0.7" strokeDasharray="3,3"/>
+          <line x1={PAD} y1={y86}  x2={W-PAD} y2={y86}  stroke="rgba(245,158,11,.15)" strokeWidth="0.7" strokeDasharray="3,3"/>
+          <text x={W-2} y={y100-1} fontSize="5.5" fill="rgba(220,38,38,.45)" textAnchor="end" fontFamily="Heebo,sans-serif">100</text>
+          <text x={W-2} y={y86-1}  fontSize="5.5" fill="rgba(245,158,11,.5)"  textAnchor="end" fontFamily="Heebo,sans-serif">86</text>
+          {/* Smooth line */}
+          {linePath&&<path d={linePath} fill="none" stroke="rgba(148,163,184,.45)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>}
+          {/* Dots */}
           {days.map((d,i)=>{
-            const x=xs[i];
-            if(!d.v)return <circle key={i} cx={x} cy={H-15} r="3.5" fill="none" stroke="#dde3ea" strokeWidth="1.5" strokeDasharray="2.5,2"/>;
+            if(!d.v) return <circle key={i} cx={xs[i]} cy={H*0.58} r="2" fill="none" stroke="rgba(148,163,184,.25)" strokeWidth="1"/>;
             const y=toY(d.v),col=sugarColor(d.v);
             return <g key={i}>
-              <circle cx={x} cy={y} r="7.5" fill={col+'22'}/>
-              <circle cx={x} cy={y} r="4"   fill={col}/>
-              <circle cx={x} cy={y} r="1.6" fill="rgba(255,255,255,.65)"/>
+              <circle cx={xs[i]} cy={y} r="5.5" fill="rgba(255,255,255,.9)" stroke={col} strokeWidth="1.5"/>
+              <circle cx={xs[i]} cy={y} r="2.2" fill={col}/>
             </g>;
           })}
         </svg>
       </div>
-      <div style={{display:"flex",justifyContent:"space-between",marginTop:8}}>
+
+      {/* Labels — direction:ltr so index 0 = left = matches SVG x */}
+      <div style={{display:"flex",direction:"ltr",marginTop:5}}>
         {days.map((d,i)=>(
           <div key={i} style={{flex:1,textAlign:"center"}}>
-            <div style={{fontSize:8,color:"#94a3b8"}}>{HE[d.dow]}</div>
-            {d.v?<div style={{fontSize:9,fontWeight:700,color:sugarColor(d.v)}}>{d.v}</div>
-                :<div style={{fontSize:9,color:"#94a3b8"}}>—</div>}
+            <div style={{fontSize:7.5,color:"#94a3b8"}}>{HE[d.dow]}</div>
+            {d.v?<div style={{fontSize:8.5,fontWeight:700,color:sugarColor(d.v)}}>{d.v}</div>
+                :<div style={{fontSize:8.5,color:"rgba(148,163,184,.4)"}}>—</div>}
           </div>
         ))}
       </div>
@@ -2139,7 +2115,12 @@ function App(){
   const MAX_KCAL=activeProfile?.maxKcal||1800;
   const MAX_CARBS=activeProfile?.maxCarbs||80;
 
-  const [entries,setEntries]=useState([]);
+  const [entries,setEntries]=useState(()=>{
+    const savedPid=loadActiveProfileId()||'default';
+    const j=loadJournal(savedPid);
+    const today=getTodayKey();
+    return j[today]?.entries?.map(e=>({...e,uid:Date.now()+Math.random()}))||[];
+  });
 
   const switchProfile=(p)=>{
     setActiveProfile(p);
@@ -2154,7 +2135,12 @@ function App(){
   const [showSmart,setShowSmart]=useState(false);
   const [showMeal,setShowMeal]=useState(false);
   const [showPhoto,setShowPhoto]=useState(false);
-  const [bloodSugar,setBloodSugar]=useState("");
+  const [bloodSugar,setBloodSugar]=useState(()=>{
+    const savedPid=loadActiveProfileId()||'default';
+    const j=loadJournal(savedPid);
+    const today=getTodayKey();
+    return j[today]?.bloodSugar?String(j[today].bloodSugar):"";
+  });
   const [editingQuickFood,setEditingQuickFood]=useState(null);
   const [showJournal,setShowJournal]=useState(false);
   const [showNewBtn,setShowNewBtn]=useState(false);
