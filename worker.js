@@ -48,20 +48,18 @@ Meal: ${mealDescription}
 After your calculation, output ONLY this JSON on the very last line (no markdown):
 {"label":"short Hebrew meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT}`;
       } else if (mealPlan) {
-        model = 'claude-sonnet-4-6';
-        max_tokens = 2048;
-        system = 'אתה תזונאי ושף מנוסה. ענה תמיד בעברית. החזר JSON תקין בלבד בשורה האחרונה, ללא markdown.';
+        model = 'claude-haiku-4-5-20251001';
+        max_tokens = 1200;
+        system = 'אתה תזונאי ושף. ענה בעברית. החזר JSON בלבד בשורה האחרונה, ללא markdown.';
         const { preferences, people, refine, selectedMeal } = mealPlan;
         if (selectedMeal) {
-          prompt = `תכנן מתכון מפורט עבור "${selectedMeal}" ל-${people} אנשים.
-השתמש במדידות מטריות בלבד (גרם, מ"ל, כפות).
+          prompt = `מתכון קצר עבור "${selectedMeal}" ל-${people} אנשים. עד 6 רכיבים, עד 5 שלבים קצרים.
 החזר JSON בשורה האחרונה:
-{"recipe":{"name":"שם","ingredients":[{"item":"חומר","amount":"כמות"}],"steps":["שלב 1"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`;
+{"recipe":{"name":"שם","ingredients":[{"item":"חומר","amount":"כמות"}],"steps":["שלב"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`;
         } else {
-          const refineText = refine ? `\n\nהערות לשיפור: ${refine}` : '';
-          prompt = `הצע 3 אפשרויות ארוחה עבור ${people} אנשים.
-העדפות: ${preferences || 'ללא הגבלות מיוחדות'}${refineText}
-לכל אפשרות תן הערכה תזונתית לאדם אחד.
+          const refineText = refine ? `\nהערות: ${refine}` : '';
+          prompt = `הצע 3 אפשרויות ארוחה ל-${people} אנשים.
+העדפות: ${preferences || 'ללא הגבלות'}${refineText}
 החזר JSON בשורה האחרונה:
 {"options":[{"name":"שם","description":"תיאור קצר","kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0}]}`;
         }
