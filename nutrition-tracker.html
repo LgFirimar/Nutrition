@@ -164,6 +164,11 @@ button:active{opacity:0.75;transform:scale(0.97)}
 .num-wrap input{width:100%;background:rgba(255,255,255,.6);border:1px solid rgba(148,163,184,.28);border-radius:10px;color:#0f172a;padding:10px 6px;padding-top:18px;font-size:14px;font-weight:700;text-align:center;font-family:'Heebo',sans-serif;transition:border-color 0.2s}
 .num-lbl{position:absolute;top:4px;right:0;left:0;text-align:center;font-size:9px;font-weight:700}
 .edit-row{padding:0 14px 12px;display:flex;gap:8px;align-items:center}
+
+/* Quick-add compact grid */
+.qa-wrap .chip{padding:5px 7px;border-radius:10px;font-size:10px;}
+.qa-wrap .chip-sub{font-size:8px;}
+.qa-wrap .chip span[style]{font-size:15px!important;}
 </style>
 </head>
 <body>
@@ -443,7 +448,7 @@ function calcNutrition(f, amt, unit) {
 }
 
 const C = { accent:"#0d9488", warn:"#d97706", danger:"#dc2626", blue:"#2563eb", muted:"#64748b", text:"#0f172a", border:"rgba(148,163,184,.25)" };
-const sugarColor = v => { const n=Number(v); return n>=100?'#dc2626':n>=86?'#f59e0b':n>0?'#0d9488':'#94a3b8'; };
+const sugarColor = v => { const n=Number(v); return n>=100?'#dc2626':n>=86?'#f59e0b':n>0?'#15803d':'#94a3b8'; };
 const MAX_KCAL=1800, MAX_CARBS=80;
 const QUICK_FOODS = [
   {id:"cheese",label:"🧀 אצבע גבינה",kcal:60,carbs:1,protein:6,fat:3.5},
@@ -1309,6 +1314,7 @@ function SmartAddPanel({onAdd,onClose}){
   const [kcal,setKcal]=useState("");
   const [carbs,setCarbs]=useState("");
   const [protein,setProtein]=useState("");
+  const [fat,setFat]=useState("");
   const [notFound,setNotFound]=useState(false);
 
   const applyFood=(food,amt,u)=>{
@@ -1318,12 +1324,12 @@ function SmartAddPanel({onAdd,onClose}){
     const ru=u||unit||food.unit;
     setUnit(ru);
     const n=calcNutrition(food,a,ru);
-    setKcal(String(n.kcal));setCarbs(String(n.carbs));setProtein(String(n.protein));
+    setKcal(String(n.kcal));setCarbs(String(n.carbs));setProtein(String(n.protein));setFat(String(n.fat||0));
   };
 
   const runSearch=(name,amt,u)=>{
     setMatched(null);setCandidates([]);setNotFound(false);
-    setKcal("");setCarbs("");setProtein("");
+    setKcal("");setCarbs("");setProtein("");setFat("");
     const results=searchAllFoods(name);
     if(results.length===0){setNotFound(true);}
     else if(results.length===1){applyFood(results[0],amt,u);}
@@ -1334,14 +1340,14 @@ function SmartAddPanel({onAdd,onClose}){
     if(!matched)return;
     const a=parseFloat(amt);if(!a)return;
     const n=calcNutrition(matched,a,u||unit);
-    setKcal(String(n.kcal));setCarbs(String(n.carbs));setProtein(String(n.protein));
+    setKcal(String(n.kcal));setCarbs(String(n.carbs));setProtein(String(n.protein));setFat(String(n.fat||0));
   };
 
   const handleAdd=()=>{
     if(!kcal)return;
     const unitLabel=unit==="כף"?"כף":unit==="כפית"?"כפית":unit==="כוס"?"כוס":unit;
     const label=matched?`${matched.label} (${amount}${unitLabel})`:query||"מאכל";
-    const entry={uid:Date.now()+Math.random(),label,kcal:parseFloat(kcal)||0,carbs:parseFloat(carbs)||0,protein:parseFloat(protein)||0,fat:0};
+    const entry={uid:Date.now()+Math.random(),label,kcal:parseFloat(kcal)||0,carbs:parseFloat(carbs)||0,protein:parseFloat(protein)||0,fat:parseFloat(fat)||0};
     addToRecentFoods(entry);
     onAdd(entry);
     onClose();
@@ -1559,8 +1565,8 @@ function SugarWeekChart({journal}){
               <stop offset="0%"   stopColor="#dc2626"/>
               <stop offset={`${(y100/H*100-8).toFixed(0)}%`} stopColor="#dc2626"/>
               <stop offset={`${(y100/H*100+8).toFixed(0)}%`} stopColor="#f59e0b"/>
-              <stop offset={`${(y86/H*100+8).toFixed(0)}%`}  stopColor="#0d9488"/>
-              <stop offset="100%" stopColor="#0d9488"/>
+              <stop offset={`${(y86/H*100+8).toFixed(0)}%`}  stopColor="#15803d"/>
+              <stop offset="100%" stopColor="#15803d"/>
             </linearGradient>
           </defs>
           {/* Subtle threshold lines */}
@@ -2391,8 +2397,8 @@ function App(){
         </div>
       </div>
 
-      {/* ── QUICK ADD CHIPS — horizontal scroll ── */}
-      <div style={{display:"flex",gap:8,overflowX:"auto",padding:"0 20px 14px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch"}}>
+      {/* ── QUICK ADD CHIPS — compact wrap grid ── */}
+      <div className="qa-wrap" style={{display:"flex",flexWrap:"wrap",gap:6,padding:"0 16px 14px"}}>
         {quickFoods.map(food=>(
           <div key={food.id} style={{flexShrink:0,position:"relative"}}>
             <QuickFoodChip food={food} onAdd={addEntry} editMode={showEditQuick} onRemove={removeQuickFood} onEdit={setEditingQuickFood}/>
@@ -2411,10 +2417,8 @@ function App(){
             {showEditQuick&&<button onClick={()=>setEditingQuickFood({...btn,_type:'custom'})} style={{position:"absolute",top:-4,right:-4,background:C.warn,border:"none",borderRadius:"50%",width:18,height:18,color:"#fff",fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✏</button>}
           </div>
         ))}
-        <div style={{flexShrink:0,display:"flex",gap:6,alignItems:"center"}}>
-          <button onClick={()=>{setShowPhoto(v=>!v);setShowMeal(false);setShowSmart(false);}} style={{background:showPhoto?"#1a6b9e":"rgba(255,255,255,.65)",border:`1px dashed ${showPhoto?"#1a6b9e":C.border}`,color:showPhoto?"#fff":C.muted,padding:"8px 14px",borderRadius:16,fontSize:12,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>📷 תמונה</button>
-          <button onClick={()=>{setShowMeal(v=>!v);setShowSmart(false);setShowPhoto(false);}} style={{background:showMeal?"#5a3e8e":"rgba(255,255,255,.65)",border:`1px dashed ${showMeal?"#5a3e8e":C.border}`,color:showMeal?"#fff":C.muted,padding:"8px 14px",borderRadius:16,fontSize:12,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>🍽 ארוחה</button>
-        </div>
+        <button onClick={()=>{setShowPhoto(v=>!v);setShowMeal(false);setShowSmart(false);}} style={{background:showPhoto?"#1a6b9e":"rgba(255,255,255,.65)",border:`1px dashed ${showPhoto?"#1a6b9e":C.border}`,color:showPhoto?"#fff":C.muted,padding:"5px 8px",borderRadius:10,fontSize:10,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>📷 תמונה</button>
+        <button onClick={()=>{setShowMeal(v=>!v);setShowSmart(false);setShowPhoto(false);}} style={{background:showMeal?"#5a3e8e":"rgba(255,255,255,.65)",border:`1px dashed ${showMeal?"#5a3e8e":C.border}`,color:showMeal?"#fff":C.muted,padding:"5px 8px",borderRadius:10,fontSize:10,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>🍽 ארוחה</button>
       </div>
 
       {showPhoto&&<PhotoMealPanel onAdd={addEntry} onClose={()=>setShowPhoto(false)}/>}
