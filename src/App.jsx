@@ -194,17 +194,21 @@ const C = { accent:"#0d9488", warn:"#d97706", danger:"#dc2626", blue:"#2563eb", 
 const sugarColor = v => { const n=Number(v); return n>=100?'#dc2626':n>=86?'#f59e0b':n>0?'#15803d':'#94a3b8'; };
 const MAX_KCAL=1800, MAX_CARBS=80;
 const QUICK_FOODS = [
-  {id:"cheese",label:"🧀 אצבע גבינה",kcal:60,carbs:1,protein:6,fat:3.5},
-  {id:"egg_lunch",label:"🥚 לאנץ׳ ביצים",kcal:335,carbs:6,protein:22,fat:24},
-  {id:"yolk",label:"🟡 חלמון ביצה",kcal:55,carbs:0.3,protein:2.7,fat:4.5},
-  {id:"egg1",label:"🥚 ביצה קשה",kcal:70,carbs:0.5,protein:6,fat:5},
-  {id:"yogurt",label:"🍓 יוגורט + גרנולה ביתית",kcal:143,carbs:13.7,protein:5,fat:5},
-  {id:"scone",label:"🫓 סקון בוקר",kcal:364,carbs:52,protein:7,fat:15},
-  {id:"scone_spread",label:"🍓 סקון - מריחה",kcal:75,carbs:8,protein:0.3,fat:4},
+  {id:"cheese",label:"🧀 אצבע גבינה",labelEn:"🧀 Cheese Finger",kcal:60,carbs:1,protein:6,fat:3.5},
+  {id:"egg_lunch",label:"🥚 לאנץ׳ ביצים",labelEn:"🥚 Egg Lunch",kcal:335,carbs:6,protein:22,fat:24},
+  {id:"yolk",label:"🟡 חלמון ביצה",labelEn:"🟡 Egg Yolk",kcal:55,carbs:0.3,protein:2.7,fat:4.5},
+  {id:"egg1",label:"🥚 ביצה קשה",labelEn:"🥚 Hard Boiled Egg",kcal:70,carbs:0.5,protein:6,fat:5},
+  {id:"yogurt",label:"🍓 יוגורט + גרנולה ביתית",labelEn:"🍓 Yogurt + Homemade Granola",kcal:143,carbs:13.7,protein:5,fat:5},
+  {id:"scone",label:"🫓 סקון בוקר",labelEn:"🫓 Morning Scone",kcal:364,carbs:52,protein:7,fat:15},
+  {id:"scone_spread",label:"🍓 סקון - מריחה",labelEn:"🍓 Scone Spread",kcal:75,carbs:8,protein:0.3,fat:4},
 ];
 const VAR_FOODS = {
-  crackers:{label:"🫙 קרקרים",kcalPer100:483,carbsPer100:27,protPer100:17,fatPer100:33,def:30},
-  granola:{label:"🥣 גרנולה ביתית",kcalPer100:500,carbsPer100:41.8,protPer100:13.6,fatPer100:33.7,def:40},
+  crackers:{label:"🫙 קרקרים",labelEn:"🫙 Crackers",kcalPer100:483,carbsPer100:27,protPer100:17,fatPer100:33,def:30},
+  granola:{label:"🥣 גרנולה ביתית",labelEn:"🥣 Homemade Granola",kcalPer100:500,carbsPer100:41.8,protPer100:13.6,fatPer100:33.7,def:40},
+};
+const getFoodLabel = food => {
+  const lang = localStorage.getItem('nutrition_lang') || 'he';
+  return (lang === 'en' && food.labelEn) ? food.labelEn : food.label;
 };
 const MILK={kcal:0.5,carbs:0.047,protein:0.034,fat:0.02};
 
@@ -315,14 +319,15 @@ function VarButton({foodKey,onAdd,editMode,onEdit}){
   const food=ov?{...base,kcalPer100:ov.kcal,carbsPer100:ov.carbs,protPer100:ov.protein,fatPer100:ov.fat,label:ov.label||base.label}:base;
   const [g,setG]=useState(food.def);
   const [open,setOpen]=useState(false);
-  const calc=v=>({label:`${food.label} (${v}g)`,kcal:food.kcalPer100*v/100,carbs:food.carbsPer100*v/100,protein:food.protPer100*v/100,fat:food.fatPer100*v/100});
+  const displayLabel=getFoodLabel(food);
+  const calc=v=>({label:`${displayLabel} (${v}g)`,kcal:food.kcalPer100*v/100,carbs:food.carbsPer100*v/100,protein:food.protPer100*v/100,fat:food.fatPer100*v/100});
   return (
     <div style={{position:"relative"}}>
       <button className="chip" style={{background:open&&!editMode?"rgba(90,158,30,0.08)":"#fff",border:`1px solid ${open&&!editMode?C.accent:C.border}`,opacity:editMode?0.7:1}} onClick={()=>editMode?null:setOpen(v=>!v)}>
-        <span>{food.label}</span>
+        <span>{displayLabel}</span>
         <span className="chip-sub">{Math.round(food.kcalPer100*g/100)} {getT().kcal} ({g}g)</span>
       </button>
-      {!editMode&&open && <VPopup label="כמה גרם?" value={g} setValue={setG} step={5} min={5}
+      {!editMode&&open && <VPopup label={getT().howMuchG||"g?"} value={g} setValue={setG} step={5} min={5}
         kcal={Math.round(food.kcalPer100*g/100)} carbs={(food.carbsPer100*g/100).toFixed(1)}
         onAdd={()=>{onAdd(calc(g));setOpen(false);setG(food.def);}}/>}
       {editMode&&<><button onClick={()=>onEdit({id:`var_${foodKey}`,label:food.label,kcal:food.kcalPer100,carbs:food.carbsPer100,protein:food.protPer100,fat:food.fatPer100,_type:'var',_key:foodKey})}
@@ -338,7 +343,7 @@ function VarButton({foodKey,onAdd,editMode,onEdit}){
 function YogurtBtn({onAdd,editMode,onEdit}){
   const ov=getSpecialEdit('yogurt');
   const per100=ov||{kcal:97,carbs:6,protein:9,fat:10};
-  const label=(ov&&ov.label)||'🥛 יוגורט 10%';
+  const label=(ov&&ov.label)||(getT().yogurtLabel||'🥛 יוגורט 10%');
   const [open,setOpen]=useState(false);
   const [ml,setMl]=useState(30);
   const calc={kcal:Math.round(per100.kcal/100*ml),carbs:parseFloat((per100.carbs/100*ml).toFixed(1)),protein:parseFloat((per100.protein/100*ml).toFixed(1)),fat:parseFloat(((per100.fat||0)/100*ml).toFixed(1))};
@@ -383,7 +388,7 @@ function YogurtBtn({onAdd,editMode,onEdit}){
 function CoffeeBtn({onAdd,editMode,onEdit}){
   const ov=getSpecialEdit('coffee');
   const per100=ov||{kcal:50,carbs:4.7,protein:3.4,fat:2};
-  const coffeeLabel=(ov&&ov.label)||'☕ קפה עם חלב 2%';
+  const coffeeLabel=(ov&&ov.label)||(getT().coffeeLabel||'☕ קפה עם חלב 2%');
   const [ml,setMl]=useState(75);
   const [open,setOpen]=useState(false);
   const milk={kcal:per100.kcal/100,carbs:per100.carbs/100,protein:per100.protein/100,fat:per100.fat/100};
@@ -1704,7 +1709,7 @@ function QuickFoodChip({food,onAdd,editMode,onRemove,onEdit}){
         ...food, uid:Date.now()+Math.random(), count:1,
         perUnit:{kcal:food.kcal,carbs:food.carbs,protein:food.protein||0,fat:food.fat||0}
       })}>
-      <span>{food.label}</span>
+      <span>{getFoodLabel(food)}</span>
       <span className="chip-sub">{food.kcal} {getT().kcal} · {food.carbs}g {getT().carbs}</span>
     </button>
   );
@@ -1873,7 +1878,8 @@ const LANG={
       home:"בית",journal:"יומן",db:"מאגר",profile:"פרופיל",
       photo:"📷 תמונה",mealBtn:"🍽 ארוחה",whatEat:"🍳 מה אוכלים",
       daySaved:"שמור",yesterday:"📋 אתמול",clear:"נקה",people:"אנשים",
-      close:"סגור",cancel:"ביטול",save:"שמור",add:"הוסף",
+      close:"סגור",cancel:"ביטול",save:"שמור",add:"הוסף",howMuchG:"כמה גרם?",
+      yogurtLabel:"🥛 יוגורט 10%",coffeeLabel:"☕ קפה עם חלב 2%",
       journalTitle:"יומן תזונה",daysSaved:"ימים שמורים",days:"ימים",
       journalTab:"📋 יומן",weekTab:"📊 שבועי",
       noDays:"אין ימים שמורים עדיין",noData:"אין נתונים שמורים",
@@ -1890,7 +1896,8 @@ const LANG={
       home:"Home",journal:"Journal",db:"Foods",profile:"Profile",
       photo:"📷 Photo",mealBtn:"🍽 Meal",whatEat:"🍳 What to eat",
       daySaved:"Saved",yesterday:"📋 Yesterday",clear:"Clear",people:"people",
-      close:"Close",cancel:"Cancel",save:"Save",add:"Add",
+      close:"Close",cancel:"Cancel",save:"Save",add:"Add",howMuchG:"How much (g)?",
+      yogurtLabel:"🥛 Yogurt 10%",coffeeLabel:"☕ Coffee with Milk 2%",
       journalTitle:"Nutrition Journal",daysSaved:"days saved",days:"days",
       journalTab:"📋 Journal",weekTab:"📊 Weekly",
       noDays:"No saved days yet",noData:"No saved data",
