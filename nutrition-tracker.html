@@ -390,6 +390,7 @@ function calcNutrition(f, amt, unit) {
 }
 
 const C = { accent:"#5a9e1e", warn:"#c47a00", danger:"#e03e3e", blue:"#2a7dd4", muted:"#888", text:"#1a1a1a", border:"#e0e0e5" };
+const sugarColor = v => { const n=Number(v); return n>=100?'#dc2626':n>=86?'#d97706':n>0?'#0d9488':'#e03e3e'; };
 const MAX_KCAL=1800, MAX_CARBS=80;
 const QUICK_FOODS = [
   {id:"cheese",label:"🧀 אצבע גבינה",kcal:60,carbs:1,protein:6,fat:3.5},
@@ -1365,7 +1366,7 @@ function SmartAddPanel({onAdd,onClose}){
       </div>
       <div style={{display:"flex",gap:8}}>
         <button className="btn-muted" onClick={onClose} style={{flex:1}}>ביטול</button>
-        <button onClick={handleAdd} disabled={!kcal} style={{flex:2,background:kcal?C.accent:"#ddd",border:"none",borderRadius:8,color:kcal?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:kcal?"pointer":"default"}}>+ הוסף ליום</button>
+        <button onClick={handleAdd} disabled={!kcal} style={{flex:2,background:kcal?C.accent:"#ddd",border:"none",borderRadius:8,color:kcal?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:kcal?"pointer":"default"}}>+ הוסף פריט</button>
       </div>
     </div>
   );
@@ -1451,6 +1452,111 @@ function NewButtonModal({onClose,onSave}){
   );
 }
 
+// ── SugarWeekChart ─────────────────────────────────────────────────────────────
+function SugarWeekChart({journal}){
+  const H=70;
+  const xs=[20,60,100,140,180,220,260];
+  const HE=['א','ב','ג','ד','ה','ו','ש'];
+  const toY=v=>Math.max(2,Math.min(H-2,H-(Number(v)-60)));
+  const y100=H-(100-60), y86=H-(86-60); // =30, =44
+
+  const days=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date(); d.setDate(d.getDate()-i);
+    const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const v=journal[k]?.bloodSugar?Number(journal[k].bloodSugar):null;
+    days.push({k,v,dow:d.getDay()});
+  }
+  const known=days.map((d,i)=>d.v?{x:xs[i],y:toY(d.v)}:null).filter(Boolean);
+  if(!known.length)return null;
+
+  const crPath=ps=>{
+    if(ps.length<2)return`M ${ps[0].x},${ps[0].y}`;
+    const s=[`M ${ps[0].x},${ps[0].y}`];
+    for(let i=0;i<ps.length-1;i++){
+      const p0=ps[Math.max(0,i-1)],p1=ps[i],p2=ps[i+1],p3=ps[Math.min(ps.length-1,i+2)];
+      const c1x=(p1.x+(p2.x-p0.x)/6).toFixed(1),c1y=(p1.y+(p2.y-p0.y)/6).toFixed(1);
+      const c2x=(p2.x-(p3.x-p1.x)/6).toFixed(1),c2y=(p2.y-(p3.y-p1.y)/6).toFixed(1);
+      s.push(`C ${c1x},${c1y} ${c2x},${c2y} ${p2.x},${p2.y}`);
+    }
+    return s.join(' ');
+  };
+
+  const p=known.length>=2?crPath(known):null;
+  const fill=p?`${p} L ${known[known.length-1].x},${H} L ${known[0].x},${H} Z`:null;
+
+  return(
+    <div style={{background:"#fff",border:"1px solid #e0e0e5",borderRadius:12,padding:"16px 18px",marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+        <div style={{fontSize:10,color:"#94a3b8",letterSpacing:1.5,textTransform:"uppercase"}}>🩸 סוכר — שבוע נוכחי</div>
+        <div style={{display:"flex",gap:8}}>
+          {[["≤85","#0d9488"],["86–99","#d97706"],["≥100","#dc2626"]].map(([l,c])=>(
+            <span key={l} style={{fontSize:8,color:c,display:"inline-flex",alignItems:"center",gap:2}}>
+              <span style={{width:8,height:2,borderRadius:1,background:"currentColor",display:"inline-block"}}></span>{l}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div style={{paddingTop:12}}>
+        <svg width="100%" viewBox={`0 0 280 ${H+5}`} style={{display:"block",overflow:"visible"}}>
+          <defs>
+            <linearGradient id="sg-w" x1="0" y1="0" x2="0" y2={H} gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stopColor="#ef4444"/>
+              <stop offset="30%"  stopColor="#dc2626"/>
+              <stop offset="43%"  stopColor="#fb923c"/>
+              <stop offset="55%"  stopColor="#d97706"/>
+              <stop offset="63%"  stopColor="#d97706"/>
+              <stop offset="78%"  stopColor="#10b981"/>
+              <stop offset="100%" stopColor="#0d9488"/>
+            </linearGradient>
+            <linearGradient id="sf-w" x1="0" y1="0" x2="0" y2={H} gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stopColor="rgba(239,68,68,.15)"/>
+              <stop offset="43%"  stopColor="rgba(251,146,60,.10)"/>
+              <stop offset="63%"  stopColor="rgba(16,185,129,.06)"/>
+              <stop offset="100%" stopColor="rgba(13,148,136,0)"/>
+            </linearGradient>
+            <filter id="sg-gw" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <rect x="0" y="0"    width="248" height={y100}      fill="rgba(220,38,38,.05)" rx="2"/>
+          <rect x="0" y={y100} width="248" height={y86-y100}  fill="rgba(217,119,6,.04)"/>
+          <rect x="0" y={y86}  width="248" height={H-y86}     fill="rgba(13,148,136,.05)"/>
+          <line x1="0" y1={y100} x2="248" y2={y100} stroke="rgba(220,38,38,.22)" strokeWidth="0.8" strokeDasharray="4,3"/>
+          <line x1="0" y1={y86}  x2="248" y2={y86}  stroke="rgba(217,119,6,.18)"  strokeWidth="0.8" strokeDasharray="4,3"/>
+          <text x="251" y={y100-1} fontSize="6.5" fill="rgba(220,38,38,.7)"  fontFamily="Heebo,sans-serif" fontWeight="700">100</text>
+          <text x="251" y={y86-1}  fontSize="6.5" fill="rgba(217,119,6,.75)" fontFamily="Heebo,sans-serif" fontWeight="700">86</text>
+          {fill&&<path d={fill} fill="url(#sf-w)"/>}
+          {p&&<path d={p} fill="none" stroke="url(#sg-w)" strokeWidth="8"   opacity="0.15" filter="url(#sg-gw)"/>}
+          {p&&<path d={p} fill="none" stroke="url(#sg-w)" strokeWidth="4"   opacity="0.25" style={{filter:"blur(1.5px)"}}/>}
+          {p&&<path d={p} fill="none" stroke="url(#sg-w)" strokeWidth="2.5" strokeLinecap="round"/>}
+          {p&&<path d={p} fill="none" stroke="rgba(255,255,255,.3)" strokeWidth="1" strokeLinecap="round"/>}
+          {days.map((d,i)=>{
+            const x=xs[i];
+            if(!d.v)return <circle key={i} cx={x} cy={H-15} r="3.5" fill="none" stroke="#dde3ea" strokeWidth="1.5" strokeDasharray="2.5,2"/>;
+            const y=toY(d.v),col=sugarColor(d.v);
+            return <g key={i}>
+              <circle cx={x} cy={y} r="7.5" fill={col+'22'}/>
+              <circle cx={x} cy={y} r="4"   fill={col}/>
+              <circle cx={x} cy={y} r="1.6" fill="rgba(255,255,255,.65)"/>
+            </g>;
+          })}
+        </svg>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",marginTop:8}}>
+        {days.map((d,i)=>(
+          <div key={i} style={{flex:1,textAlign:"center"}}>
+            <div style={{fontSize:8,color:"#94a3b8"}}>{HE[d.dow]}</div>
+            {d.v?<div style={{fontSize:9,fontWeight:700,color:sugarColor(d.v)}}>{d.v}</div>
+                :<div style={{fontSize:9,color:"#94a3b8"}}>—</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── JournalView ────────────────────────────────────────────────────────────────
 function JournalView({onClose,onLoadDay,pid}){
   const [journal,setJournal]=useState(()=>loadJournal(pid||'default'));
@@ -1510,8 +1616,8 @@ function JournalView({onClose,onLoadDay,pid}){
                         ))}
                         {journal[key].bloodSugar&&(
                           <div style={{padding:"6px 0",borderBottom:"1px solid rgba(0,0,0,0.06)",display:"flex",justifyContent:"space-between"}}>
-                            <span style={{fontSize:12,color:"#e03e3e"}}>🩸 סוכר בוקר</span>
-                            <span style={{fontSize:12,fontWeight:700,color:"#e03e3e"}}>{journal[key].bloodSugar} mg/dL</span>
+                            <span style={{fontSize:12,color:sugarColor(journal[key].bloodSugar)}}>🩸 סוכר בוקר</span>
+                            <span style={{fontSize:12,fontWeight:700,color:sugarColor(journal[key].bloodSugar)}}>{journal[key].bloodSugar} mg/dL</span>
                           </div>
                         )}
                         <div style={{marginTop:10,padding:"8px 0",borderTop:"1px solid rgba(90,158,30,0.27)",display:"flex",justifyContent:"space-between"}}>
@@ -1549,6 +1655,7 @@ function JournalView({onClose,onLoadDay,pid}){
                   </div>
                 ))}
               </div>
+              <SugarWeekChart journal={journal}/>
               <div className="card">
                 {weekDays.map((key,i)=>(
                   <div key={key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 16px",borderBottom:i<weekDays.length-1?"1px solid #e0e0e5":"none"}}>
@@ -2168,7 +2275,7 @@ function App(){
         <span style={{fontSize:12,color:C.muted,flex:1}}>סוכר בוקר</span>
         <input type="number" value={bloodSugar} onChange={e=>setBloodSugar(e.target.value)}
           onBlur={e=>saveBloodSugar(e.target.value)}
-          placeholder="— mg/dL" style={{width:90,background:"transparent",border:"none",textAlign:"left",fontSize:13,fontWeight:700,color:"#e03e3e",fontFamily:"inherit"}}/>
+          placeholder="— mg/dL" style={{width:90,background:"transparent",border:"none",textAlign:"left",fontSize:13,fontWeight:700,color:sugarColor(bloodSugar),fontFamily:"inherit"}}/>
       </div>
 
       {/* Quick Add */}
