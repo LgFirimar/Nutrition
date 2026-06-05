@@ -2027,12 +2027,29 @@ function MealPlannerModal({onAdd,onClose,lang}){
     setLoading(false);
   };
 
-  const addToDay=()=>{
+  const [editBeforeAdd,setEditBeforeAdd]=useState(false);
+  const [editVals,setEditVals]=useState({});
+
+  const addToDay=(overrides)=>{
     if(!recipe)return;
-    onAdd({uid:Date.now()+Math.random(),label:recipe.name,
-      kcal:recipe.kcalPerPerson||0,carbs:recipe.carbsPerPerson||0,
-      protein:recipe.proteinPerPerson||0,fat:recipe.fatPerPerson||0});
+    const vals=overrides||{};
+    onAdd({uid:Date.now()+Math.random(),label:vals.label||recipe.name,
+      kcal:parseFloat(vals.kcal??recipe.kcalPerPerson)||0,
+      carbs:parseFloat(vals.carbs??recipe.carbsPerPerson)||0,
+      protein:parseFloat(vals.protein??recipe.proteinPerPerson)||0,
+      fat:parseFloat(vals.fat??recipe.fatPerPerson)||0});
     onClose();
+  };
+
+  const openEdit=()=>{
+    setEditVals({
+      label:recipe.name,
+      kcal:String(recipe.kcalPerPerson||0),
+      carbs:String(recipe.carbsPerPerson||0),
+      protein:String(recipe.proteinPerPerson||0),
+      fat:String(recipe.fatPerPerson||0),
+    });
+    setEditBeforeAdd(true);
   };
 
   return(
@@ -2154,11 +2171,43 @@ function MealPlannerModal({onAdd,onClose,lang}){
             {(recipe.steps||[]).map((s,i)=><li key={i} style={{fontSize:13,color:C.text,marginBottom:6,lineHeight:1.5}}>{s}</li>)}
           </ol>
           {error&&<div style={{color:C.danger,fontSize:12,marginBottom:8}}>{error}</div>}
-          <div style={{display:"flex",gap:8}}>
-            <button onClick={()=>{setStep(2);setRecipe(null);}} className="btn-muted" style={{flex:1,borderRadius:10}}>{isHe?"חזרה":"Back"}</button>
-            <button onClick={addToDay} className="btn-accent" style={{flex:2,borderRadius:10}}>
-              {isHe?"+ הוסף ליומן היום":"+ Add to today"}
-            </button>
+
+          {/* Edit before add form */}
+          {editBeforeAdd&&(
+            <div className="fade" style={{background:"rgba(148,163,184,.08)",borderRadius:12,padding:"12px 14px",marginBottom:12}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:10}}>{isHe?"ערוך לפני הוספה":"Edit before adding"}</div>
+              <input value={editVals.label||""} onChange={e=>setEditVals(v=>({...v,label:e.target.value}))}
+                className="inp" style={{marginBottom:8,fontSize:13}}/>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10}}>
+                {[["kcal",isHe?"קק״ל":"kcal",C.accent],["carbs",isHe?"פחמ׳ g":"carbs g",C.warn],["protein",isHe?"חלבון g":"prot g",C.blue],["fat",isHe?"שומן g":"fat g","#999"]].map(([k,lbl,c])=>(
+                  <div key={k} className="num-wrap">
+                    <input type="number" value={editVals[k]||""} onChange={e=>setEditVals(v=>({...v,[k]:e.target.value}))}
+                      style={{borderColor:c}} className="num-wrap"/>
+                    <div className="num-lbl" style={{color:c}}>{lbl}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>setEditBeforeAdd(false)} className="btn-muted" style={{flex:1,padding:"8px",borderRadius:8}}>{isHe?"ביטול":"Cancel"}</button>
+                <button onClick={()=>addToDay(editVals)} className="btn-accent" style={{flex:2,borderRadius:8}}>
+                  {isHe?"✓ הוסף":"✓ Add"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>{setStep(2);setRecipe(null);setEditBeforeAdd(false);}} className="btn-muted" style={{flex:1,borderRadius:10}}>{isHe?"חזרה":"Back"}</button>
+              <button onClick={()=>addToDay()} className="btn-accent" style={{flex:2,borderRadius:10}}>
+                {isHe?"+ הוסף ליומן היום":"+ Add to today"}
+              </button>
+            </div>
+            {!editBeforeAdd&&(
+              <button onClick={openEdit} style={{width:"100%",background:"none",border:`1px solid ${C.accent}`,color:C.accent,borderRadius:10,padding:"9px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                {isHe?"✏️ הוסף עם שינויים":"✏️ Add with changes"}
+              </button>
+            )}
           </div>
         </>}
       </div>
