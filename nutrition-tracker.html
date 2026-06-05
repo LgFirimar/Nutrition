@@ -35,7 +35,7 @@ button:active{opacity:0.75;transform:scale(0.97)}
 @keyframes splashSlideLeft{from{opacity:0;transform:translateX(-55px) scale(0.85)}to{opacity:1;transform:none}}
 @keyframes splashFadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
 @keyframes splashFloat2{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-10px) rotate(7deg)}}
-@keyframes splashBurst{0%{transform:translate(-50%,-50%) scale(0);opacity:.9}70%{opacity:.7}100%{transform:translate(-50%,-50%) scale(16);opacity:0}}
+@keyframes splashBurst{0%{transform:translate(-50%,-50%) scale(0);opacity:.9}65%{opacity:.75}100%{transform:translate(-50%,-50%) scale(18);opacity:0}}
 @keyframes splashExitContent{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.06)}}
 
 
@@ -1896,11 +1896,18 @@ function EditQuickFoodModal({food,onSave,onClose}){
 
 // ── SplashScreen ───────────────────────────────────────────────────────────────
 function SplashScreen({onDone}){
-  const [exiting,setExiting]=useState(false);
+  const wrapRef=useRef(null);
   useEffect(()=>{
     if(window._loadSplashImages) window._loadSplashImages();
-    const t1=setTimeout(()=>setExiting(true),3000); // start exit at 3s
-    const t2=setTimeout(onDone,4000);               // hand off to app at 4s
+    const t1=setTimeout(()=>{
+      const el=wrapRef.current; if(!el)return;
+      // Direct DOM manipulation guarantees animation trigger
+      el.style.animation='splashExitContent .95s ease-in forwards';
+      const burst=document.createElement('div');
+      burst.style.cssText='position:absolute;top:50%;left:50%;width:70px;height:70px;border-radius:50%;background:rgba(170,240,90,.9);pointer-events:none;z-index:10;transform:translate(-50%,-50%) scale(0);animation:splashBurst .95s cubic-bezier(.15,.6,.3,1) forwards;';
+      el.appendChild(burst);
+    },3000);
+    const t2=setTimeout(onDone,4000);
     return()=>{clearTimeout(t1);clearTimeout(t2);};
   },[]);
   const R=140, DUR=16;
@@ -1912,24 +1919,15 @@ function SplashScreen({onDone}){
     {id:'sp-leaf', delay:-(DUR/6*4)},
     {id:'sp-heart',delay:-(DUR/6*5)},
   ];
-  const exitAnim = exiting ? 'splashExitContent .9s ease-in forwards' : undefined;
   return (
-    <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,zIndex:9999,overflow:'hidden',
+    <div ref={wrapRef} style={{position:'fixed',top:0,left:0,right:0,bottom:0,zIndex:9999,overflow:'hidden',
       background:'linear-gradient(150deg,#edfad5 0%,#bde890 52%,#92d045 100%)',
-      display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
-      animation:exitAnim}}>
+      display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
       {/* bg circles */}
       <div style={{position:'absolute',top:-100,right:-100,width:320,height:320,borderRadius:'50%',
         background:'rgba(255,255,255,.18)',pointerEvents:'none'}}/>
       <div style={{position:'absolute',bottom:-80,left:-80,width:280,height:280,borderRadius:'50%',
         background:'rgba(255,255,255,.13)',pointerEvents:'none'}}/>
-      {/* Burst circle — appears on exit, expands from center */}
-      {exiting && (
-        <div style={{position:'absolute',top:'50%',left:'50%',width:60,height:60,
-          borderRadius:'50%',background:'rgba(160,230,80,.85)',
-          animation:'splashBurst .95s cubic-bezier(.2,.6,.4,1) forwards',
-          pointerEvents:'none',zIndex:1}}/>
-      )}
       {/* Speech bubble */}
       <canvas id="sp-bubble"/>
       {/* Hub */}
