@@ -1538,7 +1538,7 @@ function SugarWeekChart({journal}){
   const linePath=known.length>=2?crPath(known):null;
 
   return(
-    <div style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:"1px solid rgba(255,255,255,.88)",borderRadius:18,padding:"12px 14px 10px",marginBottom:16,boxShadow:"0 4px 20px rgba(80,130,180,.1)"}}>
+    <div style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:"1px solid rgba(255,255,255,.88)",borderRadius:18,padding:"12px 14px 10px",marginBottom:16,boxShadow:"0 4px 20px rgba(80,130,180,.1)",maxWidth:440}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
         <div style={{fontSize:9.5,color:"#94a3b8",letterSpacing:1.4,textTransform:"uppercase"}}>🩸 סוכר — שבוע נוכחי</div>
         <div style={{display:"flex",gap:8}}>
@@ -1553,13 +1553,23 @@ function SugarWeekChart({journal}){
       {/* SVG — clipped, no overflow */}
       <div style={{overflow:"hidden",borderRadius:8}}>
         <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block"}}>
+          <defs>
+            {/* Gradient stroke: red (top/high) → orange → green (bottom/low), mapped to y-axis */}
+            <linearGradient id="sg-line" x1="0" y1="0" x2="0" y2={H} gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stopColor="#dc2626"/>
+              <stop offset={`${(y100/H*100-8).toFixed(0)}%`} stopColor="#dc2626"/>
+              <stop offset={`${(y100/H*100+8).toFixed(0)}%`} stopColor="#f59e0b"/>
+              <stop offset={`${(y86/H*100+8).toFixed(0)}%`}  stopColor="#0d9488"/>
+              <stop offset="100%" stopColor="#0d9488"/>
+            </linearGradient>
+          </defs>
           {/* Subtle threshold lines */}
           <line x1={PAD} y1={y100} x2={W-PAD} y2={y100} stroke="rgba(220,38,38,.15)" strokeWidth="0.7" strokeDasharray="3,3"/>
           <line x1={PAD} y1={y86}  x2={W-PAD} y2={y86}  stroke="rgba(245,158,11,.15)" strokeWidth="0.7" strokeDasharray="3,3"/>
           <text x={W-2} y={y100-1} fontSize="5.5" fill="rgba(220,38,38,.45)" textAnchor="end" fontFamily="Heebo,sans-serif">100</text>
           <text x={W-2} y={y86-1}  fontSize="5.5" fill="rgba(245,158,11,.5)"  textAnchor="end" fontFamily="Heebo,sans-serif">86</text>
-          {/* Smooth line */}
-          {linePath&&<path d={linePath} fill="none" stroke="rgba(148,163,184,.45)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>}
+          {/* Gradient smooth line */}
+          {linePath&&<path d={linePath} fill="none" stroke="url(#sg-line)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>}
           {/* Dots */}
           {days.map((d,i)=>{
             if(!d.v) return <circle key={i} cx={xs[i]} cy={H*0.58} r="2" fill="none" stroke="rgba(148,163,184,.25)" strokeWidth="1"/>;
