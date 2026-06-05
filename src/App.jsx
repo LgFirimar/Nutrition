@@ -2398,7 +2398,7 @@ function App(){
       </div>
 
       {/* ── QUICK ADD CHIPS — compact wrap grid ── */}
-      <div className="qa-wrap" style={{display:"flex",flexWrap:"wrap",gap:6,padding:"0 16px 14px"}}>
+      <div className="qa-wrap" style={{display:"flex",flexWrap:"wrap",gap:6,padding:"0 16px 8px"}}>
         {quickFoods.map(food=>(
           <div key={food.id} style={{flexShrink:0,position:"relative"}}>
             <QuickFoodChip food={food} onAdd={addEntry} editMode={showEditQuick} onRemove={removeQuickFood} onEdit={setEditingQuickFood}/>
@@ -2417,9 +2417,12 @@ function App(){
             {showEditQuick&&<button onClick={()=>setEditingQuickFood({...btn,_type:'custom'})} style={{position:"absolute",top:-4,right:-4,background:C.warn,border:"none",borderRadius:"50%",width:18,height:18,color:"#fff",fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✏</button>}
           </div>
         ))}
-        <button onClick={()=>{setShowPhoto(v=>!v);setShowMeal(false);setShowSmart(false);setShowMealPlanner(false);}} style={{background:showPhoto?"#1a6b9e":"rgba(255,255,255,.65)",border:`1px dashed ${showPhoto?"#1a6b9e":C.border}`,color:showPhoto?"#fff":C.muted,padding:"5px 8px",borderRadius:10,fontSize:10,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>{T.photo}</button>
-        <button onClick={()=>{setShowMeal(v=>!v);setShowSmart(false);setShowPhoto(false);setShowMealPlanner(false);}} style={{background:showMeal?"#5a3e8e":"rgba(255,255,255,.65)",border:`1px dashed ${showMeal?"#5a3e8e":C.border}`,color:showMeal?"#fff":C.muted,padding:"5px 8px",borderRadius:10,fontSize:10,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>{T.mealBtn}</button>
-        <button onClick={()=>{setShowSmart(v=>!v);setShowMeal(false);setShowPhoto(false);setShowMealPlanner(false);}} style={{background:showSmart?"#0d9488":"rgba(255,255,255,.65)",border:`1px dashed ${showSmart?"#0d9488":C.border}`,color:showSmart?"#fff":C.muted,padding:"5px 8px",borderRadius:10,fontSize:10,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>+ {T.addItem}</button>
+      </div>
+      {/* ── ACTION BUTTONS ROW ── */}
+      <div style={{display:"flex",gap:8,padding:"0 16px 14px"}}>
+        <button onClick={()=>{setShowPhoto(v=>!v);setShowMeal(false);setShowSmart(false);setShowMealPlanner(false);}} style={{flex:1,background:showPhoto?"#1a6b9e":"rgba(255,255,255,.75)",border:`1px solid ${showPhoto?"#1a6b9e":C.border}`,color:showPhoto?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>{T.photo}</button>
+        <button onClick={()=>{setShowMeal(v=>!v);setShowSmart(false);setShowPhoto(false);setShowMealPlanner(false);}} style={{flex:1,background:showMeal?"#5a3e8e":"rgba(255,255,255,.75)",border:`1px solid ${showMeal?"#5a3e8e":C.border}`,color:showMeal?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>{T.mealBtn}</button>
+        <button onClick={()=>{setShowSmart(v=>!v);setShowMeal(false);setShowPhoto(false);setShowMealPlanner(false);}} style={{flex:1,background:showSmart?"#0d9488":"rgba(255,255,255,.75)",border:`1px solid ${showSmart?"#0d9488":C.border}`,color:showSmart?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>+ {T.addItem}</button>
       </div>
 
       {showPhoto&&<PhotoMealPanel onAdd={addEntry} onClose={()=>setShowPhoto(false)}/>}
