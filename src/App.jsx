@@ -2280,7 +2280,9 @@ function App(){
         const aD=new Date(ay,am-1,ad);
         const dow=aD.getDay();
         const sun=new Date(aD); sun.setDate(aD.getDate()-dow);
-        const HE=['א','ב','ג','ד','ה','ו','ש'];
+        const DAY_LABELS=lang==='en'
+          ?['Su','Mo','Tu','We','Th','Fr','Sa']
+          :['א','ב','ג','ד','ה','ו','ש'];
         const week=Array.from({length:7},(_,i)=>{
           const d=new Date(sun); d.setDate(sun.getDate()+i);
           const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -2294,7 +2296,7 @@ function App(){
                 <div key={k} onClick={()=>selectDate(k)} style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"7px 11px",borderRadius:12,cursor:"pointer",flexShrink:0,
                   background:active?"rgba(13,148,136,.1)":"transparent",
                   border:active?"1.5px solid rgba(20,184,166,.35)":"1.5px solid transparent"}}>
-                  <span style={{fontSize:9,color:active?C.accent:C.muted,fontWeight:active?700:400}}>{HE[dw]}</span>
+                  <span style={{fontSize:9,color:active?C.accent:C.muted,fontWeight:active?700:400}}>{DAY_LABELS[dw]}</span>
                   <span style={{fontSize:13,fontWeight:active?900:600,color:active?C.accent:C.muted,marginTop:2}}>{day}</span>
                 </div>
               );
