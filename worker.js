@@ -22,7 +22,15 @@ export default {
         model = 'claude-sonnet-4-6';
         max_tokens = 1024;
         system = 'You are a precise nutrition calculator with expert knowledge of food composition databases.';
-        const analysisPrompt = `Analyze this meal photo and calculate total nutritional values. Think through each visible ingredient and its estimated portion size. Then output ONLY this JSON on the very last line:\n{"label":"Hebrew meal name","kcal":0,"carbs":0,"protein":0,"fat":0}`;
+        const analysisPrompt = `Analyze this food photo. For each visible item:
+1. Identify the food
+2. Estimate its weight/portion from visual cues (plate size, standard portions, density, etc.)
+3. Calculate its nutritional contribution
+
+Be specific with estimates (e.g. "chicken breast ~160g", "rice ~90g cooked", "olive oil drizzle ~10ml").
+
+Output ONLY this JSON on the very last line (no markdown):
+{"label":"Hebrew meal name","kcal":0,"carbs":0,"protein":0,"fat":0,"portions":"brief Hebrew description of each item with estimated weight, e.g: עוף ~160g, אורז ~90g, שמן ~10ml"}`;
         messages = [{role:'user', content:[
           {type:'image', source:{type:'base64', media_type:imageMediaType||'image/jpeg', data:imageData}},
           {type:'text', text:analysisPrompt}
