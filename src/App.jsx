@@ -1952,8 +1952,18 @@ function InfoModal({onClose,lang}){
 
 // ── MealPlannerModal ───────────────────────────────────────────────────────────
 const API="https://nutrition-ai.lior0gal.workers.dev";
+const FRIDGE_CATS=[
+  {key:"cheeses", he:"גבינות",     en:"Cheeses"},
+  {key:"veggies", he:"ירקות ופירות",en:"Vegetables & Fruits"},
+  {key:"protein", he:"חלבון",      en:"Protein"},
+  {key:"other",   he:"אחר",        en:"Other"},
+];
+const loadFridge=()=>{try{return JSON.parse(localStorage.getItem("nutrition_fridge")||"{}");}catch{return {};}};
+const saveFridgeLS=f=>localStorage.setItem("nutrition_fridge",JSON.stringify(f));
+
 function MealPlannerModal({onAdd,onClose,lang}){
   const T=LANG[lang]||LANG.he;
+  const isHe=lang!=='en';
   const [step,setStep]=useState(1);
   const [prefs,setPrefs]=useState("");
   const [people,setPeople]=useState(2);
@@ -1964,14 +1974,31 @@ function MealPlannerModal({onAdd,onClose,lang}){
   const [showRefine,setShowRefine]=useState(false);
   const [refineText,setRefineText]=useState("");
   const [error,setError]=useState("");
+  const [fridge,setFridge]=useState(loadFridge);
+  const [fridgeIn,setFridgeIn]=useState({cheeses:"",veggies:"",protein:"",other:""});
 
-  const isHe=lang!=='en';
+  const updateFridge=f=>{setFridge(f);saveFridgeLS(f);};
+  const addFridgeItem=(cat,val)=>{
+    const v=val.trim();
+    if(!v)return;
+    const updated={...fridge,[cat]:[...(fridge[cat]||[]).filter(x=>x!==v),v]};
+    updateFridge(updated);
+    setFridgeIn(i=>({...i,[cat]:""}));
+  };
+  const removeFridgeItem=(cat,val)=>updateFridge({...fridge,[cat]:(fridge[cat]||[]).filter(x=>x!==val)});
+
+  const buildFridgeStr=()=>FRIDGE_CATS
+    .filter(c=>(fridge[c.key]||[]).length)
+    .map(c=>`${isHe?c.he:c.en}: ${fridge[c.key].join(", ")}`)
+    .join(" | ");
 
   const fetchOptions=async(refine)=>{
     setLoading(true);setError("");
+    const fridgeStr=buildFridgeStr();
+    const fullPrefs=[prefs,fridgeStr?(isHe?`מה במקרר: ${fridgeStr}`:`Fridge: ${fridgeStr}`):""].filter(Boolean).join("\n");
     try{
       const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({mealPlan:{preferences:prefs,people,refine:refine||undefined}})});
+        body:JSON.stringify({mealPlan:{preferences:fullPrefs,people,refine:refine||undefined}})});
       const d=await r.json();
       if(d.error)throw new Error(d.error);
       setOptions(d.options||[]);
@@ -2020,11 +2047,41 @@ function MealPlannerModal({onAdd,onClose,lang}){
 
         {/* Step 1 */}
         {step===1&&<>
-          <div style={{fontSize:11,color:C.muted,marginBottom:6}}>{isHe?"העדפות תזונה (רשות)":"Dietary preferences (optional)"}</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:4}}>{isHe?"העדפות תזונה (רשות)":"Dietary preferences (optional)"}</div>
           <textarea value={prefs} onChange={e=>setPrefs(e.target.value)}
-            placeholder={isHe?"למשל: ללא גלוטן, טבעוני, דל פחמימות...":"e.g. gluten-free, vegan, low carb..."}
-            rows={3} className="inp" style={{marginBottom:14,resize:"none"}}/>
-          <div style={{fontSize:11,color:C.muted,marginBottom:8}}>{isHe?"מספר סועדים":"Number of people"}</div>
+            placeholder={isHe?"ללא גלוטן, טבעוני, דל פחמימות...":"gluten-free, vegan, low carb..."}
+            rows={1} className="inp" style={{marginBottom:14,resize:"none"}}/>
+
+          {/* Fridge section */}
+          <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>🥗 {isHe?"מה במקרר?":"What's in the fridge?"}</div>
+          {FRIDGE_CATS.map(cat=>(
+            <div key={cat.key} style={{marginBottom:12}}>
+              <div style={{fontSize:11,color:C.muted,marginBottom:4}}>{isHe?cat.he:cat.en}</div>
+              <div style={{display:"flex",gap:6,marginBottom:6}}>
+                <input
+                  value={fridgeIn[cat.key]}
+                  onChange={e=>setFridgeIn(i=>({...i,[cat.key]:e.target.value}))}
+                  onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addFridgeItem(cat.key,fridgeIn[cat.key]);}}}
+                  placeholder={isHe?"הוסף...":"Add..."}
+                  className="inp" style={{flex:1,fontSize:12,padding:"6px 10px"}}/>
+                <button onClick={()=>addFridgeItem(cat.key,fridgeIn[cat.key])}
+                  style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 12px",cursor:"pointer",fontSize:16,fontWeight:700}}>+</button>
+              </div>
+              {(fridge[cat.key]||[]).length>0&&(
+                <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                  {(fridge[cat.key]||[]).map(item=>(
+                    <span key={item} style={{background:"rgba(13,148,136,.1)",border:"1px solid rgba(13,148,136,.25)",borderRadius:20,padding:"3px 10px",fontSize:11,color:C.accent,display:"flex",alignItems:"center",gap:4}}>
+                      {item}
+                      <button onClick={()=>removeFridgeItem(cat.key,item)}
+                        style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:13,padding:0,lineHeight:1}}>×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+
+          <div style={{fontSize:11,color:C.muted,marginBottom:8,marginTop:4}}>{isHe?"מספר סועדים":"Number of people"}</div>
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,background:"rgba(148,163,184,.1)",borderRadius:10,padding:"8px 14px"}}>
             <button onClick={()=>setPeople(v=>Math.max(1,v-1))} style={{width:28,height:28,border:`1px solid ${C.border}`,borderRadius:6,background:"rgba(255,255,255,.7)",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
             <span style={{flex:1,textAlign:"center",fontSize:16,fontWeight:700,color:C.text}}>{people} {isHe?"אנשים":"people"}</span>
