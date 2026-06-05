@@ -375,10 +375,12 @@ const getDateLabel = s => {
   let d;
   if (s) {
     const [y,m,day] = s.split('-').map(Number);
-    d = new Date(y, m-1, day); // local date, no UTC shift
+    d = new Date(y, m-1, day);
   } else {
     d = new Date();
   }
+  const lang=localStorage.getItem('nutrition_lang')||'he';
+  if(lang==='en') return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
   return `יום ${DAYS[d.getDay()]}, ${d.toLocaleDateString("he-IL")}`;
 };
 const getTodayKey = () => {
@@ -473,7 +475,8 @@ function StatBar({value,max,color}){
 }
 
 // ── EntryRow ───────────────────────────────────────────────────────────────────
-function EntryRow({entry,onRemove,onUpdate}){
+function EntryRow({entry,onRemove,onUpdate,lang}){
+  const T=LANG[lang||localStorage.getItem('nutrition_lang')||'he']||LANG.he;
   const [editing,setEditing]=useState(false);
   const [qty,setQty]=useState("");
   const m=entry.label.match(/\((\d+\.?\d*)\s*([^\)]*)\)$/);
@@ -514,7 +517,7 @@ function EntryRow({entry,onRemove,onUpdate}){
       <div className="entry-row">
         <div style={{flex:1}}>
           <div className="entry-label">{entry.label}</div>
-          <div className="entry-sub">{Math.round(entry.kcal)} קק״ל · {Number(entry.carbs).toFixed(1)}g פחמ׳ · {Number(entry.protein).toFixed(1)}g חלבון</div>
+          <div className="entry-sub">{Math.round(entry.kcal)} {T.kcal} · {Number(entry.carbs).toFixed(1)}g {T.carbs} · {Number(entry.protein).toFixed(1)}g {T.protein}</div>
         </div>
         <div style={{display:"flex",gap:4,alignItems:"center"}}>
           {entry.perUnit&&(
@@ -2119,20 +2122,25 @@ function SplashScreen({onDone}){
 // ── i18n ───────────────────────────────────────────────────────────────────────
 const LANG={
   he:{greeting:"שלום",calories:"קלוריות היום",consumed:"נאכל",target:"יעד",sugar:"סוכר",left:"נותרו",
+      kcal:"קק״ל",mgdl:"mg/dL",goal:"יעד",
       carbs:"פחמ׳",protein:"חלבון",fat:"שומן",noLimit:"ללא הגבלה",
       quickAdd:"הוספה מהירה",edit:"✏️ ערוך",done:"✓ סיום",reset:"↺ אפס",newBtn:"+ חדש",
-      todayLog:"יומן היום",items:"פריטים",allLog:"הכל ›",addItem:"+ הוסף פריט",
+      todayLog:"יומן היום",items:"פריטים",allLog:"הכל ›",addItem:"הוסף פריט",
       noEntries:"לחצי על מאכל להוספה",total:"סה״כ",
       home:"בית",journal:"יומן",db:"מאגר",profile:"פרופיל",
-      photo:"📷 תמונה",mealBtn:"🍽 ארוחה",whatEat:"🍳 מה אוכלים"},
+      photo:"📷 תמונה",mealBtn:"🍽 ארוחה",whatEat:"🍳 מה אוכלים",
+      daySaved:"שמור",yesterday:"📋 אתמול",clear:"נקה",people:"אנשים"},
   en:{greeting:"Hello",calories:"Today's Calories",consumed:"Eaten",target:"Goal",sugar:"Sugar",left:"Left",
+      kcal:"kcal",mgdl:"mg/dL",goal:"Goal",
       carbs:"Carbs",protein:"Protein",fat:"Fat",noLimit:"No limit",
       quickAdd:"Quick Add",edit:"✏️ Edit",done:"✓ Done",reset:"↺ Reset",newBtn:"+ New",
-      todayLog:"Today's Log",items:"items",allLog:"All ›",addItem:"+ Add Item",
+      todayLog:"Today's Log",items:"items",allLog:"All ›",addItem:"Add Item",
       noEntries:"Tap a food to add",total:"Total",
       home:"Home",journal:"Journal",db:"Foods",profile:"Profile",
-      photo:"📷 Photo",mealBtn:"🍽 Meal",whatEat:"🍳 What to eat"}
+      photo:"📷 Photo",mealBtn:"🍽 Meal",whatEat:"🍳 What to eat",
+      daySaved:"Saved",yesterday:"📋 Yesterday",clear:"Clear",people:"people"}
 };
+const getT=()=>LANG[localStorage.getItem('nutrition_lang')||'he']||LANG.he;
 
 // ── InfoModal ──────────────────────────────────────────────────────────────────
 function InfoModal({onClose,lang}){
@@ -2487,8 +2495,8 @@ function App(){
       {/* ── TOP BAR ── */}
       <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",padding:"50px 20px 0"}}>
         <div>
-          <div style={{fontSize:11,color:C.muted,letterSpacing:.3,marginBottom:3}}>{isToday?"יום "+["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"][new Date().getDay()]+", "+new Date().toLocaleDateString("he-IL"):getDateLabel(activeDate)}</div>
-          <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:"-.5px"}}>שלום, {activeProfile?.name} {isToday?"👋":""}</div>
+          <div style={{fontSize:11,color:C.muted,letterSpacing:.3,marginBottom:3}}>{getDateLabel(isToday?undefined:activeDate)}</div>
+          <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:"-.5px"}}>{T.greeting}, {activeProfile?.name} {isToday?"👋":""}</div>
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center",marginTop:4}}>
           <button onClick={toggleLang} style={{height:28,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:10,fontWeight:700,color:C.muted,padding:"0 8px"}}>
@@ -2567,23 +2575,23 @@ function App(){
             </svg>
             <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
               <div style={{fontSize:22,fontWeight:900,color:C.accent,lineHeight:1}}>{Math.max(0,Math.round(kcalLeft))}</div>
-              <div style={{fontSize:8,color:C.muted,letterSpacing:.5,marginTop:1}}>נותרו</div>
+              <div style={{fontSize:8,color:C.muted,letterSpacing:.5,marginTop:1}}>{T.left}</div>
             </div>
           </div>
           <div style={{flex:1}}>
-            <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:C.muted,marginBottom:11}}>קלוריות היום</div>
+            <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:C.muted,marginBottom:11}}>{T.calories}</div>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               <div style={{display:"flex",justifyContent:"space-between"}}>
-                <span style={{fontSize:12,color:"#475569"}}>נאכל</span>
-                <span style={{fontSize:14,fontWeight:700,color:C.text}}>{Math.round(totals.kcal)} <span style={{fontSize:10,fontWeight:400,color:C.muted}}>קק״ל</span></span>
+                <span style={{fontSize:12,color:"#475569"}}>{T.consumed}</span>
+                <span style={{fontSize:14,fontWeight:700,color:C.text}}>{Math.round(totals.kcal)} <span style={{fontSize:10,fontWeight:400,color:C.muted}}>{T.kcal}</span></span>
               </div>
               <div style={{display:"flex",justifyContent:"space-between"}}>
-                <span style={{fontSize:12,color:"#475569"}}>יעד</span>
-                <span style={{fontSize:14,fontWeight:700,color:C.text}}>{MAX_KCAL} <span style={{fontSize:10,fontWeight:400,color:C.muted}}>קק״ל</span></span>
+                <span style={{fontSize:12,color:"#475569"}}>{T.target}</span>
+                <span style={{fontSize:14,fontWeight:700,color:C.text}}>{MAX_KCAL} <span style={{fontSize:10,fontWeight:400,color:C.muted}}>{T.kcal}</span></span>
               </div>
               <div style={{height:1,background:"rgba(148,163,184,.2)"}}></div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:12,color:"#475569"}}>🩸 סוכר</span>
+                <span style={{fontSize:12,color:"#475569"}}>🩸 {T.sugar}</span>
                 <input type="number" value={bloodSugar} onChange={e=>setBloodSugar(e.target.value)}
                   onBlur={e=>saveBloodSugar(e.target.value)}
                   placeholder="— mg/dL" style={{width:95,background:"transparent",border:"none",textAlign:"left",fontSize:13,fontWeight:700,color:sugarColor(bloodSugar),fontFamily:"inherit"}}/>
@@ -2596,17 +2604,17 @@ function App(){
       {/* ── MACRO CARDS ── */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,margin:"10px 16px 0"}}>
         {[
-          {label:"פחמ׳",val:totals.carbs.toFixed(1),max:MAX_CARBS,color:C.warn,grad:"linear-gradient(90deg,#ea580c,#fb923c)"},
-          {label:"חלבון",val:totals.protein.toFixed(1),max:maxProtein,color:C.blue,grad:"linear-gradient(90deg,#2563eb,#60a5fa)"},
-          {label:"שומן",val:(totals.fat||0).toFixed(1),max:null,color:C.accent,grad:"linear-gradient(90deg,#0d9488,#14b8a6)"},
-        ].map(({label,val,max,color,grad})=>(
-          <div key={label} className="card" style={{padding:"13px 12px",borderRadius:16}}>
-            <div style={{fontSize:9,letterSpacing:1.2,textTransform:"uppercase",color:C.muted}}>{label}</div>
+          {lk:"carbs",val:totals.carbs.toFixed(1),max:MAX_CARBS,color:C.warn,grad:"linear-gradient(90deg,#ea580c,#fb923c)"},
+          {lk:"protein",val:totals.protein.toFixed(1),max:maxProtein,color:C.blue,grad:"linear-gradient(90deg,#2563eb,#60a5fa)"},
+          {lk:"fat",val:(totals.fat||0).toFixed(1),max:null,color:C.accent,grad:"linear-gradient(90deg,#0d9488,#14b8a6)"},
+        ].map(({lk,val,max,color,grad})=>(
+          <div key={lk} className="card" style={{padding:"13px 12px",borderRadius:16}}>
+            <div style={{fontSize:9,letterSpacing:1.2,textTransform:"uppercase",color:C.muted}}>{T[lk]}</div>
             <div style={{fontSize:20,fontWeight:900,color,marginTop:5,lineHeight:1}}>{val}<span style={{fontSize:10,fontWeight:500,color:C.muted}}>g</span></div>
             <div style={{height:4,borderRadius:3,background:"rgba(148,163,184,.2)",overflow:"hidden",marginTop:7}}>
               {max&&<div style={{height:"100%",borderRadius:3,background:grad,width:`${Math.min(100,parseFloat(val)/max*100)}%`}}></div>}
             </div>
-            <div style={{fontSize:9,color:C.muted,marginTop:5}}>{max?`יעד ${max}g`:"ללא הגבלה"}</div>
+            <div style={{fontSize:9,color:C.muted,marginTop:5}}>{max?`${T.goal} ${max}g`:T.noLimit}</div>
           </div>
         ))}
       </div>
@@ -2663,10 +2671,10 @@ function App(){
         {entries.length===0
           ? <div style={{padding:"30px 20px",textAlign:"center",color:C.muted,fontSize:13}}>{T.noEntries}</div>
           : <>
-              {entries.map(e=><EntryRow key={e.uid} entry={e} onRemove={removeEntry} onUpdate={updateEntry}/>)}
+              {entries.map(e=><EntryRow key={e.uid} entry={e} onRemove={removeEntry} onUpdate={updateEntry} lang={lang}/>)}
               <div className="summary-row">
-                <span style={{fontSize:12,fontWeight:700,color:C.accent}}>סה״כ</span>
-                <span style={{fontSize:12,color:C.accent}}>{Math.round(totals.kcal)} קק״ל · {totals.carbs.toFixed(1)}g פחמ׳ · {totals.protein.toFixed(1)}g חלבון</span>
+                <span style={{fontSize:12,fontWeight:700,color:C.accent}}>{T.total}</span>
+                <span style={{fontSize:12,color:C.accent}}>{Math.round(totals.kcal)} {T.kcal} · {totals.carbs.toFixed(1)}g {T.carbs} · {totals.protein.toFixed(1)}g {T.protein}</span>
               </div>
             </>
         }
@@ -2683,14 +2691,14 @@ function App(){
       {/* ── BOTTOM NAV ── */}
       <div style={{position:"sticky",bottom:0,background:"rgba(255,255,255,.92)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",borderTop:"1px solid rgba(148,163,184,.2)",display:"flex",zIndex:10,paddingBottom:"env(safe-area-inset-bottom)"}}>
         {[
-          {id:"home",icon:"🏠",label:"בית",action:null},
-          {id:"journal",icon:"📓",label:"יומן",action:()=>setShowJournal(true)},
-          {id:"db",icon:"🗂",label:"מאגר",action:()=>setShowDB(true)},
-          {id:"profile",icon:"👤",label:"פרופיל",action:()=>setShowProfiles(true)},
+          {id:"home",icon:"🏠",lk:"home",action:null},
+          {id:"journal",icon:"📓",lk:"journal",action:()=>setShowJournal(true)},
+          {id:"db",icon:"🗂",lk:"db",action:()=>setShowDB(true)},
+          {id:"profile",icon:"👤",lk:"profile",action:()=>setShowProfiles(true)},
         ].map(tab=>(
           <button key={tab.id} onClick={tab.action} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"10px 0",gap:3,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit"}}>
             <span style={{fontSize:20,lineHeight:1}}>{tab.icon}</span>
-            <span style={{fontSize:9,letterSpacing:.4,color:tab.id==="home"?C.accent:"#94a3b8",fontWeight:tab.id==="home"?700:400}}>{tab.label}</span>
+            <span style={{fontSize:9,letterSpacing:.4,color:tab.id==="home"?C.accent:"#94a3b8",fontWeight:tab.id==="home"?700:400}}>{T[tab.lk]}</span>
           </button>
         ))}
       </div>
