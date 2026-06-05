@@ -1976,6 +1976,19 @@ function MealPlannerModal({onAdd,onClose,lang}){
   const [error,setError]=useState("");
   const [fridge,setFridge]=useState(loadFridge);
   const [fridgeIn,setFridgeIn]=useState({cheeses:"",veggies:"",protein:"",other:""});
+  const [savedPrefs,setSavedPrefs]=useState(()=>{try{return JSON.parse(localStorage.getItem("nutrition_saved_prefs")||"[]");}catch{return [];}});
+  const savePref=()=>{
+    const v=prefs.trim();
+    if(!v||savedPrefs.includes(v))return;
+    const updated=[...savedPrefs,v];
+    setSavedPrefs(updated);
+    localStorage.setItem("nutrition_saved_prefs",JSON.stringify(updated));
+  };
+  const removeSavedPref=p=>{
+    const updated=savedPrefs.filter(x=>x!==p);
+    setSavedPrefs(updated);
+    localStorage.setItem("nutrition_saved_prefs",JSON.stringify(updated));
+  };
 
   const updateFridge=f=>{setFridge(f);saveFridgeLS(f);};
   const addFridgeItem=(cat,val)=>{
@@ -2030,14 +2043,16 @@ function MealPlannerModal({onAdd,onClose,lang}){
   const [editBeforeAdd,setEditBeforeAdd]=useState(false);
   const [editVals,setEditVals]=useState({});
 
-  const addToDay=(overrides)=>{
+  const addToDay=(withEdit)=>{
     if(!recipe)return;
-    const vals=overrides||{};
-    onAdd({uid:Date.now()+Math.random(),label:vals.label||recipe.name,
-      kcal:parseFloat(vals.kcal??recipe.kcalPerPerson)||0,
-      carbs:parseFloat(vals.carbs??recipe.carbsPerPerson)||0,
-      protein:parseFloat(vals.protein??recipe.proteinPerPerson)||0,
-      fat:parseFloat(vals.fat??recipe.fatPerPerson)||0});
+    onAdd({
+      uid:Date.now()+Math.random(),
+      label: withEdit ? (editVals.label||recipe.name) : recipe.name,
+      kcal: withEdit ? (Number(editVals.kcal)||0) : (recipe.kcalPerPerson||0),
+      carbs: withEdit ? (Number(editVals.carbs)||0) : (recipe.carbsPerPerson||0),
+      protein: withEdit ? (Number(editVals.protein)||0) : (recipe.proteinPerPerson||0),
+      fat: withEdit ? (Number(editVals.fat)||0) : (recipe.fatPerPerson||0),
+    });
     onClose();
   };
 
@@ -2070,9 +2085,25 @@ function MealPlannerModal({onAdd,onClose,lang}){
         {/* Step 1 */}
         {step===1&&<>
           <div style={{fontSize:11,color:C.muted,marginBottom:4}}>{isHe?"העדפות תזונה (רשות)":"Dietary preferences (optional)"}</div>
-          <textarea value={prefs} onChange={e=>setPrefs(e.target.value)}
-            placeholder={isHe?"ללא גלוטן, טבעוני, דל פחמימות...":"gluten-free, vegan, low carb..."}
-            rows={1} className="inp" style={{marginBottom:14,resize:"none"}}/>
+          <div style={{display:"flex",gap:6,marginBottom:6}}>
+            <textarea value={prefs} onChange={e=>setPrefs(e.target.value)}
+              placeholder={isHe?"ללא גלוטן, טבעוני, דל פחמימות...":"gluten-free, vegan, low carb..."}
+              rows={1} className="inp" style={{flex:1,resize:"none"}}/>
+            <button onClick={savePref} title={isHe?"שמור העדפה":"Save preference"}
+              style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 10px",cursor:"pointer",fontSize:14,flexShrink:0}}>💾</button>
+          </div>
+          {savedPrefs.length>0&&(
+            <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:12}}>
+              {savedPrefs.map(p=>(
+                <span key={p} onClick={()=>setPrefs(p)}
+                  style={{background:prefs===p?"rgba(13,148,136,.18)":"rgba(148,163,184,.12)",border:`1px solid ${prefs===p?"rgba(13,148,136,.4)":"rgba(148,163,184,.3)"}`,borderRadius:20,padding:"4px 10px",fontSize:11,color:prefs===p?C.accent:C.text,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5}}>
+                  {p}
+                  <button onClick={e=>{e.stopPropagation();removeSavedPref(p);}}
+                    style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:12,padding:0,lineHeight:1}}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Fridge section */}
           <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>🥗 {isHe?"מה במקרר?":"What's in the fridge?"}</div>
@@ -2189,7 +2220,7 @@ function MealPlannerModal({onAdd,onClose,lang}){
               </div>
               <div style={{display:"flex",gap:6}}>
                 <button onClick={()=>setEditBeforeAdd(false)} className="btn-muted" style={{flex:1,padding:"8px",borderRadius:8}}>{isHe?"ביטול":"Cancel"}</button>
-                <button onClick={()=>addToDay(editVals)} className="btn-accent" style={{flex:2,borderRadius:8}}>
+                <button onClick={()=>addToDay(true)} className="btn-accent" style={{flex:2,borderRadius:8}}>
                   {isHe?"✓ הוסף":"✓ Add"}
                 </button>
               </div>
@@ -2199,7 +2230,7 @@ function MealPlannerModal({onAdd,onClose,lang}){
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             <div style={{display:"flex",gap:8}}>
               <button onClick={()=>{setStep(2);setRecipe(null);setEditBeforeAdd(false);}} className="btn-muted" style={{flex:1,borderRadius:10}}>{isHe?"חזרה":"Back"}</button>
-              <button onClick={()=>addToDay()} className="btn-accent" style={{flex:2,borderRadius:10}}>
+              <button onClick={()=>addToDay(false)} className="btn-accent" style={{flex:2,borderRadius:10}}>
                 {isHe?"+ הוסף ליומן היום":"+ Add to today"}
               </button>
             </div>
@@ -2549,7 +2580,10 @@ function App(){
             <span style={{fontSize:13,fontWeight:700,color:C.text}}>{T.todayLog}</span>
             {entries.length>0&&<span style={{background:"rgba(13,148,136,.08)",color:C.accent,border:"1px solid rgba(13,148,136,.2)",borderRadius:20,fontSize:10,fontWeight:700,padding:"2px 8px"}}>{entries.length} {T.items}</span>}
           </div>
-          <button onClick={()=>setShowJournal(true)} style={{fontSize:11,color:C.accent,cursor:"pointer",fontWeight:600,background:"none",border:"none",fontFamily:"inherit"}}>{T.allLog}</button>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {isToday&&<button onClick={copyPrevDay} style={{fontSize:11,color:C.muted,cursor:"pointer",fontWeight:600,background:"none",border:"none",fontFamily:"inherit"}}>{T.yesterday}</button>}
+            <button onClick={()=>setShowJournal(true)} style={{fontSize:11,color:C.accent,cursor:"pointer",fontWeight:600,background:"none",border:"none",fontFamily:"inherit"}}>{T.allLog}</button>
+          </div>
         </div>
         {entries.length===0
           ? <div style={{padding:"30px 20px",textAlign:"center",color:C.muted,fontSize:13}}>{T.noEntries}</div>

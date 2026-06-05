@@ -50,7 +50,7 @@ After your calculation, output ONLY this JSON on the very last line (no markdown
       } else if (mealPlan) {
         model = 'claude-haiku-4-5-20251001';
         max_tokens = 1200;
-        system = 'אתה תזונאי ושף. ענה בעברית. החזר JSON בלבד בשורה האחרונה, ללא markdown.';
+        system = 'אתה תזונאי ושף ישראלי. חובה לענות בעברית בלבד. שמות מאכלים, רכיבים ושלבי הכנה — הכל בעברית. החזר JSON תקין בשורה האחרונה בלבד, ללא markdown.';
         const { preferences, people, refine, selectedMeal } = mealPlan;
         if (selectedMeal) {
           prompt = `מתכון קצר עבור "${selectedMeal}" ל-${people} אנשים. עד 6 רכיבים, עד 5 שלבים קצרים.
