@@ -97,9 +97,14 @@ Return exactly this JSON structure:
 
       const data = await response.json();
       const text = data.content[0].text.trim();
-      // Extract last JSON object — handles nested structures (options, recipe)
-      const lastBrace = text.lastIndexOf('{');
-      const jsonStr = lastBrace >= 0 ? text.slice(lastBrace) : text.replace(/```json|```/g, '').trim();
+      // Find the last line that starts with '{' — the JSON output line
+      const lines = text.split('\n');
+      let jsonStr = null;
+      for(let i = lines.length-1; i >= 0; i--){
+        const l = lines[i].trim();
+        if(l.startsWith('{')){jsonStr=l;break;}
+      }
+      if(!jsonStr) jsonStr = text.replace(/```json|```/g,'').trim();
       const json = JSON.parse(jsonStr);
 
       return new Response(JSON.stringify(json), {

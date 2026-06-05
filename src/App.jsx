@@ -1979,9 +1979,10 @@ function MealPlannerModal({onAdd,onClose,lang}){
 
   const updateFridge=f=>{setFridge(f);saveFridgeLS(f);};
   const addFridgeItem=(cat,val)=>{
-    const v=val.trim();
-    if(!v)return;
-    const updated={...fridge,[cat]:[...(fridge[cat]||[]).filter(x=>x!==v),v]};
+    const items=val.split(/[,،]/).map(s=>s.trim()).filter(Boolean);
+    if(!items.length)return;
+    const existing=fridge[cat]||[];
+    const updated={...fridge,[cat]:[...existing,...items.filter(v=>!existing.includes(v))]};
     updateFridge(updated);
     setFridgeIn(i=>({...i,[cat]:""}));
   };
@@ -2070,10 +2071,10 @@ function MealPlannerModal({onAdd,onClose,lang}){
               {(fridge[cat.key]||[]).length>0&&(
                 <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
                   {(fridge[cat.key]||[]).map(item=>(
-                    <span key={item} style={{background:"rgba(13,148,136,.1)",border:"1px solid rgba(13,148,136,.25)",borderRadius:20,padding:"3px 10px",fontSize:11,color:C.accent,display:"flex",alignItems:"center",gap:4}}>
+                    <span key={item} style={{background:"rgba(13,148,136,.12)",border:"1px solid rgba(13,148,136,.3)",borderRadius:20,padding:"5px 12px 5px 8px",fontSize:12,color:C.accent,display:"inline-flex",alignItems:"center",gap:6,fontWeight:500}}>
                       {item}
                       <button onClick={()=>removeFridgeItem(cat.key,item)}
-                        style={{background:"none",border:"none",color:C.muted,cursor:"pointer",fontSize:13,padding:0,lineHeight:1}}>×</button>
+                        style={{background:"rgba(13,148,136,.2)",border:"none",borderRadius:"50%",color:C.accent,cursor:"pointer",fontSize:11,padding:0,width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,flexShrink:0}}>×</button>
                     </span>
                   ))}
                 </div>
