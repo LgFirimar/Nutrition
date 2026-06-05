@@ -401,7 +401,7 @@ function CoffeeBtn({onAdd,editMode,onEdit}){
       </button>
       {!editMode&&open && <VPopup label="כמה מ״ל חלב?" value={ml} setValue={setMl} step={10} min={10}
         kcal={Math.round(milk.kcal*ml)} carbs={(milk.carbs*ml).toFixed(1)}
-        onAdd={()=>{onAdd(calc(ml));setOpen(false);setMl(75);}}/>}
+        onAdd={()=>{const c=calc(ml);onAdd({...c,uid:Date.now()+Math.random(),count:1,perUnit:{kcal:c.kcal,carbs:c.carbs,protein:c.protein,fat:c.fat||0}});setOpen(false);setMl(75);}}/>}
       {editMode&&<><button onClick={()=>onEdit({id:'coffee',label:coffeeLabel,kcal:per100.kcal,carbs:per100.carbs,protein:per100.protein,fat:per100.fat,_type:'coffee',_note:'ערכים ל-100מ״ל חלב'})}
         style={{position:"absolute",top:-4,left:-4,background:C.warn,border:"none",borderRadius:"50%",width:18,height:18,color:"#fff",fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✏</button>
       <button onClick={()=>{toggleHiddenSpecial('coffee');onEdit(null);}}
