@@ -2262,131 +2262,213 @@ function App(){
         setEditingQuickFood(null);
       }} onClose={()=>setEditingQuickFood(null)}/>}
 
-      {/* Header */}
-      <div id="header">
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{cursor:"pointer"}} onClick={()=>setShowDatePicker(v=>!v)}>
-            <div style={{fontSize:10,color:C.muted,letterSpacing:2,textTransform:"uppercase"}}>
-              {isToday ? `מעקב תזונה — ${activeProfile?.name}` : "✏️ הזנה בדיעבד"}
-            </div>
-            <div style={{fontSize:13,color:isToday?C.accent:C.warn,marginTop:2,display:"flex",alignItems:"center",gap:4}}>
-              {getDateLabel(activeDate)} <span style={{fontSize:11}}>▾</span>
-            </div>
-          </div>
-          <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            {entries.length>0 && <button onClick={clearAll} style={{background:"none",border:"1px solid #e0e0e5",color:C.muted,fontSize:10,padding:"5px 10px",borderRadius:6,cursor:"pointer"}}>נקה</button>}
-            <button onClick={copyPrevDay} style={{background:"none",border:"1px solid #e0e0e5",color:C.muted,fontSize:10,padding:"5px 10px",borderRadius:6,cursor:"pointer"}}>📋 אתמול</button>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-              <button onClick={saveDay} style={{background:saveFlash?C.accent:"#fff",border:`1px solid ${saveFlash?C.accent:savedToday?C.accent+"66":"#e0e0e5"}`,borderRadius:8,width:36,height:36,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,transition:"all 0.3s",animation:saveFlash?"pop 0.35s ease":"none"}}>💾</button>
-              {savedToday&&!saveFlash && <span style={{fontSize:9,color:C.accent,whiteSpace:"nowrap"}}>עודכן</span>}
-              {saveFlash && <span style={{fontSize:9,color:C.accent}}>✓ נשמר</span>}
-            </div>
-            <button onClick={()=>setShowExport(true)} style={{background:"#fff",border:"1px solid #e0e0e5",borderRadius:8,width:36,height:36,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>📤</button>
-            <button onClick={()=>setShowJournal(true)} style={{background:"#fff",border:"1px solid #e0e0e5",borderRadius:8,width:36,height:36,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>📓</button>
-            <button onClick={()=>setShowDB(true)} style={{background:"#fff",border:"1px solid #e0e0e5",borderRadius:8,width:36,height:36,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🗂</button>
-            <button onClick={()=>setShowProfiles(true)} style={{background:"#fff",border:"1px solid #e0e0e5",borderRadius:8,width:36,height:36,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}} title={activeProfile?.name}>{activeProfile?.emoji}</button>
-          </div>
+      {/* ── TOP BAR ── */}
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",padding:"50px 20px 0"}}>
+        <div>
+          <div style={{fontSize:11,color:C.muted,letterSpacing:.3,marginBottom:3}}>{isToday?"יום "+["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"][new Date().getDay()]+", "+new Date().toLocaleDateString("he-IL"):getDateLabel(activeDate)}</div>
+          <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:"-.5px"}}>שלום, {activeProfile?.name} {isToday?"👋":""}</div>
         </div>
+        <div style={{display:"flex",gap:8,alignItems:"center",marginTop:4}}>
+          <button onClick={saveDay} style={{width:36,height:36,borderRadius:10,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .3s",animation:saveFlash?"pop .35s ease":"none",boxShadow:"0 2px 8px rgba(80,120,160,.1)"}}>💾</button>
+          <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#14b8a6,#0d9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 2px 8px rgba(13,148,136,.35)",cursor:"pointer"}} onClick={()=>setShowProfiles(true)}>{activeProfile?.emoji}</div>
+        </div>
+      </div>
 
-        {/* Date picker dropdown */}
-        {showDatePicker && (
-          <div style={{marginBottom:12,background:"#f5f5f7",borderRadius:10,overflow:"hidden",border:"1px solid #e0e0e5",animation:"fadeIn 0.15s ease"}}>
-            {last14.map(key=>{
-              const isActive=key===activeDate;
-              const hasSaved=!!loadJournal(pid)[key];
-              const isT=key===getTodayKey();
+      {/* ── DATE STRIP ── */}
+      {(()=>{
+        const [ay,am,ad]=activeDate.split('-').map(Number);
+        const aD=new Date(ay,am-1,ad);
+        const dow=aD.getDay();
+        const sun=new Date(aD); sun.setDate(aD.getDate()-dow);
+        const HE=['א','ב','ג','ד','ה','ו','ש'];
+        const week=Array.from({length:7},(_,i)=>{
+          const d=new Date(sun); d.setDate(sun.getDate()+i);
+          const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+          return {k,day:d.getDate(),dow:d.getDay()};
+        });
+        return (
+          <div style={{display:"flex",gap:6,padding:"14px 20px 0",overflowX:"auto",scrollbarWidth:"none"}}>
+            {week.map(({k,day,dow:dw})=>{
+              const active=k===activeDate;
               return (
-                <div key={key} onClick={()=>selectDate(key)}
-                  style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 16px",borderBottom:"1px solid #e0e0e5",cursor:"pointer",background:isActive?"rgba(90,158,30,0.1)":"#fff"}}>
-                  <span style={{fontSize:13,color:isActive?C.accent:C.text,fontWeight:isActive?700:400}}>
-                    {isT?"היום — ":""}{getDateLabel(key)}
-                  </span>
-                  {hasSaved && <span style={{fontSize:10,color:C.accent,background:"rgba(90,158,30,0.12)",padding:"2px 8px",borderRadius:10}}>שמור</span>}
+                <div key={k} onClick={()=>selectDate(k)} style={{display:"flex",flexDirection:"column",alignItems:"center",padding:"7px 11px",borderRadius:12,cursor:"pointer",flexShrink:0,
+                  background:active?"rgba(13,148,136,.1)":"transparent",
+                  border:active?"1.5px solid rgba(20,184,166,.35)":"1.5px solid transparent"}}>
+                  <span style={{fontSize:9,color:active?C.accent:C.muted,fontWeight:active?700:400}}>{HE[dw]}</span>
+                  <span style={{fontSize:13,fontWeight:active?900:600,color:active?C.accent:C.muted,marginTop:2}}>{day}</span>
                 </div>
               );
             })}
-          </div>
-        )}
-        <div className="g3">
-          {[{val:Math.round(totals.kcal),unit:"קק״ל",max:MAX_KCAL,left:Math.max(0,Math.round(kcalLeft)),color:C.accent},
-            {val:totals.carbs.toFixed(1),unit:"פחמימות g",max:MAX_CARBS,left:Math.max(0,carbsLeft).toFixed(1)+"g",color:C.warn},
-            {val:totals.protein.toFixed(1),unit:"חלבון g",max:maxProtein,left:Math.max(0,maxProtein-totals.protein).toFixed(1)+"g",color:C.blue}
-          ].map(({val,unit,max,left,color})=>(
-            <div key={unit} className="stat-box">
-              <div className="stat-val" style={{color}}>{val}</div>
-              <div className="stat-unit">{unit}</div>
-              <StatBar value={parseFloat(val)} max={max} color={color}/>
-              <div className="stat-left">נותר: {left}</div>
+            <div onClick={()=>setShowDatePicker(v=>!v)} style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"7px 10px",borderRadius:12,cursor:"pointer",flexShrink:0,border:"1.5px solid transparent"}}>
+              <span style={{fontSize:16}}>📅</span>
             </div>
-          ))}
+          </div>
+        );
+      })()}
+
+      {/* Date picker dropdown */}
+      {showDatePicker && (
+        <div style={{margin:"8px 16px 0",background:"rgba(255,255,255,.85)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderRadius:16,overflow:"hidden",border:"1px solid rgba(255,255,255,.9)",animation:"fadeIn 0.15s ease",boxShadow:"0 8px 32px rgba(80,120,160,.15)"}}>
+          {last14.map(key=>{
+            const isActive=key===activeDate;
+            const hasSaved=!!loadJournal(pid)[key];
+            const isT=key===getTodayKey();
+            return (
+              <div key={key} onClick={()=>{selectDate(key);setShowDatePicker(false);}}
+                style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 16px",borderBottom:"1px solid rgba(148,163,184,.16)",cursor:"pointer",background:isActive?"rgba(13,148,136,.08)":"transparent"}}>
+                <span style={{fontSize:13,color:isActive?C.accent:C.text,fontWeight:isActive?700:400}}>{isT?"היום — ":""}{getDateLabel(key)}</span>
+                {hasSaved && <span style={{fontSize:10,color:C.accent,background:"rgba(13,148,136,.12)",padding:"2px 8px",borderRadius:10}}>שמור</span>}
+              </div>
+            );
+          })}
         </div>
-      </div>
+      )}
 
-      {/* Blood Sugar */}
-      <div style={{margin:"8px 16px 0",background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:"1px solid rgba(255,255,255,.88)",borderRadius:16,padding:"8px 14px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 4px 20px rgba(80,130,180,.1)"}}>
-
-        <span style={{fontSize:13}}>🩸</span>
-        <span style={{fontSize:12,color:C.muted,flex:1}}>סוכר בוקר</span>
-        <input type="number" value={bloodSugar} onChange={e=>setBloodSugar(e.target.value)}
-          onBlur={e=>saveBloodSugar(e.target.value)}
-          placeholder="— mg/dL" style={{width:90,background:"transparent",border:"none",textAlign:"left",fontSize:13,fontWeight:700,color:sugarColor(bloodSugar),fontFamily:"inherit"}}/>
-      </div>
-
-      {/* Quick Add */}
-      <div style={{padding:"16px 16px 8px"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <div style={{fontSize:10,color:C.muted,letterSpacing:1.5}}>הוספה מהירה</div>
-          <div style={{display:"flex",gap:6}}>
-            {showEditQuick && <button onClick={resetQuickFoods} style={{background:"none",border:"1px solid #e0e0e5",borderRadius:16,padding:"4px 10px",fontSize:11,color:C.muted,cursor:"pointer"}}>↺ אפס</button>}
-            <button onClick={()=>setShowEditQuick(v=>!v)} style={{background:showEditQuick?"#fff8e1":"none",border:`1px solid ${showEditQuick?C.warn:"#e0e0e5"}`,borderRadius:16,padding:"4px 10px",fontSize:11,color:showEditQuick?C.warn:C.muted,cursor:"pointer"}}>{showEditQuick?"✓ סיום":"✏️ ערוך"}</button>
-            <button onClick={()=>setShowNewBtn(true)} style={{background:"none",border:"1px solid #e0e0e5",borderRadius:16,padding:"4px 10px",fontSize:11,color:C.muted,cursor:"pointer"}}>⭐ חדש</button>
+      {/* ── CALORIE RING CARD ── */}
+      <div className="card" style={{margin:"12px 16px 0",padding:20}}>
+        <div style={{display:"flex",alignItems:"center",gap:18}}>
+          <div style={{position:"relative",flexShrink:0}}>
+            <svg width="112" height="112" viewBox="0 0 112 112" style={{transform:"rotate(-90deg)"}}>
+              <defs>
+                <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#22c55e"/>
+                  <stop offset="100%" stopColor="#4ade80"/>
+                </linearGradient>
+              </defs>
+              <circle cx="56" cy="56" r="46" fill="none" stroke="rgba(148,163,184,.2)" strokeWidth="9"/>
+              <circle cx="56" cy="56" r="46" fill="none" stroke="url(#rg)" strokeWidth="9" strokeLinecap="round"
+                style={{strokeDasharray:`${Math.min(totals.kcal/MAX_KCAL,1)*289} 289`,transition:"stroke-dasharray .7s cubic-bezier(.4,0,.2,1)"}}/>
+            </svg>
+            <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
+              <div style={{fontSize:22,fontWeight:900,color:C.accent,lineHeight:1}}>{Math.max(0,Math.round(kcalLeft))}</div>
+              <div style={{fontSize:8,color:C.muted,letterSpacing:.5,marginTop:1}}>נותרו</div>
+            </div>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:C.muted,marginBottom:11}}>קלוריות היום</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              <div style={{display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontSize:12,color:"#475569"}}>נאכל</span>
+                <span style={{fontSize:14,fontWeight:700,color:C.text}}>{Math.round(totals.kcal)} <span style={{fontSize:10,fontWeight:400,color:C.muted}}>קק״ל</span></span>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontSize:12,color:"#475569"}}>יעד</span>
+                <span style={{fontSize:14,fontWeight:700,color:C.text}}>{MAX_KCAL} <span style={{fontSize:10,fontWeight:400,color:C.muted}}>קק״ל</span></span>
+              </div>
+              <div style={{height:1,background:"rgba(148,163,184,.2)"}}></div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:12,color:"#475569"}}>🩸 סוכר</span>
+                <input type="number" value={bloodSugar} onChange={e=>setBloodSugar(e.target.value)}
+                  onBlur={e=>saveBloodSugar(e.target.value)}
+                  placeholder="— mg/dL" style={{width:95,background:"transparent",border:"none",textAlign:"left",fontSize:13,fontWeight:700,color:sugarColor(bloodSugar),fontFamily:"inherit"}}/>
+              </div>
+            </div>
           </div>
         </div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-          {quickFoods.map(food=>(
-            <QuickFoodChip key={food.id} food={food} onAdd={addEntry}
-              editMode={showEditQuick} onRemove={removeQuickFood} onEdit={setEditingQuickFood}/>
-          ))}
-          {!isHiddenSpecial('var_crackers')&&<VarButton foodKey="crackers" onAdd={addEntry} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/>}
-          {!isHiddenSpecial('var_granola')&&<VarButton foodKey="granola" onAdd={addEntry} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/>}
-          {!isHiddenSpecial('yogurt')&&<YogurtBtn onAdd={addEntry} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/>}
-          {!isHiddenSpecial('coffee')&&<CoffeeBtn onAdd={addEntry} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/>}
-          {customBtns.map(btn=>(
-            <div key={btn.id} style={{position:"relative"}}>
-              <button className="chip chip-yellow" onClick={()=>showEditQuick?null:addEntry(btn)} style={{paddingLeft:26,opacity:showEditQuick?0.7:1}}>
-                <span>{btn.label}</span>
-                <span className="chip-sub">{btn.kcal} קק״ל · {btn.carbs}g פחמ׳</span>
-              </button>
-              <button onClick={()=>removeBtn(btn.id)} style={{position:"absolute",top:4,left:6,background:"none",border:"none",color:"#ccc",fontSize:13,cursor:"pointer",lineHeight:1,padding:0}}>×</button>
-              {showEditQuick&&<button onClick={()=>setEditingQuickFood({...btn,_type:'custom'})}
-                style={{position:"absolute",top:-4,right:-4,background:C.warn,border:"none",borderRadius:"50%",width:18,height:18,color:"#fff",fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✏</button>}
+      </div>
+
+      {/* ── MACRO CARDS ── */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,margin:"10px 16px 0"}}>
+        {[
+          {label:"פחמ׳",val:totals.carbs.toFixed(1),max:MAX_CARBS,color:C.warn,grad:"linear-gradient(90deg,#ea580c,#fb923c)"},
+          {label:"חלבון",val:totals.protein.toFixed(1),max:maxProtein,color:C.blue,grad:"linear-gradient(90deg,#2563eb,#60a5fa)"},
+          {label:"שומן",val:(totals.fat||0).toFixed(1),max:null,color:C.accent,grad:"linear-gradient(90deg,#0d9488,#14b8a6)"},
+        ].map(({label,val,max,color,grad})=>(
+          <div key={label} className="card" style={{padding:"13px 12px",borderRadius:16}}>
+            <div style={{fontSize:9,letterSpacing:1.2,textTransform:"uppercase",color:C.muted}}>{label}</div>
+            <div style={{fontSize:20,fontWeight:900,color,marginTop:5,lineHeight:1}}>{val}<span style={{fontSize:10,fontWeight:500,color:C.muted}}>g</span></div>
+            <div style={{height:4,borderRadius:3,background:"rgba(148,163,184,.2)",overflow:"hidden",marginTop:7}}>
+              {max&&<div style={{height:"100%",borderRadius:3,background:grad,width:`${Math.min(100,parseFloat(val)/max*100)}%`}}></div>}
             </div>
-          ))}
-          <button onClick={()=>{setShowPhoto(v=>!v);setShowMeal(false);setShowSmart(false);}} style={{background:showPhoto?"#1a6b9e":"transparent",border:`1px dashed ${showPhoto?"#1a6b9e":"#e0e0e5"}`,color:showPhoto?"#fff":C.muted,padding:"8px 14px",borderRadius:20,fontSize:12,cursor:"pointer",fontWeight:600}}>📷 תמונה</button>
-          <button onClick={()=>{setShowMeal(v=>!v);setShowSmart(false);setShowPhoto(false);}} style={{background:showMeal?"#5a3e8e":"transparent",border:`1px dashed ${showMeal?"#5a3e8e":"#e0e0e5"}`,color:showMeal?"#fff":C.muted,padding:"8px 14px",borderRadius:20,fontSize:12,cursor:"pointer",fontWeight:600}}>🍽 ארוחה</button>
-          <button onClick={()=>{setShowSmart(v=>!v);setShowMeal(false);}} style={{background:showSmart?C.accent:"transparent",border:`1px dashed ${showSmart?C.accent:"#e0e0e5"}`,color:showSmart?"#fff":C.muted,padding:"8px 14px",borderRadius:20,fontSize:12,cursor:"pointer",fontWeight:600}}>+ הוספה</button>
+            <div style={{fontSize:9,color:C.muted,marginTop:5}}>{max?`יעד ${max}g`:"ללא הגבלה"}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── QUICK ADD HEADER ── */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 20px 10px"}}>
+        <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:C.muted}}>הוספה מהירה</div>
+        <div style={{display:"flex",gap:6}}>
+          {showEditQuick&&<button onClick={resetQuickFoods} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:16,padding:"4px 10px",fontSize:11,color:C.muted,cursor:"pointer"}}>↺ אפס</button>}
+          <button onClick={()=>setShowEditQuick(v=>!v)} style={{background:showEditQuick?"rgba(217,119,6,.08)":"none",border:`1px solid ${showEditQuick?C.warn:C.border}`,borderRadius:16,padding:"4px 10px",fontSize:11,color:showEditQuick?C.warn:C.muted,cursor:"pointer"}}>{showEditQuick?"✓ סיום":"✏️ ערוך"}</button>
+          <button onClick={()=>setShowNewBtn(true)} style={{background:"rgba(13,148,136,.08)",border:"1px solid rgba(13,148,136,.25)",borderRadius:16,padding:"4px 10px",fontSize:11,color:C.accent,cursor:"pointer"}}>+ חדש</button>
         </div>
       </div>
 
-      {showPhoto && <PhotoMealPanel onAdd={addEntry} onClose={()=>setShowPhoto(false)}/>}
-      {showMeal && <MealPanel onAdd={addEntry} onClose={()=>setShowMeal(false)}/>}
-      {showSmart && <SmartAddPanel onAdd={addEntry} onClose={()=>setShowSmart(false)}/>}
+      {/* ── QUICK ADD CHIPS — horizontal scroll ── */}
+      <div style={{display:"flex",gap:8,overflowX:"auto",padding:"0 20px 14px",scrollbarWidth:"none",WebkitOverflowScrolling:"touch"}}>
+        {quickFoods.map(food=>(
+          <div key={food.id} style={{flexShrink:0,position:"relative"}}>
+            <QuickFoodChip food={food} onAdd={addEntry} editMode={showEditQuick} onRemove={removeQuickFood} onEdit={setEditingQuickFood}/>
+          </div>
+        ))}
+        {!isHiddenSpecial('var_crackers')&&<div style={{flexShrink:0}}><VarButton foodKey="crackers" onAdd={addEntry} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/></div>}
+        {!isHiddenSpecial('var_granola')&&<div style={{flexShrink:0}}><VarButton foodKey="granola" onAdd={addEntry} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/></div>}
+        {!isHiddenSpecial('yogurt')&&<div style={{flexShrink:0}}><YogurtBtn onAdd={addEntry} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/></div>}
+        {!isHiddenSpecial('coffee')&&<div style={{flexShrink:0}}><CoffeeBtn onAdd={addEntry} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/></div>}
+        {customBtns.map(btn=>(
+          <div key={btn.id} style={{flexShrink:0,position:"relative"}}>
+            <button className="chip chip-yellow" onClick={()=>showEditQuick?null:addEntry(btn)} style={{paddingLeft:26,opacity:showEditQuick?0.7:1}}>
+              <span>{btn.label}</span><span className="chip-sub">{btn.kcal} קק״ל · {btn.carbs}g פחמ׳</span>
+            </button>
+            <button onClick={()=>removeBtn(btn.id)} style={{position:"absolute",top:4,left:6,background:"none",border:"none",color:"#ccc",fontSize:13,cursor:"pointer",lineHeight:1,padding:0}}>×</button>
+            {showEditQuick&&<button onClick={()=>setEditingQuickFood({...btn,_type:'custom'})} style={{position:"absolute",top:-4,right:-4,background:C.warn,border:"none",borderRadius:"50%",width:18,height:18,color:"#fff",fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✏</button>}
+          </div>
+        ))}
+        <div style={{flexShrink:0,display:"flex",gap:6,alignItems:"center"}}>
+          <button onClick={()=>{setShowPhoto(v=>!v);setShowMeal(false);setShowSmart(false);}} style={{background:showPhoto?"#1a6b9e":"rgba(255,255,255,.65)",border:`1px dashed ${showPhoto?"#1a6b9e":C.border}`,color:showPhoto?"#fff":C.muted,padding:"8px 14px",borderRadius:16,fontSize:12,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>📷 תמונה</button>
+          <button onClick={()=>{setShowMeal(v=>!v);setShowSmart(false);setShowPhoto(false);}} style={{background:showMeal?"#5a3e8e":"rgba(255,255,255,.65)",border:`1px dashed ${showMeal?"#5a3e8e":C.border}`,color:showMeal?"#fff":C.muted,padding:"8px 14px",borderRadius:16,fontSize:12,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>🍽 ארוחה</button>
+        </div>
+      </div>
 
-      {/* Log */}
-      <div style={{margin:"12px 16px 0"}}>
-        <div style={{fontSize:10,color:C.muted,letterSpacing:1.5,marginBottom:8}}>יומן היום ({entries.length} פריטים)</div>
+      {showPhoto&&<PhotoMealPanel onAdd={addEntry} onClose={()=>setShowPhoto(false)}/>}
+      {showMeal&&<MealPanel onAdd={addEntry} onClose={()=>setShowMeal(false)}/>}
+      {showSmart&&<SmartAddPanel onAdd={addEntry} onClose={()=>setShowSmart(false)}/>}
+
+      {/* ── LOG CARD ── */}
+      <div className="card" style={{margin:"0 16px 14px",overflow:"hidden"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",borderBottom:"1px solid rgba(148,163,184,.16)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:14}}>📋</span>
+            <span style={{fontSize:13,fontWeight:700,color:C.text}}>יומן היום</span>
+            {entries.length>0&&<span style={{background:"rgba(13,148,136,.08)",color:C.accent,border:"1px solid rgba(13,148,136,.2)",borderRadius:20,fontSize:10,fontWeight:700,padding:"2px 8px"}}>{entries.length} פריטים</span>}
+          </div>
+          <button onClick={()=>setShowJournal(true)} style={{fontSize:11,color:C.accent,cursor:"pointer",fontWeight:600,background:"none",border:"none",fontFamily:"inherit"}}>הכל ›</button>
+        </div>
         {entries.length===0
-          ? <div className="card" style={{padding:"30px 20px",textAlign:"center",color:C.muted,fontSize:13}}>לחצי על מאכל להוספה</div>
-          : <div className="card">
+          ? <div style={{padding:"30px 20px",textAlign:"center",color:C.muted,fontSize:13}}>לחצי על מאכל להוספה</div>
+          : <>
               {entries.map(e=><EntryRow key={e.uid} entry={e} onRemove={removeEntry} onUpdate={updateEntry}/>)}
               <div className="summary-row">
                 <span style={{fontSize:12,fontWeight:700,color:C.accent}}>סה״כ</span>
                 <span style={{fontSize:12,color:C.accent}}>{Math.round(totals.kcal)} קק״ל · {totals.carbs.toFixed(1)}g פחמ׳ · {totals.protein.toFixed(1)}g חלבון</span>
               </div>
-            </div>
+            </>
         }
       </div>
-      {entries.length>0 && <div style={{textAlign:"center",marginTop:16,fontSize:11,color:C.muted}}>לחצי על 💾 לשמירת היום ביומן</div>}
+
+      {/* ── FAB ── */}
+      <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
+        <button onClick={()=>{setShowSmart(v=>!v);setShowMeal(false);setShowPhoto(false);}}
+          style={{background:"linear-gradient(135deg,#14b8a6,#0d9488)",border:"none",borderRadius:50,padding:"14px 32px",fontSize:14,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 6px 24px rgba(13,148,136,.35)",display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:18,fontWeight:300}}>+</span> הוסף פריט
+        </button>
+      </div>
+
+      {/* ── BOTTOM NAV ── */}
+      <div style={{position:"sticky",bottom:0,background:"rgba(255,255,255,.92)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",borderTop:"1px solid rgba(148,163,184,.2)",display:"flex",zIndex:10,paddingBottom:"env(safe-area-inset-bottom)"}}>
+        {[
+          {id:"home",icon:"🏠",label:"בית",action:null},
+          {id:"journal",icon:"📓",label:"יומן",action:()=>setShowJournal(true)},
+          {id:"db",icon:"🗂",label:"מאגר",action:()=>setShowDB(true)},
+          {id:"profile",icon:"👤",label:"פרופיל",action:()=>setShowProfiles(true)},
+        ].map(tab=>(
+          <button key={tab.id} onClick={tab.action} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"10px 0",gap:3,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit"}}>
+            <span style={{fontSize:20,lineHeight:1}}>{tab.icon}</span>
+            <span style={{fontSize:9,letterSpacing:.4,color:tab.id==="home"?C.accent:"#94a3b8",fontWeight:tab.id==="home"?700:400}}>{tab.label}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
