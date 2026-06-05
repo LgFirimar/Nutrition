@@ -1,7 +1,7 @@
 {
   "name": "מעקב תזונה",
   "short_name": "תזונה",
-  "start_url": "/",
+  "start_url": "/Nutrition/",
   "display": "standalone",
   "background_color": "#f5f5f7",
   "theme_color": "#f5f5f7",
