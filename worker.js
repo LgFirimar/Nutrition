@@ -15,7 +15,7 @@ export default {
     }
 
     try {
-      const { foodName, mealDescription, imageData, imageMediaType } = await request.json();
+      const { foodName, mealDescription, imageData, imageMediaType, mealPlan } = await request.json();
 
       let prompt, model, system, max_tokens, messages;
       if (imageData) {
@@ -47,6 +47,24 @@ Meal: ${mealDescription}
 
 After your calculation, output ONLY this JSON on the very last line (no markdown):
 {"label":"short Hebrew meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT}`;
+      } else if (mealPlan) {
+        model = 'claude-sonnet-4-6';
+        max_tokens = 2048;
+        system = 'אתה תזונאי ושף מנוסה. ענה תמיד בעברית. החזר JSON תקין בלבד בשורה האחרונה, ללא markdown.';
+        const { preferences, people, refine, selectedMeal } = mealPlan;
+        if (selectedMeal) {
+          prompt = `תכנן מתכון מפורט עבור "${selectedMeal}" ל-${people} אנשים.
+השתמש במדידות מטריות בלבד (גרם, מ"ל, כפות).
+החזר JSON בשורה האחרונה:
+{"recipe":{"name":"שם","ingredients":[{"item":"חומר","amount":"כמות"}],"steps":["שלב 1"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`;
+        } else {
+          const refineText = refine ? `\n\nהערות לשיפור: ${refine}` : '';
+          prompt = `הצע 3 אפשרויות ארוחה עבור ${people} אנשים.
+העדפות: ${preferences || 'ללא הגבלות מיוחדות'}${refineText}
+לכל אפשרות תן הערכה תזונתית לאדם אחד.
+החזר JSON בשורה האחרונה:
+{"options":[{"name":"שם","description":"תיאור קצר","kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0}]}`;
+        }
       } else {
         model = 'claude-haiku-4-5-20251001';
         max_tokens = 300;
@@ -79,9 +97,10 @@ Return exactly this JSON structure:
 
       const data = await response.json();
       const text = data.content[0].text.trim();
-      // Extract JSON — may have reasoning text before it
-      const jsonMatch = text.match(/\{[^{}]*"kcal"[^{}]*\}/s);
-      const json = JSON.parse(jsonMatch ? jsonMatch[0] : text.replace(/```json|```/g, '').trim());
+      // Extract last JSON object — handles nested structures (options, recipe)
+      const lastBrace = text.lastIndexOf('{');
+      const jsonStr = lastBrace >= 0 ? text.slice(lastBrace) : text.replace(/```json|```/g, '').trim();
+      const json = JSON.parse(jsonStr);
 
       return new Response(JSON.stringify(json), {
         headers: { ...cors, 'Content-Type': 'application/json' }
