@@ -2595,6 +2595,19 @@ function App(){
               </div>
             </>
         }
+        {isToday&&entries.length>0&&(
+          <div style={{display:"flex",gap:8,padding:"10px 14px",borderTop:"1px solid rgba(148,163,184,.12)"}}>
+            <button onClick={saveDay} style={{flex:1,background:saveFlash?"rgba(13,148,136,.12)":"rgba(255,255,255,.7)",border:`1px solid ${saveFlash?C.accent:C.border}`,borderRadius:10,padding:"8px",fontSize:12,fontWeight:600,color:saveFlash?C.accent:C.muted,cursor:"pointer",animation:saveFlash?"pop .35s ease":"none"}}>
+              💾 {T.daySaved}
+            </button>
+            {isToday&&<button onClick={copyPrevDay} style={{flex:1,background:"rgba(255,255,255,.7)",border:`1px solid ${C.border}`,borderRadius:10,padding:"8px",fontSize:12,fontWeight:600,color:C.muted,cursor:"pointer"}}>
+              {T.yesterday}
+            </button>}
+            <button onClick={clearAll} style={{flex:1,background:"rgba(255,255,255,.7)",border:`1px solid ${C.border}`,borderRadius:10,padding:"8px",fontSize:12,fontWeight:600,color:C.muted,cursor:"pointer"}}>
+              🗑 {T.clear}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── FAB ── */}
