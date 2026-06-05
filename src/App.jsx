@@ -2419,7 +2419,7 @@ function App(){
         ))}
         <button onClick={()=>{setShowPhoto(v=>!v);setShowMeal(false);setShowSmart(false);setShowMealPlanner(false);}} style={{background:showPhoto?"#1a6b9e":"rgba(255,255,255,.65)",border:`1px dashed ${showPhoto?"#1a6b9e":C.border}`,color:showPhoto?"#fff":C.muted,padding:"5px 8px",borderRadius:10,fontSize:10,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>{T.photo}</button>
         <button onClick={()=>{setShowMeal(v=>!v);setShowSmart(false);setShowPhoto(false);setShowMealPlanner(false);}} style={{background:showMeal?"#5a3e8e":"rgba(255,255,255,.65)",border:`1px dashed ${showMeal?"#5a3e8e":C.border}`,color:showMeal?"#fff":C.muted,padding:"5px 8px",borderRadius:10,fontSize:10,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>{T.mealBtn}</button>
-        <button onClick={()=>{setShowMealPlanner(v=>!v);setShowMeal(false);setShowPhoto(false);setShowSmart(false);}} style={{background:showMealPlanner?"#0d9488":"rgba(255,255,255,.65)",border:`1px dashed ${showMealPlanner?"#0d9488":C.border}`,color:showMealPlanner?"#fff":C.muted,padding:"5px 8px",borderRadius:10,fontSize:10,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>{T.whatEat}</button>
+        <button onClick={()=>{setShowSmart(v=>!v);setShowMeal(false);setShowPhoto(false);setShowMealPlanner(false);}} style={{background:showSmart?"#0d9488":"rgba(255,255,255,.65)",border:`1px dashed ${showSmart?"#0d9488":C.border}`,color:showSmart?"#fff":C.muted,padding:"5px 8px",borderRadius:10,fontSize:10,cursor:"pointer",fontWeight:600,whiteSpace:"nowrap"}}>+ {T.addItem}</button>
       </div>
 
       {showPhoto&&<PhotoMealPanel onAdd={addEntry} onClose={()=>setShowPhoto(false)}/>}
@@ -2450,9 +2450,9 @@ function App(){
 
       {/* ── FAB ── */}
       <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
-        <button onClick={()=>{setShowSmart(v=>!v);setShowMeal(false);setShowPhoto(false);setShowMealPlanner(false);}}
+        <button onClick={()=>{setShowMealPlanner(v=>!v);setShowMeal(false);setShowPhoto(false);setShowSmart(false);}}
           style={{background:"linear-gradient(135deg,#14b8a6,#0d9488)",border:"none",borderRadius:50,padding:"14px 32px",fontSize:14,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 6px 24px rgba(13,148,136,.35)",display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontSize:18,fontWeight:300}}>+</span> {T.addItem}
+          🍳 {T.whatEat}
         </button>
       </div>
 
