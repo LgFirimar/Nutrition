@@ -2010,16 +2010,20 @@ function MealPlannerModal({onAdd,onClose,lang}){
   };
 
   const fetchRecipe=async(optionName)=>{
+    setSelected(optionName);
     setLoading(true);setError("");
     try{
       const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({mealPlan:{selectedMeal:optionName,people}})});
       const d=await r.json();
       if(d.error)throw new Error(d.error);
-      setRecipe(d.recipe);
-      setSelected(optionName);
+      const rec=d.recipe||d;
+      if(!rec||!rec.name)throw new Error("No recipe returned");
+      setRecipe(rec);
       setStep(3);
-    }catch(e){setError(isHe?"שגיאה, נסי שוב":"Error, please try again");}
+    }catch(e){
+      setError((isHe?"שגיאה: ":"Error: ")+e.message);
+    }
     setLoading(false);
   };
 
@@ -2096,6 +2100,7 @@ function MealPlannerModal({onAdd,onClose,lang}){
 
         {/* Step 2 — Options */}
         {step===2&&<>
+          {error&&<div style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:8,padding:"8px 12px",fontSize:12,color:C.danger,marginBottom:10}}>{error}</div>}
           {options.map((opt,i)=>(
             <div key={i} style={{background:"rgba(255,255,255,.7)",border:`1px solid rgba(148,163,184,.25)`,borderRadius:16,padding:14,marginBottom:10}}>
               <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>{opt.name}</div>
