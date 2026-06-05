@@ -1706,7 +1706,7 @@ function QuickFoodChip({food,onAdd,editMode,onRemove,onEdit}){
   );
   return (
     <button className="chip" onClick={()=>onAdd({
-        ...food, uid:Date.now()+Math.random(), count:1,
+        ...food, label:getFoodLabel(food), uid:Date.now()+Math.random(), count:1,
         perUnit:{kcal:food.kcal,carbs:food.carbs,protein:food.protein||0,fat:food.fat||0}
       })}>
       <span>{getFoodLabel(food)}</span>
