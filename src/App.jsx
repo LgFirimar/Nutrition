@@ -296,8 +296,8 @@ function VPopup({label,value,setValue,step,min,kcal,carbs,onAdd}){
           style={{flex:1,background:"#f5f5f7",border:"1px solid #e0e0e5",borderRadius:6,color:C.text,padding:"4px 0",fontSize:15,fontWeight:700,textAlign:"center"}}/>
         <button onClick={()=>setValue(v=>v+step)} style={{background:"#e8e8ec",border:"none",color:C.text,borderRadius:6,width:28,height:28,cursor:"pointer",fontSize:16}}>+</button>
       </div>
-      <div style={{fontSize:11,color:C.accent,marginBottom:8,textAlign:"center"}}>{kcal} קק״ל · {carbs}g פחמ׳</div>
-      <button onClick={onAdd} style={{width:"100%",background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"8px",fontSize:13,fontWeight:700,cursor:"pointer"}}>הוסף</button>
+      <div style={{fontSize:11,color:C.accent,marginBottom:8,textAlign:"center"}}>{kcal} {getT().kcal} · {carbs}g {getT().carbs}</div>
+      <button onClick={onAdd} style={{width:"100%",background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"8px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{getT().add}</button>
     </div>
   );
 }
@@ -369,8 +369,8 @@ function YogurtBtn({onAdd,editMode,onEdit}){
               <button key={v} onClick={()=>setMl(v)} style={{flex:1,background:ml===v?"rgba(90,158,30,0.1)":"#f5f5f7",border:`1px solid ${ml===v?C.accent:C.border}`,borderRadius:6,padding:"4px 2px",fontSize:9,color:ml===v?C.accent:C.muted,cursor:"pointer"}}>{l}</button>
             ))}
           </div>
-          <div style={{fontSize:11,color:C.muted,textAlign:"center",marginBottom:8}}>{calc.kcal} קק״ל · {calc.carbs}g פחמ׳</div>
-          <button className="btn-accent" onClick={add}>+ הוסף ליום</button>
+          <div style={{fontSize:11,color:C.muted,textAlign:"center",marginBottom:8}}>{calc.kcal} {getT().kcal} · {calc.carbs}g {getT().carbs}</div>
+          <button className="btn-accent" onClick={add}>+ {getT().add}</button>
         </div>
       )}
       {editMode&&<><button onClick={()=>onEdit({id:'yogurt',label,kcal:per100.kcal,carbs:per100.carbs,protein:per100.protein,fat:per100.fat||0,_type:'yogurt',_note:'ערכים ל-100מ״ל'})}
@@ -595,7 +595,8 @@ function LoadFoodToDB({foodName,amount,unit,onAddToDay,onSaved}){
 }
 
 // ── DBManagerModal ─────────────────────────────────────────────────────────────
-function DBManagerModal({onClose,pid}){
+function DBManagerModal({onClose,pid,lang}){
+  const T=LANG[lang]||LANG.he;
   const activePid = window._activePid||pid||'default';
   const [db,setDb]=useState(()=>loadCustomDB(activePid));
   useEffect(()=>{ setDb(loadCustomDB(window._activePid||pid||'default')); },[pid]);
@@ -639,19 +640,19 @@ function DBManagerModal({onClose,pid}){
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <div className="modal-sheet slide" style={{maxHeight:"85vh"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <div style={{fontSize:15,fontWeight:700}}>🗂 מאגר מאכלים אישי</div>
+          <div style={{fontSize:15,fontWeight:700}}>{T.dbTitle}</div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
         </div>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="חיפוש..." className="inp" style={{marginBottom:12}}/>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={T.search} className="inp" style={{marginBottom:12}}/>
         {filtered.length===0
-          ? <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:"20px 0"}}>{db.length===0?"המאגר ריק עדיין":"לא נמצאו תוצאות"}</div>
+          ? <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:"20px 0"}}>{db.length===0?T.dbEmpty:T.noResults}</div>
           : <div style={{display:"flex",flexDirection:"column",gap:6}}>
               {filtered.map((f,i)=>(
                 <div key={i} style={{background:"#f5f5f7",borderRadius:10,overflow:"hidden"}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px"}}>
                     <div style={{flex:1}}>
                       <div style={{fontSize:13,fontWeight:600,color:C.text}}>{f.label}</div>
-                      <div style={{fontSize:11,color:C.muted,marginTop:2}}>{f.kcal} קק״ל · {f.carbs}g פחמ׳ · {f.protein}g חלבון ל-100{f.unit}</div>
+                      <div style={{fontSize:11,color:C.muted,marginTop:2}}>{f.kcal} {T.kcal} · {f.carbs}g {T.carbs} · {f.protein}g {T.protein} {T.per100}{f.unit}</div>
                     </div>
                     <div style={{display:"flex",gap:4}}>
                       <button onClick={()=>editing===i?setEditing(null):startEdit(f,i)}
@@ -664,7 +665,7 @@ function DBManagerModal({onClose,pid}){
                       <input value={editData.label} onChange={e=>setEditData(d=>({...d,label:e.target.value}))}
                         placeholder="שם" className="inp" style={{fontSize:13}}/>
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-                        {[["kcal","קק״ל",C.accent],["carbs","פחמ׳ g",C.warn],["protein","חלבון g",C.blue],["fat","שומן g","#999"]].map(([k,l,c])=>(
+                        {[["kcal",T.kcal,C.accent],["carbs",T.carbs+" g",C.warn],["protein",T.protein+" g",C.blue],["fat",T.fat+" g","#999"]].map(([k,l,c])=>(
                           <div key={k} className="num-wrap">
                             <input type="number" value={editData[k]} onChange={e=>setEditData(d=>({...d,[k]:e.target.value}))}
                               style={{borderColor:c}} className="num-wrap"/>
@@ -676,8 +677,8 @@ function DBManagerModal({onClose,pid}){
                         <select value={editData.unit} onChange={e=>setEditData(d=>({...d,unit:e.target.value}))} className="inp" style={{flex:1,fontSize:12}}>
                           <option value="g">גר׳</option><option value="ml">מ״ל</option><option value="יח׳">יח׳</option><option value="קוביות">קוביות</option>
                         </select>
-                        <button onClick={()=>setEditing(null)} className="btn-muted" style={{flex:1,padding:"8px"}}>ביטול</button>
-                        <button onClick={()=>saveEdit(f.label)} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"8px",fontSize:13,fontWeight:700,cursor:"pointer"}}>שמור</button>
+                        <button onClick={()=>setEditing(null)} className="btn-muted" style={{flex:1,padding:"8px"}}>{T.cancel}</button>
+                        <button onClick={()=>saveEdit(f.label)} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"8px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{T.save}</button>
                       </div>
                     </div>
                   )}
@@ -1347,7 +1348,8 @@ function SugarWeekChart({journal}){
 }
 
 // ── JournalView ────────────────────────────────────────────────────────────────
-function JournalView({onClose,onLoadDay,pid}){
+function JournalView({onClose,onLoadDay,pid,lang}){
+  const T=LANG[lang]||LANG.he;
   const [journal,setJournal]=useState(()=>loadJournal(pid||'default'));
   const [selected,setSelected]=useState(null);
   const [detailMode,setDetailMode]=useState("full");
@@ -1363,23 +1365,23 @@ function JournalView({onClose,onLoadDay,pid}){
       <div className="journal-header">
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:20}}>📓</span>
-          <div><div style={{fontSize:11,color:C.muted,letterSpacing:2}}>יומן תזונה</div><div style={{fontSize:13,color:C.accent}}>{days.length} ימים שמורים</div></div>
+          <div><div style={{fontSize:11,color:C.muted,letterSpacing:2}}>{T.journalTitle}</div><div style={{fontSize:13,color:C.accent}}>{days.length} {T.daysSaved}</div></div>
         </div>
-        <button onClick={onClose} style={{background:"none",border:"1px solid #e0e0e5",color:C.muted,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12}}>סגור</button>
+        <button onClick={onClose} style={{background:"none",border:"1px solid #e0e0e5",color:C.muted,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12}}>{T.close}</button>
       </div>
       <div className="tab-bar">
-        {[["list","📋 יומן"],["week","📊 שבועי"]].map(([v,l])=>(
+        {[[("list"),T.journalTab],[("week"),T.weekTab]].map(([v,l])=>(
           <button key={v} className={`tab${view===v?" active":""}`} onClick={()=>{setView(v);setSelected(null);}}>{l}</button>
         ))}
       </div>
       <div className="journal-body">
         {view==="list" && (
           <div>
-            {days.length===0 && <div style={{padding:40,textAlign:"center",color:C.muted,fontSize:13}}>אין ימים שמורים עדיין</div>}
+            {days.length===0 && <div style={{padding:40,textAlign:"center",color:C.muted,fontSize:13}}>{T.noDays}</div>}
             {days.map(key=>(
               <div key={key}>
                 <div onClick={()=>setSelected(selected===key?null:key)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 20px",borderBottom:"1px solid #e0e0e5",cursor:"pointer",background:selected===key?"rgba(90,158,30,0.07)":"transparent"}}>
-                  <div><div style={{fontSize:13,color:C.text,fontWeight:600}}>{getDateLabel(key)}</div><div style={{fontSize:11,color:C.muted,marginTop:3}}>{Math.round(journal[key].totals.kcal)} קק״ל · {Number(journal[key].totals.carbs).toFixed(1)}g פחמ׳</div></div>
+                  <div><div style={{fontSize:13,color:C.text,fontWeight:600}}>{getDateLabel(key)}</div><div style={{fontSize:11,color:C.muted,marginTop:3}}>{Math.round(journal[key].totals.kcal)} {T.kcal} · {Number(journal[key].totals.carbs).toFixed(1)}g {T.carbs}</div></div>
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     <button onClick={e=>{e.stopPropagation();deleteDay(key);}} style={{background:"none",border:"none",color:C.muted,fontSize:16,cursor:"pointer",padding:4}}>🗑</button>
                     <span style={{color:C.muted,fontSize:16,display:"inline-block",transform:selected===key?"rotate(90deg)":"none",transition:"transform 0.2s"}}>›</span>
@@ -1388,11 +1390,11 @@ function JournalView({onClose,onLoadDay,pid}){
                 {selected===key && (
                   <div style={{background:"rgba(255,255,255,.55)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",borderBottom:"1px solid rgba(148,163,184,.18)"}} className="fade">
                     <div style={{display:"flex",gap:8,padding:"12px 20px 8px",flexWrap:"wrap",alignItems:"center"}}>
-                      {[["full","🍽 פירוט"],["stats","📊 ערכים"]].map(([m,l])=>(
+                      {[["full",T.details],["stats",T.statsTab]].map(([m,l])=>(
                         <button key={m} onClick={()=>setDetailMode(m)} style={{background:detailMode===m?C.accent:"transparent",border:`1px solid ${detailMode===m?C.accent:C.border}`,color:detailMode===m?"#fff":C.muted,padding:"5px 12px",borderRadius:16,fontSize:11,cursor:"pointer",fontWeight:detailMode===m?700:400}}>{l}</button>
                       ))}
                       {key===todayKey && (
-                        <button onClick={()=>{onLoadDay(journal[key].entries);onClose();}} style={{marginRight:"auto",background:"transparent",border:`1px solid ${C.warn}`,color:C.warn,padding:"5px 12px",borderRadius:16,fontSize:11,cursor:"pointer"}}>✏️ טען לעריכה</button>
+                        <button onClick={()=>{onLoadDay(journal[key].entries);onClose();}} style={{marginRight:"auto",background:"transparent",border:`1px solid ${C.warn}`,color:C.warn,padding:"5px 12px",borderRadius:16,fontSize:11,cursor:"pointer"}}>{T.loadEdit}</button>
                       )}
                     </div>
                     {detailMode==="full" && (
@@ -1400,24 +1402,24 @@ function JournalView({onClose,onLoadDay,pid}){
                         {journal[key].entries.map((e,i)=>(
                           <div key={i} style={{padding:"7px 0",borderBottom:"1px solid rgba(0,0,0,0.06)",display:"flex",justifyContent:"space-between"}}>
                             <span style={{fontSize:13,color:C.text}}>{e.label}</span>
-                            <span style={{fontSize:12,color:C.muted}}>{Math.round(e.kcal)} קק״ל · {Number(e.carbs||0).toFixed(1)}g פחמ׳</span>
+                            <span style={{fontSize:12,color:C.muted}}>{Math.round(e.kcal)} {T.kcal} · {Number(e.carbs||0).toFixed(1)}g {T.carbs}</span>
                           </div>
                         ))}
                         {journal[key].bloodSugar&&(
                           <div style={{padding:"6px 0",borderBottom:"1px solid rgba(0,0,0,0.06)",display:"flex",justifyContent:"space-between"}}>
-                            <span style={{fontSize:12,color:sugarColor(journal[key].bloodSugar)}}>🩸 סוכר בוקר</span>
+                            <span style={{fontSize:12,color:sugarColor(journal[key].bloodSugar)}}>{T.bloodSugarLabel}</span>
                             <span style={{fontSize:12,fontWeight:700,color:sugarColor(journal[key].bloodSugar)}}>{journal[key].bloodSugar} mg/dL</span>
                           </div>
                         )}
                         <div style={{marginTop:10,padding:"8px 0",borderTop:"1px solid rgba(90,158,30,0.27)",display:"flex",justifyContent:"space-between"}}>
-                          <span style={{fontSize:12,fontWeight:700,color:C.accent}}>סה״כ</span>
-                          <span style={{fontSize:12,color:C.accent}}>{Math.round(journal[key].totals.kcal)} קק״ל · {Number(journal[key].totals.carbs).toFixed(1)}g פחמ׳</span>
+                          <span style={{fontSize:12,fontWeight:700,color:C.accent}}>{T.total}</span>
+                          <span style={{fontSize:12,color:C.accent}}>{Math.round(journal[key].totals.kcal)} {T.kcal} · {Number(journal[key].totals.carbs).toFixed(1)}g {T.carbs}</span>
                         </div>
                       </div>
                     )}
                     {detailMode==="stats" && (
                       <div style={{padding:"8px 20px 16px"}} className="g3">
-                        {[{l:"קק״ל",v:Math.round(journal[key].totals.kcal),c:C.accent},{l:"פחמימות",v:Number(journal[key].totals.carbs).toFixed(1)+"g",c:C.warn},{l:"חלבון",v:Number(journal[key].totals.protein).toFixed(1)+"g",c:C.blue}].map(({l,v,c})=>(
+                        {[{l:T.kcal,v:Math.round(journal[key].totals.kcal),c:C.accent},{l:T.carbsFull,v:Number(journal[key].totals.carbs).toFixed(1)+"g",c:C.warn},{l:T.protein,v:Number(journal[key].totals.protein).toFixed(1)+"g",c:C.blue}].map(({l,v,c})=>(
                           <div key={l} style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(14px)",WebkitBackdropFilter:"blur(14px)",borderRadius:12,padding:"10px 8px",textAlign:"center",border:"1px solid rgba(255,255,255,.8)"}}>
                             <div style={{fontSize:20,fontWeight:900,color:c}}>{v}</div>
                             <div style={{fontSize:10,color:C.muted,marginTop:3}}>{l}</div>
@@ -1433,11 +1435,11 @@ function JournalView({onClose,onLoadDay,pid}){
         )}
         {view==="week" && (
           <div style={{padding:20}}>
-            {weekDays.length===0 && <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:30}}>אין נתונים שמורים</div>}
+            {weekDays.length===0 && <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:30}}>{T.noData}</div>}
             {weekDays.length>0 && <>
-              <div style={{fontSize:11,color:C.muted,letterSpacing:1.5,marginBottom:12}}>ממוצע יומי ({weekDays.length} ימים)</div>
+              <div style={{fontSize:11,color:C.muted,letterSpacing:1.5,marginBottom:12}}>{T.avgDaily} ({weekDays.length} {T.days})</div>
               <div className="g3" style={{marginBottom:20}}>
-                {[{l:"קק״ל",v:Math.round(wt.kcal/wt.n),c:C.accent},{l:"פחמימות",v:(wt.carbs/wt.n).toFixed(1)+"g",c:C.warn},{l:"חלבון",v:(wt.protein/wt.n).toFixed(1)+"g",c:C.blue}].map(({l,v,c})=>(
+                {[{l:T.kcal,v:Math.round(wt.kcal/wt.n),c:C.accent},{l:T.carbsFull,v:(wt.carbs/wt.n).toFixed(1)+"g",c:C.warn},{l:T.protein,v:(wt.protein/wt.n).toFixed(1)+"g",c:C.blue}].map(({l,v,c})=>(
                   <div key={l} style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(14px)",WebkitBackdropFilter:"blur(14px)",borderRadius:16,padding:"14px 10px",textAlign:"center",border:"1px solid rgba(255,255,255,.88)",boxShadow:"0 3px 14px rgba(80,130,180,.08)"}}>
                     <div style={{fontSize:22,fontWeight:900,color:c}}>{v}</div>
                     <div style={{fontSize:10,color:C.muted,marginTop:4}}>{l}</div>
@@ -1449,12 +1451,12 @@ function JournalView({onClose,onLoadDay,pid}){
                 {weekDays.map((key,i)=>(
                   <div key={key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 16px",borderBottom:i<weekDays.length-1?"1px solid #e0e0e5":"none"}}>
                     <div style={{fontSize:12,color:C.text}}>{getDateLabel(key)}</div>
-                    <div style={{fontSize:11,color:C.muted}}>{Math.round(journal[key].totals.kcal)} קק״ל · {Number(journal[key].totals.carbs).toFixed(1)}g</div>
+                    <div style={{fontSize:11,color:C.muted}}>{Math.round(journal[key].totals.kcal)} {T.kcal} · {Number(journal[key].totals.carbs).toFixed(1)}g</div>
                   </div>
                 ))}
                 <div className="summary-row">
-                  <span style={{fontSize:12,fontWeight:700,color:C.accent}}>סה״כ ({weekDays.length} ימים)</span>
-                  <span style={{fontSize:12,color:C.accent}}>{Math.round(wt.kcal)} קק״ל · {wt.carbs.toFixed(1)}g פחמ׳</span>
+                  <span style={{fontSize:12,fontWeight:700,color:C.accent}}>{T.total} ({weekDays.length} {T.days})</span>
+                  <span style={{fontSize:12,color:C.accent}}>{Math.round(wt.kcal)} {T.kcal} · {wt.carbs.toFixed(1)}g {T.carbs}</span>
                 </div>
               </div>
             </>}
@@ -1864,22 +1866,38 @@ function SplashScreen({onDone}){
 const LANG={
   he:{greeting:"שלום",calories:"קלוריות היום",consumed:"נאכל",target:"יעד",sugar:"סוכר",left:"נותרו",
       kcal:"קק״ל",mgdl:"mg/dL",goal:"יעד",
-      carbs:"פחמ׳",protein:"חלבון",fat:"שומן",noLimit:"ללא הגבלה",
+      carbs:"פחמ׳",carbsFull:"פחמימות",protein:"חלבון",fat:"שומן",noLimit:"ללא הגבלה",
       quickAdd:"הוספה מהירה",edit:"✏️ ערוך",done:"✓ סיום",reset:"↺ אפס",newBtn:"+ חדש",
       todayLog:"יומן היום",items:"פריטים",allLog:"הכל ›",addItem:"הוסף פריט",
       noEntries:"לחצי על מאכל להוספה",total:"סה״כ",
       home:"בית",journal:"יומן",db:"מאגר",profile:"פרופיל",
       photo:"📷 תמונה",mealBtn:"🍽 ארוחה",whatEat:"🍳 מה אוכלים",
-      daySaved:"שמור",yesterday:"📋 אתמול",clear:"נקה",people:"אנשים"},
+      daySaved:"שמור",yesterday:"📋 אתמול",clear:"נקה",people:"אנשים",
+      close:"סגור",cancel:"ביטול",save:"שמור",add:"הוסף",
+      journalTitle:"יומן תזונה",daysSaved:"ימים שמורים",days:"ימים",
+      journalTab:"📋 יומן",weekTab:"📊 שבועי",
+      noDays:"אין ימים שמורים עדיין",noData:"אין נתונים שמורים",
+      details:"🍽 פירוט",statsTab:"📊 ערכים",loadEdit:"✏️ טען לעריכה",
+      bloodSugarLabel:"🩸 סוכר בוקר",avgDaily:"ממוצע יומי",per100:"ל-100",
+      dbTitle:"🗂 מאגר מאכלים אישי",search:"חיפוש...",
+      dbEmpty:"המאגר ריק עדיין",noResults:"לא נמצאו תוצאות"},
   en:{greeting:"Hello",calories:"Today's Calories",consumed:"Eaten",target:"Goal",sugar:"Sugar",left:"Left",
       kcal:"kcal",mgdl:"mg/dL",goal:"Goal",
-      carbs:"Carbs",protein:"Protein",fat:"Fat",noLimit:"No limit",
+      carbs:"Carbs",carbsFull:"Carbs",protein:"Protein",fat:"Fat",noLimit:"No limit",
       quickAdd:"Quick Add",edit:"✏️ Edit",done:"✓ Done",reset:"↺ Reset",newBtn:"+ New",
       todayLog:"Today's Log",items:"items",allLog:"All ›",addItem:"Add Item",
       noEntries:"Tap a food to add",total:"Total",
       home:"Home",journal:"Journal",db:"Foods",profile:"Profile",
       photo:"📷 Photo",mealBtn:"🍽 Meal",whatEat:"🍳 What to eat",
-      daySaved:"Saved",yesterday:"📋 Yesterday",clear:"Clear",people:"people"}
+      daySaved:"Saved",yesterday:"📋 Yesterday",clear:"Clear",people:"people",
+      close:"Close",cancel:"Cancel",save:"Save",add:"Add",
+      journalTitle:"Nutrition Journal",daysSaved:"days saved",days:"days",
+      journalTab:"📋 Journal",weekTab:"📊 Weekly",
+      noDays:"No saved days yet",noData:"No saved data",
+      details:"🍽 Details",statsTab:"📊 Stats",loadEdit:"✏️ Load to edit",
+      bloodSugarLabel:"🩸 Morning Sugar",avgDaily:"Daily average",per100:"per 100",
+      dbTitle:"🗂 Personal Food Database",search:"Search...",
+      dbEmpty:"Database is empty",noResults:"No results found"}
 };
 const getT=()=>LANG[localStorage.getItem('nutrition_lang')||'he']||LANG.he;
 
@@ -2221,9 +2239,9 @@ function App(){
       {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang}/>}
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)}/>}
       {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)}/>}
-      {showJournal && <JournalView pid={pid} onClose={()=>setShowJournal(false)} onLoadDay={saved=>{setEntries(saved.map(e=>({...e,uid:Date.now()+Math.random()})));setShowJournal(false);}}/>}
+      {showJournal && <JournalView pid={pid} lang={lang} onClose={()=>setShowJournal(false)} onLoadDay={saved=>{setEntries(saved.map(e=>({...e,uid:Date.now()+Math.random()})));setShowJournal(false);}}/>}
       {showNewBtn && <NewButtonModal onClose={()=>setShowNewBtn(false)} onSave={saveNewBtn}/>}
-      {showDB && <DBManagerModal pid={pid} onClose={()=>setShowDB(false)}/>}
+      {showDB && <DBManagerModal pid={pid} lang={lang} onClose={()=>setShowDB(false)}/>}
       {editingQuickFood && <EditQuickFoodModal food={editingQuickFood} onSave={f=>{
         if(f._type==='var') saveSpecialEdit(`var_${f._key}`,{kcal:f.kcal,carbs:f.carbs,protein:f.protein,fat:f.fat,label:f.label});
         else if(f._type==='yogurt') saveSpecialEdit('yogurt',{kcal:f.kcal,carbs:f.carbs,protein:f.protein,fat:f.fat,label:f.label});
