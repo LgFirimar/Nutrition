@@ -1971,10 +1971,12 @@ function InfoModal({onClose,lang}){
 // ── MealPlannerModal ───────────────────────────────────────────────────────────
 const API="https://nutrition-ai.lior0gal.workers.dev";
 const FRIDGE_CATS=[
-  {key:"cheeses", he:"גבינות",     en:"Cheeses"},
-  {key:"veggies", he:"ירקות ופירות",en:"Vegetables & Fruits"},
-  {key:"protein", he:"חלבון",      en:"Protein"},
-  {key:"other",   he:"אחר",        en:"Other"},
+  {key:"cheeses", he:"גבינות",       en:"Cheeses"},
+  {key:"veggies", he:"ירקות ופירות", en:"Vegetables & Fruits"},
+  {key:"protein", he:"חלבון",        en:"Protein"},
+  {key:"carbs",   he:"פחמימה",       en:"Carbs"},
+  {key:"nuts",    he:"פיצוחים",      en:"Nuts & Seeds"},
+  {key:"other",   he:"אחר",          en:"Other"},
 ];
 const loadFridge=()=>{try{return JSON.parse(localStorage.getItem("nutrition_fridge")||"{}");}catch{return {};}};
 const saveFridgeLS=f=>localStorage.setItem("nutrition_fridge",JSON.stringify(f));
@@ -2212,20 +2214,20 @@ function MealPlannerModal({onAdd,onClose,lang}){
         {/* Step 3 — Recipe */}
         {step===3&&recipe&&<>
           {!showIngEdit ? <>
-            <div style={{fontSize:16,fontWeight:900,color:C.text,marginBottom:4}}>{recipe.name}</div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:14}}>{isHe?"לאדם":"per person"}: {Math.round(recipe.kcalPerPerson||0)} {isHe?"קק״ל":"kcal"} · {Math.round(recipe.carbsPerPerson||0)}g {isHe?"פחמ׳":"carbs"} · {Math.round(recipe.proteinPerPerson||0)}g {isHe?"חלבון":"prot"}</div>
-            <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1.2,marginBottom:8}}>{isHe?"רכיבים (ל-":"Ingredients (for "}{people}{isHe?" אנשים)":")"}</div>
-            <div style={{background:"rgba(148,163,184,.08)",borderRadius:12,padding:"10px 14px",marginBottom:14}}>
+            <div style={{fontSize:14,fontWeight:900,color:C.text,marginBottom:3}}>{recipe.name}</div>
+            <div style={{fontSize:10,color:C.muted,marginBottom:10}}>{isHe?"לאדם":"per person"}: {Math.round(recipe.kcalPerPerson||0)} {isHe?"קק״ל":"kcal"} · {Math.round(recipe.carbsPerPerson||0)}g {isHe?"פחמ׳":"carbs"} · {Math.round(recipe.proteinPerPerson||0)}g {isHe?"חלבון":"prot"}</div>
+            <div style={{fontSize:10,fontWeight:700,color:C.muted,letterSpacing:1.2,marginBottom:6}}>{isHe?"רכיבים (ל-":"Ingredients (for "}{people}{isHe?" אנשים)":")"}</div>
+            <div style={{background:"rgba(148,163,184,.08)",borderRadius:10,padding:"8px 12px",marginBottom:10}}>
               {(recipe.ingredients||[]).map((ing,i)=>(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:i<recipe.ingredients.length-1?`1px solid ${C.border}`:"none"}}>
-                  <span style={{fontSize:13,color:C.text}}>{ing.item}</span>
-                  <span style={{fontSize:12,color:C.muted,fontWeight:600}}>{ing.amount}</span>
+                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"3px 0",borderBottom:i<recipe.ingredients.length-1?`1px solid ${C.border}`:"none"}}>
+                  <span style={{fontSize:12,color:C.text}}>{ing.item}</span>
+                  <span style={{fontSize:11,color:C.muted,fontWeight:600}}>{ing.amount}</span>
                 </div>
               ))}
             </div>
-            <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1.2,marginBottom:8}}>{isHe?"הכנה":"Instructions"}</div>
-            <ol style={{paddingRight:16,marginBottom:16}}>
-              {(recipe.steps||[]).map((s,i)=><li key={i} style={{fontSize:13,color:C.text,marginBottom:6,lineHeight:1.5}}>{s}</li>)}
+            <div style={{fontSize:10,fontWeight:700,color:C.muted,letterSpacing:1.2,marginBottom:6}}>{isHe?"הכנה":"Instructions"}</div>
+            <ol style={{paddingRight:14,marginBottom:12,marginTop:0}}>
+              {(recipe.steps||[]).map((s,i)=><li key={i} style={{fontSize:12,color:C.text,marginBottom:4,lineHeight:1.4}}>{s}</li>)}
             </ol>
             {error&&<div style={{color:C.danger,fontSize:12,marginBottom:8}}>{error}</div>}
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
@@ -2535,12 +2537,12 @@ function App(){
                 <span style={{fontSize:14,fontWeight:700,color:C.text}}>{MAX_KCAL} <span style={{fontSize:10,fontWeight:400,color:C.muted}}>{T.kcal}</span></span>
               </div>
               <div style={{height:1,background:"rgba(148,163,184,.2)"}}></div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:12,color:"#475569"}}>🩸 {T.sugar}</span>
+              <label style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"text"}}>
+                <span style={{fontSize:12,color:"#475569",flexShrink:0}}>🩸 {T.sugar}</span>
                 <input type="number" value={bloodSugar} onChange={e=>setBloodSugar(e.target.value)}
                   onBlur={e=>saveBloodSugar(e.target.value)}
-                  placeholder="— mg/dL" style={{width:95,background:"transparent",border:"none",textAlign:"left",fontSize:13,fontWeight:700,color:sugarColor(bloodSugar),fontFamily:"inherit"}}/>
-              </div>
+                  placeholder="— mg/dL" style={{flex:1,minWidth:0,background:"transparent",border:"none",textAlign:"right",fontSize:13,fontWeight:700,color:sugarColor(bloodSugar),fontFamily:"inherit",paddingRight:2}}/>
+              </label>
             </div>
           </div>
         </div>
