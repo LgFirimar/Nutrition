@@ -1500,9 +1500,11 @@ function ExportImportModal({pid, onClose}){
 
   const exportData=()=>{
     const data={
-      version:2,
+      version:3,
       exportDate:new Date().toISOString(),
       pid,
+      profiles:loadProfiles(),
+      activeProfileId:loadActiveProfileId(),
       journal:loadJournal(pid),
       customBtns:loadCustomBtns(pid),
       customDB:loadCustomDB(pid),
@@ -1536,10 +1538,12 @@ function ExportImportModal({pid, onClose}){
       const data=JSON.parse(importText.trim());
       if(!data.version||!data.journal) throw new Error("פורמט לא תקין");
       const targetPid=pid;
+      if(data.profiles) saveProfiles(data.profiles);
+      if(data.activeProfileId) saveActiveProfileId(data.activeProfileId);
       if(data.journal) saveJournal(data.journal,targetPid);
       if(data.customBtns) saveCustomBtns(data.customBtns,targetPid);
       if(data.customDB) saveCustomDB(data.customDB,targetPid);
-      if(data.fridge) { saveFridgeLS(data.fridge); }
+      if(data.fridge) saveFridgeLS(data.fridge);
       if(data.savedPrefs) localStorage.setItem("nutrition_saved_prefs",JSON.stringify(data.savedPrefs));
       if(data.quickFoods) saveQuickFoods(data.quickFoods,targetPid);
       setMsg({type:"success",text:`✓ יובאו ${Object.keys(data.journal||{}).length} ימים בהצלחה! רענן את הדף.`});
