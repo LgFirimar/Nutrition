@@ -1751,7 +1751,10 @@ function PantryModal({onClose,lang}){
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <div className="modal-sheet slide" style={{maxHeight:"90vh",overflowY:"auto"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontSize:15,fontWeight:700}}>🏪 {isHe?"מזווה":"Pantry"}</div>
+          <div style={{fontSize:15,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
+            <img src={isHe?"/Nutrition/pantry-he.png":"/Nutrition/pantry-en.png"} style={{width:28,height:28,objectFit:"contain"}} alt=""/>
+            {isHe?"מזווה":"Pantry"}
+          </div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
         </div>
         <div style={{fontSize:11,color:C.muted,marginBottom:14}}>{isHe?"מה יש בבית? הכנס פריטים עם כמויות:":"What do you have at home? Add items with quantities:"}</div>
@@ -1841,7 +1844,10 @@ function ShoppingListModal({onClose,lang,pid}){
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <div className="modal-sheet slide" style={{maxHeight:"90vh",overflowY:"auto"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontSize:15,fontWeight:700}}>🛒 {isHe?"רשימת קניות":"Shopping List"}</div>
+          <div style={{fontSize:15,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
+            <img src="/Nutrition/shopping-cart.png" style={{width:28,height:28,objectFit:"contain"}} alt=""/>
+            {isHe?"רשימת קניות":"Shopping List"}
+          </div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
         </div>
 
@@ -2909,8 +2915,12 @@ function App(){
           <button onClick={toggleLang} style={{height:28,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:10,fontWeight:700,color:C.muted,padding:"0 8px"}}>
             {lang==='he'?'EN':'עב'}
           </button>
-          <button onClick={()=>setShowPantry(true)} style={{width:28,height:28,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>🏪</button>
-          <button onClick={()=>setShowShopping(true)} style={{width:28,height:28,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>🛒</button>
+          <button onClick={()=>setShowPantry(true)} style={{width:34,height:34,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <img src={lang==='he'?"/Nutrition/pantry-he.png":"/Nutrition/pantry-en.png"} style={{width:30,height:30,objectFit:"contain"}} alt="מזווה"/>
+          </button>
+          <button onClick={()=>setShowShopping(true)} style={{width:34,height:34,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <img src="/Nutrition/shopping-cart.png" style={{width:30,height:30,objectFit:"contain"}} alt="קניות"/>
+          </button>
           <button onClick={()=>setShowInfo(true)} style={{width:28,height:28,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontWeight:700}}>ℹ</button>
           <button onClick={saveDay} style={{width:36,height:36,borderRadius:10,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .3s",animation:saveFlash?"pop .35s ease":"none",boxShadow:"0 2px 8px rgba(80,120,160,.1)"}}>💾</button>
           <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#14b8a6,#0d9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 2px 8px rgba(13,148,136,.35)",cursor:"pointer"}} onClick={()=>setShowProfiles(true)}>{activeProfile?.emoji}</div>
