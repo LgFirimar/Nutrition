@@ -1000,6 +1000,8 @@ function MealPanel({onAdd,onClose}){
     setLoading(false);
   };
 
+  const [savedToDb,setSavedToDb]=useState(false);
+
   const addToDay=()=>{
     if(!preview)return;
     const s=Math.max(1,servings);
@@ -1010,6 +1012,21 @@ function MealPanel({onAdd,onClose}){
       protein:parseFloat(((preview.protein||0)/s).toFixed(1)),
       fat:parseFloat(((preview.fat||0)/s).toFixed(1))});
     onClose();
+  };
+
+  const saveToDb=()=>{
+    if(!preview)return;
+    const s=Math.max(1,servings);
+    const name=preview.label||text.slice(0,40)||"ארוחה";
+    const entry={names:[name.toLowerCase()],label:`🍽 ${name}`,
+      kcal:Math.round(preview.kcal/s),carbs:parseFloat(((preview.carbs||0)/s).toFixed(1)),
+      protein:parseFloat(((preview.protein||0)/s).toFixed(1)),fat:parseFloat(((preview.fat||0)/s).toFixed(1)),
+      defaultAmt:1,unit:"מנה"};
+    const pid=window._activePid||"default";
+    const db=loadCustomDB(pid);
+    saveCustomDB([...db.filter(f=>f.label!==entry.label),entry],pid);
+    setSavedToDb(true);
+    setTimeout(()=>setSavedToDb(false),2000);
   };
 
   return (
@@ -1046,7 +1063,12 @@ function MealPanel({onAdd,onClose}){
               <div key={l} className="preview-box"><div className="preview-val" style={{color:c}}>{v}</div><div className="preview-lbl">{l}</div></div>
             ))}
           </div>
-          <button onClick={addToDay} style={{width:"100%",background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ הוסף ליום</button>
+          <div style={{display:"flex",gap:6}}>
+            <button onClick={addToDay} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ הוסף ליום</button>
+            <button onClick={saveToDb} style={{flex:1,background:savedToDb?"rgba(13,148,136,.1)":"transparent",border:`1px solid ${savedToDb?C.accent:C.border}`,borderRadius:8,padding:"10px",fontSize:12,fontWeight:600,color:savedToDb?C.accent:C.muted,cursor:"pointer"}}>
+              {savedToDb?"✓":"💾"}
+            </button>
+          </div>
         </div>
       )}
       <button onClick={onClose} className="btn-muted" style={{marginTop:4}}>ביטול</button>
