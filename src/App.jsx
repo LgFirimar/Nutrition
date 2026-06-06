@@ -2962,7 +2962,9 @@ function App(){
     const fresh=loadProfiles();
     setProfiles(fresh);
     setEntries([]);
+    setBloodSugar("");
     setCustomBtns(loadCustomBtns(p?.id));
+    setQuickFoods(loadQuickFoods(p?.id)||QUICK_FOODS);
     setActiveDate(getTodayKey());
   };
 
