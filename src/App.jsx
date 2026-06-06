@@ -2012,7 +2012,7 @@ function MealPlannerModal({onAdd,onClose,lang}){
   const [refineText,setRefineText]=useState("");
   const [error,setError]=useState("");
   const [fridge,setFridge]=useState(loadFridge);
-  const [fridgeIn,setFridgeIn]=useState({cheeses:"",veggies:"",protein:"",other:""});
+  const [fridgeIn,setFridgeIn]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,""])));
   const [savedPrefs,setSavedPrefs]=useState(()=>{try{return JSON.parse(localStorage.getItem("nutrition_saved_prefs")||"[]");}catch{return [];}});
   const savePref=()=>{
     const v=prefs.trim();
@@ -2391,15 +2391,15 @@ function App(){
 
   const copyPrevDay=()=>{
     const prev=new Date();prev.setDate(prev.getDate()-1);
-    const pKey=`${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,'0')}-${String(prev.getDate()).padStart(2,'0')}`;
+    const prevKey=`${prev.getFullYear()}-${String(prev.getMonth()+1).padStart(2,'0')}-${String(prev.getDate()).padStart(2,'0')}`;
     const j=loadJournal(pid);
-    if(j[pKey]) setEntries(j[pKey].entries.map(e=>({...e,uid:Date.now()+Math.random()})));
+    if(j[prevKey]) setEntries(j[prevKey].entries.map(e=>({...e,uid:Date.now()+Math.random()})));
   };
 
   const isToday = activeDate === getTodayKey();
   const savedToday = !!loadJournal(pid)[activeDate];
 
-  const totals=entries.reduce((acc,e)=>({kcal:acc.kcal+e.kcal,carbs:acc.carbs+e.carbs,protein:acc.protein+e.protein}),{kcal:0,carbs:0,protein:0});
+  const totals=entries.reduce((acc,e)=>({kcal:acc.kcal+e.kcal,carbs:acc.carbs+e.carbs,protein:acc.protein+e.protein,fat:acc.fat+(e.fat||0)}),{kcal:0,carbs:0,protein:0,fat:0});
   const addEntry=food=>setEntries(prev=>[...prev,{...food,uid:food.uid||(Date.now()+Math.random())}]);
   const removeEntry=uid=>setEntries(prev=>prev.filter(e=>e.uid!==uid));
   const updateEntry=(uid,ch)=>setEntries(prev=>prev.map(e=>e.uid===uid?{...e,...ch}:e));
@@ -2422,6 +2422,13 @@ function App(){
   });
 
   const selectDate=key=>{
+    // Auto-save current day before switching
+    if(entries.length||bloodSugar){
+      const j=loadJournal(pid);
+      if(!j[activeDate]) j[activeDate]={entries:[],totals:{kcal:0,carbs:0,protein:0}};
+      j[activeDate]={entries:entries.map(e=>({label:e.label,kcal:e.kcal,carbs:e.carbs,protein:e.protein,fat:e.fat||0,...(e.count&&{count:e.count}),...(e.perUnit&&{perUnit:e.perUnit})})),totals,...(bloodSugar&&{bloodSugar:parseFloat(bloodSugar)})};
+      saveJournal(j,pid);
+    }
     const j=loadJournal(pid);
     if(j[key]){
       setEntries(j[key].entries.map(e=>({...e,uid:Date.now()+Math.random()})));
