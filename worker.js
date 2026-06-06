@@ -48,20 +48,20 @@ Meal: ${mealDescription}
 After your calculation, output ONLY this JSON on the very last line (no markdown):
 {"label":"short Hebrew meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT}`;
       } else if (mealPlan) {
-        model = 'claude-sonnet-4-6';
-        system = 'אתה שף ותזונאי ישראלי. כתוב בעברית תקנית בלבד — ללא שגיאות כתיב. החזר JSON תקין בשורה האחרונה בלבד, ללא markdown.';
         const { preferences, people, refine, selectedMeal } = mealPlan;
         if (selectedMeal) {
+          model = 'claude-sonnet-4-6';
           max_tokens = 900;
-          prompt = `מתכון קצר עבור "${selectedMeal}" ל-${people} אנשים. עד 6 רכיבים, עד 4 שלבים.
-JSON בשורה האחרונה:
-{"recipe":{"name":"שם","ingredients":[{"item":"חומר","amount":"כמות"}],"steps":["שלב"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`;
+          system = 'אתה שף ותזונאי ישראלי. ענה בעברית תקנית. הפלט שלך הוא JSON בלבד — ללא הסבר, ללא markdown, ללא טקסט לפני או אחרי.';
+          prompt = `כתוב מתכון עבור "${selectedMeal}" ל-${people} אנשים. עד 6 רכיבים, עד 4 שלבים.
+{"recipe":{"name":"שם בעברית","ingredients":[{"item":"שם חומר","amount":"כמות"}],"steps":["שלב הכנה"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`;
         } else {
-          max_tokens = 400;
+          model = 'claude-haiku-4-5-20251001';
+          max_tokens = 500;
+          system = 'אתה תזונאי ושף ישראלי. ענה בעברית. החזר JSON בלבד, ללא הסבר וללא markdown.';
           const refineText = refine ? `\nהערות: ${refine}` : '';
           prompt = `הצע 3 ארוחות ל-${people} אנשים. העדפות: ${preferences || 'ללא הגבלות'}${refineText}
-JSON בשורה האחרונה:
-{"options":[{"name":"שם","description":"תיאור קצר","kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0}]}`;
+{"options":[{"name":"שם","description":"תיאור","kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0}]}`;
         }
       } else {
         model = 'claude-haiku-4-5-20251001';
@@ -95,12 +95,12 @@ Return exactly this JSON structure:
 
       const data = await response.json();
       const text = data.content[0].text.trim();
-      // Find the last line that starts with '{' — the JSON output line
-      const lines = text.split('\n');
-      let jsonStr = null;
-      for(let i = lines.length-1; i >= 0; i--){
-        const l = lines[i].trim();
-        if(l.startsWith('{')){jsonStr=l;break;}
+      // Extract first complete JSON object using bracket counting
+      let jsonStr = null, depth = 0, start = -1;
+      for(let i = 0; i < text.length; i++){
+        const c = text[i];
+        if(c==='{'){if(depth===0)start=i; depth++;}
+        else if(c==='}' && depth>0){depth--; if(depth===0){jsonStr=text.slice(start,i+1);break;}}
       }
       if(!jsonStr) jsonStr = text.replace(/```json|```/g,'').trim();
       const json = JSON.parse(jsonStr);
