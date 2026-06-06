@@ -3302,10 +3302,19 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
     await _fbSet(_fbRefFn(_fbDb,`households/${hid}/members/${did}`),{name,joinedAt:Date.now()}).catch(()=>{});
   };
 
+  const parseConfig=text=>{
+    // Normalize JS object literal → JSON (handle unquoted keys and single quotes)
+    let s=text.trim();
+    if(!s.startsWith('{'))s='{'+s;
+    if(!s.endsWith('}'))s=s+'}';
+    s=s.replace(/([{,]\s*)([a-zA-Z_]\w*)\s*:/g,'$1"$2":').replace(/'/g,'"');
+    return JSON.parse(s);
+  };
+
   const handleCreate=async()=>{
     if(!memberName.trim()){setError(isHe?'נא להזין שם':'Please enter your name');return;}
     let cfg;
-    try{cfg=JSON.parse(configText);}catch{setError(isHe?'הגדרות Firebase לא תקינות':'Invalid Firebase config');return;}
+    try{cfg=parseConfig(configText);}catch{setError(isHe?'הגדרות Firebase לא תקינות':'Invalid Firebase config');return;}
     if(!cfg.apiKey||!cfg.databaseURL){setError(isHe?'חסרים שדות: apiKey ו-databaseURL':'Missing: apiKey and databaseURL');return;}
     setLoading(true);setError('');
     const hid=genId();
