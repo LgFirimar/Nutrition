@@ -199,6 +199,9 @@ function calcNutrition(f, amt, unit) {
   } else if(f.serving_size) {
     // values are per serving_size units
     r = a / f.serving_size;
+  } else if(unit === "מנה" || unit === "serving") {
+    // values are already per 1 serving; use amount as direct multiplier
+    r = a;
   } else {
     // values are per 100g/ml
     r = a / 100;
@@ -622,23 +625,27 @@ function DBManagerModal({onClose,pid,lang}){
   const [db,setDb]=useState(()=>loadCustomDB(activePid));
   useEffect(()=>{ setDb(loadCustomDB(window._activePid||pid||'default')); },[pid]);
   const [search,setSearch]=useState("");
-  const [editing,setEditing]=useState(null); // index of item being edited
+  const [editing,setEditing]=useState(null);
   const [editData,setEditData]=useState({});
+  const [editClaudeText,setEditClaudeText]=useState("");
+  const [editQty,setEditQty]=useState(1);
+  const [editLoading,setEditLoading]=useState(false);
+  const [editPreview,setEditPreview]=useState(null);
+  const editImgRef=useRef(null);
 
   const filtered=search.trim()?db.filter(f=>f.label.toLowerCase().includes(search.toLowerCase())||f.names.some(n=>n.toLowerCase().includes(search.toLowerCase()))):db;
-
   const apid=()=>window._activePid||pid||'default';
 
   const remove=name=>{
     const updated=db.filter(f=>f.label!==name);
-    saveCustomDB(updated,apid());
-    setDb(updated);
+    saveCustomDB(updated,apid()); setDb(updated);
     if(editing!==null) setEditing(null);
   };
 
   const startEdit=(f,i)=>{
     setEditing(i);
     setEditData({label:f.label,kcal:String(f.kcal),carbs:String(f.carbs),protein:String(f.protein),fat:String(f.fat||0),unit:f.unit||"g"});
+    setEditClaudeText(""); setEditQty(1); setEditPreview(null);
   };
 
   const saveEdit=(origLabel)=>{
@@ -652,9 +659,51 @@ function DBManagerModal({onClose,pid,lang}){
       unit:editData.unit||f.unit,
       names:[...(f.names||[]),editData.label.toLowerCase()].filter((v,i,a)=>a.indexOf(v)===i),
     }:f);
-    saveCustomDB(updated,apid());
-    setDb(updated);
-    setEditing(null);
+    saveCustomDB(updated,apid()); setDb(updated); setEditing(null);
+  };
+
+  const applyClaudeResult=(d)=>{
+    const q=Math.max(1,editQty);
+    setEditData(ed=>({...ed,
+      kcal:String(Math.round((d.kcal||0)/q)),
+      carbs:String(parseFloat(((d.carbs||0)/q).toFixed(1))),
+      protein:String(parseFloat(((d.protein||0)/q).toFixed(1))),
+      fat:String(parseFloat(((d.fat||0)/q).toFixed(1))),
+    }));
+    setEditPreview(d);
+    setEditLoading(false);
+  };
+
+  const askClaudeText=async()=>{
+    if(!editClaudeText.trim())return;
+    setEditLoading(true);setEditPreview(null);
+    try{
+      const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({dbEditText:editClaudeText})});
+      if(!res.ok) throw new Error();
+      const d=await res.json();
+      if(!d.kcal) throw new Error();
+      applyClaudeResult(d);
+    }catch{setEditLoading(false);}
+  };
+
+  const handleEditImage=e=>{
+    const file=e.target.files[0];
+    if(!file)return; e.target.value="";
+    setEditLoading(true);setEditPreview(null);
+    const reader=new FileReader();
+    reader.onload=async ev=>{
+      const b64=ev.target.result.split(',')[1];
+      try{
+        const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({dbEditImageData:b64,dbEditImageMediaType:file.type||'image/jpeg'})});
+        if(!res.ok) throw new Error();
+        const d=await res.json();
+        if(!d.kcal) throw new Error();
+        applyClaudeResult(d);
+      }catch{setEditLoading(false);}
+    };
+    reader.readAsDataURL(file);
   };
 
   return (
@@ -696,10 +745,35 @@ function DBManagerModal({onClose,pid,lang}){
                       </div>
                       <div style={{display:"flex",gap:6}}>
                         <select value={editData.unit} onChange={e=>setEditData(d=>({...d,unit:e.target.value}))} className="inp" style={{flex:1,fontSize:12}}>
-                          <option value="g">גר׳</option><option value="ml">מ״ל</option><option value="יח׳">יח׳</option><option value="קוביות">קוביות</option>
+                          <option value="g">גר׳</option><option value="ml">מ״ל</option><option value="יח׳">יח׳</option><option value="קוביות">קוביות</option><option value="מנה">מנה</option>
                         </select>
                         <button onClick={()=>setEditing(null)} className="btn-muted" style={{flex:1,padding:"8px"}}>{T.cancel}</button>
                         <button onClick={()=>saveEdit(f.label)} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"8px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{T.save}</button>
+                      </div>
+                      {/* Claude recalculation section */}
+                      <input ref={editing===i?editImgRef:null} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif" onChange={handleEditImage} style={{display:"none"}}/>
+                      <div style={{borderTop:`1px solid ${C.border}`,paddingTop:8,marginTop:2}}>
+                        <div style={{fontSize:10,color:C.muted,letterSpacing:1,marginBottom:6}}>חשב מחדש עם Claude</div>
+                        <textarea value={editClaudeText} onChange={e=>setEditClaudeText(e.target.value)}
+                          placeholder="תאר את המאכל... (למשל: 100g עוף + 50g אורז)"
+                          className="inp" rows={2} style={{fontSize:12,resize:"none",marginBottom:6}}/>
+                        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                          <span style={{fontSize:11,color:C.muted}}>מספר מנות:</span>
+                          <button onClick={()=>setEditQty(v=>Math.max(1,v-1))} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>−</button>
+                          <input type="number" value={editQty} min="1" onChange={e=>setEditQty(Math.max(1,parseInt(e.target.value)||1))} style={{width:38,textAlign:"center",border:`1px solid ${C.border}`,borderRadius:6,padding:"3px",fontSize:13,fontFamily:"inherit"}}/>
+                          <button onClick={()=>setEditQty(v=>v+1)} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>+</button>
+                          <button onClick={askClaudeText} disabled={!editClaudeText.trim()||editLoading}
+                            style={{flex:1,background:editClaudeText.trim()&&!editLoading?C.accent:"#ddd",border:"none",borderRadius:8,color:editClaudeText.trim()&&!editLoading?"#fff":"#aaa",padding:"6px 8px",fontSize:12,fontWeight:700,cursor:editClaudeText.trim()&&!editLoading?"pointer":"default"}}>
+                            {editLoading?<span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>⟳</span>:"✨ חשב מחדש"}
+                          </button>
+                        </div>
+                        <div style={{display:"flex",gap:8}}>
+                          <button onClick={()=>editImgRef.current&&editImgRef.current.click()} disabled={editLoading}
+                            style={{flex:1,background:"#f5f5f7",border:`1px solid ${C.border}`,borderRadius:8,padding:"7px",fontSize:12,color:C.muted,cursor:"pointer",fontFamily:"inherit"}}>
+                            📷 מצלמה / גלריה
+                          </button>
+                        </div>
+                        {editPreview&&<div style={{marginTop:6,fontSize:11,color:C.accent,background:"#f0fae8",borderRadius:8,padding:"6px 10px"}}>✨ {editPreview.label} — עודכן למנה ({editQty} {editQty===1?"מנה":"מנות"})</div>}
                       </div>
                     </div>
                   )}
@@ -880,16 +954,19 @@ function AskClaude({foodName, amount, unit, onAddToDay, onSaved}){
   );
 }
 // ── PhotoMealPanel ─────────────────────────────────────────────────────────────
-function PhotoMealPanel({onAdd,onClose}){
+function PhotoMealPanel({onAdd,onClose,initialPhoto}){
   const [loading,setLoading]=useState(false);
   const [preview,setPreview]=useState(null);
   const [error,setError]=useState(null);
-  const [imgSrc,setImgSrc]=useState(null);
+  const [imgSrc,setImgSrc]=useState(initialPhoto?.src||null);
   const [servings,setServings]=useState(1);
-  const cameraRef=useRef(null);
-  const galleryRef=useRef(null);
-  const cameraRef2=useRef(null);
-  const galleryRef2=useRef(null);
+  const [qty,setQty]=useState(1);
+  const [qtyUnit,setQtyUnit]=useState("יח׳");
+  const fileRef=useRef(null);
+
+  useEffect(()=>{
+    if(initialPhoto?.base64) analyze(initialPhoto.base64,initialPhoto.mediaType);
+  },[]);
 
   const analyze=async(base64,mediaType)=>{
     setLoading(true);setPreview(null);setError(null);
@@ -914,53 +991,45 @@ function PhotoMealPanel({onAdd,onClose}){
     reader.onload=ev=>{
       const b64=ev.target.result.split(',')[1];
       setImgSrc(ev.target.result);
-      setPreview(null);
+      setPreview(null);setError(null);
       analyze(b64,file.type||'image/jpeg');
     };
     reader.readAsDataURL(file);
   };
 
+  const dKcal=preview?Math.round(preview.kcal/servings*qty):0;
+  const dCarbs=preview?parseFloat(((preview.carbs||0)/servings*qty).toFixed(1)):0;
+  const dProtein=preview?parseFloat(((preview.protein||0)/servings*qty).toFixed(1)):0;
+  const dFat=preview?parseFloat(((preview.fat||0)/servings*qty).toFixed(1)):0;
+
   const addToDay=()=>{
     if(!preview)return;
-    const s=Math.max(1,servings);
     onAdd({uid:Date.now()+Math.random(),
-      label:`📷 ${preview.label}${s>1?` (1/${s})`:""}`,
-      kcal:Math.round(preview.kcal/s),carbs:parseFloat(((preview.carbs||0)/s).toFixed(1)),
-      protein:parseFloat(((preview.protein||0)/s).toFixed(1)),fat:parseFloat(((preview.fat||0)/s).toFixed(1))});
+      label:`📷 ${preview.label}${servings>1?` (1/${servings})`:""}${qty>1?` ×${qty}`:""}`,
+      kcal:dKcal,carbs:dCarbs,protein:dProtein,fat:dFat});
     onClose();
   };
 
   return (
     <div className="panel fade">
-      {/* Hidden file inputs */}
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{display:"none"}}/>
-      <input ref={galleryRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif" onChange={handleFile} style={{display:"none"}}/>
-      <input ref={cameraRef2} type="file" accept="image/*" capture="environment" onChange={handleFile} style={{display:"none"}}/>
-      <input ref={galleryRef2} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif" onChange={handleFile} style={{display:"none"}}/>
-
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif" onChange={handleFile} style={{display:"none"}}/>
       <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>📷 ניתוח תמונה</div>
-      {!imgSrc?(
-        <div style={{display:"flex",gap:8,marginBottom:4}}>
-          <button onClick={()=>cameraRef.current.click()} style={{flex:1,background:"#f5f5f7",border:`1px solid ${C.border}`,borderRadius:10,padding:"18px 8px",textAlign:"center",cursor:"pointer",fontFamily:"inherit"}}>
-            <div style={{fontSize:26,marginBottom:4}}>📷</div>
-            <div style={{fontSize:12,color:C.muted}}>צלמי עכשיו</div>
-          </button>
-          <button onClick={()=>galleryRef.current.click()} style={{flex:1,background:"#f5f5f7",border:`1px solid ${C.border}`,borderRadius:10,padding:"18px 8px",textAlign:"center",cursor:"pointer",fontFamily:"inherit"}}>
-            <div style={{fontSize:26,marginBottom:4}}>🖼️</div>
-            <div style={{fontSize:12,color:C.muted}}>מהגלריה</div>
-          </button>
-        </div>
-      ):(
+      {imgSrc?(
         <div style={{position:"relative",marginBottom:10}}>
           <img src={imgSrc} style={{width:"100%",borderRadius:10,maxHeight:180,objectFit:"cover"}}/>
-          <div style={{position:"absolute",top:6,left:6,display:"flex",gap:4}}>
-            <button onClick={()=>cameraRef2.current.click()} style={{background:"rgba(0,0,0,0.55)",border:"none",borderRadius:6,padding:"4px 10px",fontSize:12,color:"#fff",cursor:"pointer"}}>📷</button>
-            <button onClick={()=>galleryRef2.current.click()} style={{background:"rgba(0,0,0,0.55)",border:"none",borderRadius:6,padding:"4px 10px",fontSize:12,color:"#fff",cursor:"pointer"}}>🖼️</button>
-          </div>
+          <button onClick={()=>fileRef.current.click()} style={{position:"absolute",top:6,left:6,background:"rgba(0,0,0,0.55)",border:"none",borderRadius:6,padding:"4px 10px",fontSize:12,color:"#fff",cursor:"pointer"}}>🖼️ החלף</button>
         </div>
-      )}
+      ):(!loading&&!error&&(
+        <button onClick={()=>fileRef.current.click()} style={{width:"100%",background:"#f5f5f7",border:`1px solid ${C.border}`,borderRadius:10,padding:"18px 8px",textAlign:"center",cursor:"pointer",fontFamily:"inherit",marginBottom:10}}>
+          <div style={{fontSize:26,marginBottom:4}}>📷</div>
+          <div style={{fontSize:12,color:C.muted}}>בחרי תמונה</div>
+        </button>
+      ))}
       {loading&&<div style={{textAlign:"center",padding:"14px 0",color:C.muted,fontSize:13}}><span style={{display:"inline-block",animation:"spin 1s linear infinite",fontSize:22}}>⟳</span><div style={{marginTop:6}}>מנתח תמונה...</div></div>}
-      {error&&<div style={{background:"#fff0f0",border:`1px solid ${C.danger}`,borderRadius:8,padding:"8px 12px",fontSize:11,color:C.danger,marginBottom:8}}>⚠ {error}</div>}
+      {error&&<div style={{background:"#fff0f0",border:`1px solid ${C.danger}`,borderRadius:8,padding:"8px 12px",fontSize:11,color:C.danger,marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <span>⚠ {error}</span>
+        <button onClick={()=>fileRef.current.click()} style={{background:C.danger,border:"none",borderRadius:6,color:"#fff",padding:"2px 8px",fontSize:11,fontWeight:700,cursor:"pointer"}}>נסי שוב</button>
+      </div>}
       {preview&&(
         <div className="green-box fade" style={{marginBottom:8}}>
           <div style={{fontSize:11,color:C.accent,fontWeight:700,marginBottom:4}}>✨ {preview.label}</div>
@@ -970,16 +1039,25 @@ function PhotoMealPanel({onAdd,onClose}){
             </div>
           )}
           <div className="g3" style={{marginBottom:8}}>
-            {[{l:"קק״ל",v:Math.round(preview.kcal/servings),c:C.accent},{l:"פחמ׳g",v:parseFloat(((preview.carbs||0)/servings).toFixed(1)),c:C.warn},{l:"חלבוןg",v:parseFloat(((preview.protein||0)/servings).toFixed(1)),c:C.blue}].map(({l,v,c})=>(
+            {[{l:"קק״ל",v:dKcal,c:C.accent},{l:"פחמ׳g",v:dCarbs,c:C.warn},{l:"חלבוןg",v:dProtein,c:C.blue}].map(({l,v,c})=>(
               <div key={l} className="preview-box"><div className="preview-val" style={{color:c}}>{v}</div><div className="preview-lbl">{l}</div></div>
             ))}
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,background:"rgba(255,255,255,0.7)",borderRadius:8,padding:"5px 10px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,background:"rgba(255,255,255,0.7)",borderRadius:8,padding:"5px 10px"}}>
             <span style={{fontSize:11,color:C.muted,flex:1}}>חלק עם:</span>
             <button onClick={()=>setServings(v=>Math.max(1,v-1))} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>−</button>
             <span style={{fontWeight:700,fontSize:13,color:C.accent,minWidth:16,textAlign:"center"}}>{servings}</span>
             <button onClick={()=>setServings(v=>v+1)} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>+</button>
             <span style={{fontSize:11,color:C.muted}}>{servings===1?"אנשים (כל הארוחה לי)":"אנשים"}</span>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,background:"rgba(255,255,255,0.7)",borderRadius:8,padding:"5px 10px"}}>
+            <span style={{fontSize:11,color:C.muted}}>כמות:</span>
+            <button onClick={()=>setQty(v=>Math.max(1,v-1))} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>−</button>
+            <input type="number" value={qty} min="1" onChange={e=>setQty(Math.max(1,parseFloat(e.target.value)||1))} style={{width:38,textAlign:"center",border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 2px",fontSize:13,fontFamily:"inherit"}}/>
+            <button onClick={()=>setQty(v=>v+1)} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>+</button>
+            <select value={qtyUnit} onChange={e=>setQtyUnit(e.target.value)} style={{flex:1,border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 4px",fontSize:11,fontFamily:"inherit",cursor:"pointer",background:"#f5f5f7"}}>
+              <option value="יח׳">יח׳</option><option value="מנות">מנות</option><option value="g">גר׳</option><option value="ml">מ״ל</option><option value="כף">כף</option><option value="כוס">כוס</option>
+            </select>
           </div>
           <button onClick={addToDay} style={{width:"100%",background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ הוסף ליום</button>
         </div>
@@ -1226,7 +1304,6 @@ function SmartAddPanel({onAdd,onClose}){
         </div>
       )}
 
-      <PasteFromClaude amount={amount} unit={unit} onParsed={d=>{setKcal(String(d.kcal));setCarbs(String(d.carbs??""));setProtein(String(d.protein??""));if(d.name&&!query)setQuery(d.name);}}/>
       {notFound&&(
         <div className="warn-box" style={{marginBottom:10}}>
           <div style={{fontSize:12,color:C.warn,fontWeight:600,marginBottom:6}}>לא נמצא במאגר</div>
@@ -1632,6 +1709,8 @@ function PantryModal({onClose,lang}){
   const [pantry,setPantry]=useState(loadPantry);
   const [inputs,setInputs]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,{name:"",qty:""}])));
   const [open,setOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,true])));
+  const [imgLoading,setImgLoading]=useState({});
+  const imgRefs=useRef({});
 
   const update=p=>{setPantry(p);savePantryLS(p);};
 
@@ -1644,6 +1723,25 @@ function PantryModal({onClose,lang}){
     else items.push({id:Date.now()+Math.random(),name:name.trim(),qty:qty.trim()});
     update({...pantry,[cat]:items});
     setInputs(i=>({...i,[cat]:{name:"",qty:""}}));
+  };
+
+  const handlePantryImage=(e,cat)=>{
+    const file=e.target.files[0];
+    if(!file)return; e.target.value="";
+    setImgLoading(l=>({...l,[cat]:true}));
+    const reader=new FileReader();
+    reader.onload=async ev=>{
+      const b64=ev.target.result.split(',')[1];
+      try{
+        const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({pantryImageData:b64,pantryImageMediaType:file.type||'image/jpeg'})});
+        if(!res.ok) throw new Error();
+        const d=await res.json();
+        if(d.name) setInputs(i=>({...i,[cat]:{name:d.name,qty:d.qty||""}}));
+      }catch{}
+      setImgLoading(l=>({...l,[cat]:false}));
+    };
+    reader.readAsDataURL(file);
   };
 
   const removeItem=(cat,id)=>update({...pantry,[cat]:(pantry[cat]||[]).filter(i=>i.id!==id)});
@@ -1659,6 +1757,8 @@ function PantryModal({onClose,lang}){
         <div style={{fontSize:11,color:C.muted,marginBottom:14}}>{isHe?"מה יש בבית? הכנס פריטים עם כמויות:":"What do you have at home? Add items with quantities:"}</div>
         {FRIDGE_CATS.map(cat=>(
           <div key={cat.key} style={{marginBottom:10}}>
+            <input ref={el=>imgRefs.current[cat.key]=el} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif"
+              style={{display:"none"}} onChange={e=>handlePantryImage(e,cat.key)}/>
             <button onClick={()=>setOpen(o=>({...o,[cat.key]:!o[cat.key]}))}
               style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",background:"none",border:"none",cursor:"pointer",padding:"4px 0",fontFamily:"inherit"}}>
               <span style={{fontSize:12,fontWeight:700,color:C.text}}>{isHe?cat.he:cat.en}
@@ -1674,6 +1774,10 @@ function PantryModal({onClose,lang}){
                 <input value={inputs[cat.key].qty} onChange={e=>setInputs(i=>({...i,[cat.key]:{...i[cat.key],qty:e.target.value}}))}
                   onKeyDown={e=>e.key==="Enter"&&addItem(cat.key)}
                   placeholder={isHe?"כמות":"Qty"} className="inp" style={{flex:1,fontSize:12,padding:"6px 8px"}}/>
+                <button onClick={()=>imgRefs.current[cat.key]&&imgRefs.current[cat.key].click()} disabled={imgLoading[cat.key]}
+                  style={{background:"#f5f5f7",border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,padding:"0 8px",cursor:"pointer",fontSize:16,minWidth:36}}>
+                  {imgLoading[cat.key]?<span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>⟳</span>:"📷"}
+                </button>
                 <button onClick={()=>addItem(cat.key)} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 10px",cursor:"pointer",fontSize:16}}>+</button>
               </div>
               {(pantry[cat.key]||[]).map(item=>(
@@ -2662,6 +2766,8 @@ function App(){
   const [showSmart,setShowSmart]=useState(false);
   const [showMeal,setShowMeal]=useState(false);
   const [showPhoto,setShowPhoto]=useState(false);
+  const [pendingPhoto,setPendingPhoto]=useState(null);
+  const photoInputRef=useRef(null);
   const [bloodSugar,setBloodSugar]=useState(()=>{
     const savedPid=loadActiveProfileId()||'default';
     const j=loadJournal(savedPid);
@@ -2956,13 +3062,24 @@ function App(){
         ))}
       </div>
       {/* ── ACTION BUTTONS ROW ── */}
+      <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif" style={{display:"none"}}
+        onChange={e=>{
+          const file=e.target.files[0]; if(!file)return; e.target.value="";
+          const reader=new FileReader();
+          reader.onload=ev=>{
+            setPendingPhoto({base64:ev.target.result.split(',')[1],mediaType:file.type||'image/jpeg',src:ev.target.result});
+            setShowPhoto(true); setShowMeal(false); setShowSmart(false); setShowMealPlanner(false);
+          };
+          reader.readAsDataURL(file);
+        }}
+      />
       <div style={{display:"flex",gap:8,padding:"0 16px 14px"}}>
-        <button onClick={()=>{setShowPhoto(v=>!v);setShowMeal(false);setShowSmart(false);setShowMealPlanner(false);}} style={{flex:1,background:showPhoto?"#1a6b9e":"rgba(255,255,255,.75)",border:`1px solid ${showPhoto?"#1a6b9e":C.border}`,color:showPhoto?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>{T.photo}</button>
-        <button onClick={()=>{setShowMeal(v=>!v);setShowSmart(false);setShowPhoto(false);setShowMealPlanner(false);}} style={{flex:1,background:showMeal?"#5a3e8e":"rgba(255,255,255,.75)",border:`1px solid ${showMeal?"#5a3e8e":C.border}`,color:showMeal?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>{T.mealBtn}</button>
-        <button onClick={()=>{setShowSmart(v=>!v);setShowMeal(false);setShowPhoto(false);setShowMealPlanner(false);}} style={{flex:1,background:showSmart?"#0d9488":"rgba(255,255,255,.75)",border:`1px solid ${showSmart?"#0d9488":C.border}`,color:showSmart?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>+ {T.addItem}</button>
+        <button onClick={()=>{if(showPhoto){setShowPhoto(false);setPendingPhoto(null);}else{photoInputRef.current.click();}}} style={{flex:1,background:showPhoto?"#1a6b9e":"rgba(255,255,255,.75)",border:`1px solid ${showPhoto?"#1a6b9e":C.border}`,color:showPhoto?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>{T.photo}</button>
+        <button onClick={()=>{setShowMeal(v=>!v);setShowSmart(false);setShowPhoto(false);setPendingPhoto(null);setShowMealPlanner(false);}} style={{flex:1,background:showMeal?"#5a3e8e":"rgba(255,255,255,.75)",border:`1px solid ${showMeal?"#5a3e8e":C.border}`,color:showMeal?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>{T.mealBtn}</button>
+        <button onClick={()=>{setShowSmart(v=>!v);setShowMeal(false);setShowPhoto(false);setPendingPhoto(null);setShowMealPlanner(false);}} style={{flex:1,background:showSmart?"#0d9488":"rgba(255,255,255,.75)",border:`1px solid ${showSmart?"#0d9488":C.border}`,color:showSmart?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>+ {T.addItem}</button>
       </div>
 
-      {showPhoto&&<PhotoMealPanel onAdd={addEntry} onClose={()=>setShowPhoto(false)}/>}
+      {showPhoto&&<PhotoMealPanel onAdd={addEntry} initialPhoto={pendingPhoto} onClose={()=>{setShowPhoto(false);setPendingPhoto(null);}}/>}
       {showMeal&&<MealPanel onAdd={addEntry} onClose={()=>setShowMeal(false)}/>}
       {showSmart&&<SmartAddPanel onAdd={addEntry} onClose={()=>setShowSmart(false)}/>}
 

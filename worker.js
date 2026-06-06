@@ -15,10 +15,31 @@ export default {
     }
 
     try {
-      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList } = await request.json();
+      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, dbEditText, dbEditImageData, dbEditImageMediaType } = await request.json();
 
       let prompt, model, system, max_tokens, messages;
-      if (imageData) {
+      if (pantryImageData) {
+        model = 'claude-haiku-4-5-20251001';
+        max_tokens = 200;
+        system = 'You are a grocery expert. Identify food items in images. Return ONLY valid JSON, no markdown.';
+        messages = [{role:'user', content:[
+          {type:'image', source:{type:'base64', media_type:pantryImageMediaType||'image/jpeg', data:pantryImageData}},
+          {type:'text', text:'Identify the main food item in this image. Return ONLY this JSON: {"name":"שם בעברית","qty":"כמות אופציונלית כגון 500g, 3 יח׳ (leave empty string if unknown)"}'}
+        ]}];
+      } else if (dbEditImageData) {
+        model = 'claude-sonnet-4-6';
+        max_tokens = 512;
+        system = 'You are a precise nutrition calculator with expert knowledge of food composition databases.';
+        messages = [{role:'user', content:[
+          {type:'image', source:{type:'base64', media_type:dbEditImageMediaType||'image/jpeg', data:dbEditImageData}},
+          {type:'text', text:'Calculate nutritional values for the total food visible in this image as 1 serving.\nReturn ONLY this JSON on the last line: {"label":"emoji + שם בעברית","kcal":0,"carbs":0,"protein":0,"fat":0}'}
+        ]}];
+      } else if (dbEditText) {
+        model = 'claude-sonnet-4-6';
+        max_tokens = 512;
+        system = 'You are a precise nutrition calculator with expert knowledge of food composition databases (USDA, Israeli food tables).';
+        prompt = `Calculate nutritional values for: ${dbEditText}\nFirst break down each ingredient, then output ONLY this JSON on the last line: {"label":"emoji + שם בעברית","kcal":0,"carbs":0,"protein":0,"fat":0}`;
+      } else if (imageData) {
         model = 'claude-sonnet-4-6';
         max_tokens = 1024;
         system = 'You are a precise nutrition calculator with expert knowledge of food composition databases.';
