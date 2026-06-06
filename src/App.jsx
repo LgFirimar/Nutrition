@@ -1324,24 +1324,32 @@ function MetricWeekChart({journal,metric,color,label,lang}){
   const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en';
   const DAY_LABELS=isHe?['א','ב','ג','ד','ה','ו','ש']:['Su','Mo','Tu','We','Th','Fr','Sa'];
   const xs=Array.from({length:7},(_,i)=>Math.round(PAD+i*(W-2*PAD)/6));
+  const ref=useRef(null);
+  useEffect(()=>{ref.current?.scrollIntoView({behavior:"smooth",block:"nearest"});},[]);
 
   const days=[];
   for(let i=6;i>=0;i--){
     const d=new Date();d.setDate(d.getDate()-i);
     const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const tot=journal[k]?.totals;
-    const v=tot?Number(tot[metric]||0):null;
-    days.push({k,v:v!==null&&journal[k]?v:null,dow:d.getDay()});
+    // Only count days with actual food entries (totals > 0)
+    const v=(tot&&journal[k]?.entries?.length)?Number(tot[metric]||0):null;
+    days.push({k,v,dow:d.getDay()});
   }
-  const vals=days.filter(d=>d.v!==null).map(d=>d.v);
-  if(!vals.length)return null;
+  const vals=days.filter(d=>d.v!==null&&d.v>0).map(d=>d.v);
+  if(!vals.length) return(
+    <div ref={ref} style={{background:"rgba(255,255,255,.68)",border:`1px solid ${color}33`,borderRadius:16,padding:"12px 14px",marginBottom:12,maxWidth:440}}>
+      <div style={{fontSize:9,color,letterSpacing:1.4,textTransform:"uppercase",marginBottom:6,fontWeight:700}}>{label}</div>
+      <div style={{fontSize:12,color:C.muted,textAlign:"center",padding:"10px 0"}}>{isHe?"אין נתונים שמורים לשבוע זה":"No saved data for this week"}</div>
+    </div>
+  );
 
   const minV=Math.min(...vals),maxV=Math.max(...vals);
   const pad=Math.max(maxV-minV,10)*0.2;
   const lo=Math.max(0,minV-pad),hi=maxV+pad,range=hi-lo;
   const toY=v=>Math.max(2,Math.min(H-2,H-(v-lo)/range*H));
 
-  const pts=days.map((d,i)=>d.v!==null?{x:xs[i],y:toY(d.v),v:d.v}:null);
+  const pts=days.map((d,i)=>d.v!==null&&d.v>0?{x:xs[i],y:toY(d.v),v:d.v}:null);
   const known=pts.filter(Boolean);
 
   const crPath=ps=>{
@@ -1356,7 +1364,7 @@ function MetricWeekChart({journal,metric,color,label,lang}){
   const lp=known.length>=2?crPath(known):null;
 
   return(
-    <div style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:`1px solid ${color}33`,borderRadius:16,padding:"10px 12px 8px",marginBottom:12,boxShadow:"0 3px 14px rgba(80,130,180,.08)",maxWidth:440}}>
+    <div ref={ref} style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:`1px solid ${color}33`,borderRadius:16,padding:"10px 12px 8px",marginBottom:12,boxShadow:"0 3px 14px rgba(80,130,180,.08)",maxWidth:440}}>
       <div style={{fontSize:9,color,letterSpacing:1.4,textTransform:"uppercase",marginBottom:6,fontWeight:700}}>{label} — {isHe?"7 ימים אחרונים":"last 7 days"}</div>
       <div style={{overflow:"hidden",borderRadius:8}}>
         <svg width="100%" viewBox={`0 0 ${W} ${H+14}`} style={{display:"block"}}>
