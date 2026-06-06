@@ -199,7 +199,7 @@ function calcNutrition(f, amt, unit) {
   } else if(f.serving_size) {
     // values are per serving_size units
     r = a / f.serving_size;
-  } else if(unit === "מנה" || unit === "serving") {
+  } else if(unit === "מנה" || unit === "serving" || f.unit === "מנה") {
     // values are already per 1 serving; use amount as direct multiplier
     r = a;
   } else {
@@ -1072,6 +1072,9 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
     setCalcVals(computeVals(preview,servings,localAmt,qtyUnit,mealWeight));
   };
 
+  // Auto-recalc whenever any input changes
+  useEffect(()=>{ if(preview) recalc(); },[servings,localAmt,qtyUnit,mealWeight]);
+
   const handleFile=e=>{
     const file=e.target.files[0];
     if(!file)return;
@@ -1123,18 +1126,22 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
               📐 {preview.portions}
             </div>
           )}
-          <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:8,background:"rgba(255,255,255,0.7)",borderRadius:8,padding:"4px 8px"}}>
-            <span style={{fontSize:10,color:C.muted,flex:1}}>משקל הצילום (לחישוב גר׳):</span>
+          {/* Meal weight — needed for gram-based calculations */}
+          <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:8,background:"rgba(255,255,255,0.85)",borderRadius:8,padding:"6px 10px",border:`1px solid ${mealWeight?C.accent:C.border}`}}>
+            <span style={{fontSize:11,color:mealWeight?C.accent:C.muted,flex:1,fontWeight:mealWeight?600:400}}>⚖️ משקל הצילום (גר׳):</span>
             <input type="number" value={mealWeight} onChange={e=>setMealWeight(e.target.value)}
-              placeholder="גר׳" className="inp"
-              style={{width:60,padding:"3px 6px",fontSize:12,textAlign:"center",marginBottom:0}}/>
-            <span style={{fontSize:10,color:C.muted}}>גר׳</span>
+              placeholder="למשל 50" className="inp"
+              style={{width:70,padding:"4px 6px",fontSize:13,textAlign:"center",marginBottom:0,fontWeight:700,borderColor:mealWeight?C.accent:C.border}}/>
+            <span style={{fontSize:11,color:C.muted}}>גר׳</span>
           </div>
           <div className="g3" style={{marginBottom:8}}>
             {[{l:"קק״ל",v:calcVals.kcal,c:C.accent},{l:"פחמ׳g",v:calcVals.carbs,c:C.warn},{l:"חלבוןg",v:calcVals.protein,c:C.blue}].map(({l,v,c})=>(
               <div key={l} className="preview-box"><div className="preview-val" style={{color:c}}>{v}</div><div className="preview-lbl">{l}</div></div>
             ))}
           </div>
+          {qtyUnit!=='יח׳'&&qtyUnit!=='מנות'&&!mealWeight&&(
+            <div style={{fontSize:10,color:C.warn,marginBottom:6,textAlign:"center"}}>⚠ הזן משקל הצילום בגר׳ למעלה כדי לחשב לפי {qtyUnit}</div>
+          )}
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,background:"rgba(255,255,255,0.7)",borderRadius:8,padding:"5px 10px"}}>
             <span style={{fontSize:11,color:C.muted,flex:1}}>חלק עם:</span>
             <button onClick={()=>setServings(v=>Math.max(1,v-1))} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>−</button>
@@ -1144,7 +1151,6 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
           </div>
           <div style={{display:"flex",gap:6,marginBottom:8,alignItems:"center"}}>
             <input type="number" value={localAmt} onChange={e=>setLocalAmt(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&recalc()}
               className="inp" style={{flex:1,textAlign:"center",padding:"7px 6px",fontSize:13}}/>
             <select value={qtyUnit} onChange={e=>setQtyUnit(e.target.value)} className="inp" style={{flex:1,padding:"7px 6px",fontSize:12,cursor:"pointer"}}>
               <option value="יח׳">יח׳</option>
@@ -1155,7 +1161,6 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
               <option value="כפית">כפית (5מ״ל)</option>
               <option value="כוס">כוס (240מ״ל)</option>
             </select>
-            <button onClick={recalc} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"7px 12px",fontSize:16,cursor:"pointer",lineHeight:1}}>🔄</button>
           </div>
           <button onClick={addToDay} style={{width:"100%",background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ הוסף ליום</button>
         </div>
@@ -1449,15 +1454,16 @@ function NewButtonModal({onClose,onSave}){
     if(!food){setNotFound(true);return;}
     setNotFound(false);setMatched(food);
     const a=parseFloat(amount)||food.defaultAmt;
-    setAmount(String(a));setUnit(food.unit);
-    const n=calcNutrition(food,a);
+    const u=food.unit||'g';
+    setAmount(String(a));setUnit(u);
+    const n=calcNutrition(food,a,u);
     setKcal(String(n.kcal));setCarbs(String(n.carbs));setProtein(String(n.protein));setFat(String(n.fat));
   };
 
   const recalc=(amt,u)=>{
     if(!matched)return;
     const a=parseFloat(amt);if(!a)return;
-    const n=calcNutrition(matched,a);
+    const n=calcNutrition(matched,a,u||unit||matched.unit);
     setKcal(String(n.kcal));setCarbs(String(n.carbs));setProtein(String(n.protein));setFat(String(n.fat));
   };
 
