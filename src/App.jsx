@@ -2220,6 +2220,287 @@ function ExportImportModal({pid, onClose}){
     </div>
   );
 }
+// ── RecommendationsInfoModal ───────────────────────────────────────────────────
+function RecommendationsInfoModal({recs,onClose}){
+  return (
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-sheet slide" style={{maxHeight:"80vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div style={{fontSize:15,fontWeight:700}}>ℹ בסיס ההמלצות</div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
+        </div>
+        <div style={{fontSize:13,color:C.text,lineHeight:1.9,marginBottom:16,background:"rgba(90,158,30,.06)",borderRadius:10,padding:"12px 14px"}}>
+          {recs.explanation}
+        </div>
+        {recs.sources&&recs.sources.length>0&&(
+          <>
+            <div style={{fontSize:10,color:C.muted,fontWeight:700,marginBottom:8,letterSpacing:1.2,textTransform:"uppercase"}}>מקורות</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {recs.sources.map((s,i)=>(
+                <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"
+                  style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",background:"#f5f5f7",borderRadius:10,textDecoration:"none",color:C.accent,fontSize:12,fontWeight:600,border:`1px solid ${C.border}`}}>
+                  <span style={{flex:1}}>{s.title}</span>
+                  <span style={{fontSize:16,flexShrink:0}}>↗</span>
+                </a>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── ProfileSetupWizard ─────────────────────────────────────────────────────────
+function ProfileSetupWizard({profile,onSave,onSkip}){
+  const [step,setStep]=useState(0);
+  const [age,setAge]=useState(profile?.age||"");
+  const [gender,setGender]=useState(profile?.gender||"female");
+  const [height,setHeight]=useState(profile?.height||"");
+  const [weight,setWeight]=useState(profile?.weight||"");
+  const [conditions,setConditions]=useState(profile?.conditions||[]);
+  const [condText,setCondText]=useState(profile?.conditionText||"");
+  const [dietPrefs,setDietPrefs]=useState(profile?.dietPrefs||[]);
+  const [dietText,setDietText]=useState(profile?.dietText||"");
+  const [activity,setActivity]=useState(profile?.activity||"moderate");
+  const [goals,setGoals]=useState(profile?.goals||[]);
+  const [goalText,setGoalText]=useState(profile?.goalText||"");
+  const [loading,setLoading]=useState(false);
+  const [recs,setRecs]=useState(null);
+  const [editVals,setEditVals]=useState({kcal:1800,carbs:130,protein:90,fat:60});
+  const [error,setError]=useState(null);
+  const [showRecsInfo,setShowRecsInfo]=useState(false);
+
+  const CONDS=[
+    {id:"t2d",he:"סוכרת סוג 2"},{id:"t1d",he:"סוכרת סוג 1"},
+    {id:"menopause",he:"גיל המעבר"},{id:"hyper",he:"יתר לחץ דם"},
+    {id:"chol",he:"כולסטרול גבוה"},{id:"meta",he:"תסמונת מטבולית"},
+    {id:"kidney",he:"מחלת כליות"},{id:"heart",he:"מחלת לב"},
+  ];
+  const DIETS=[
+    {id:"veg",he:"צמחוני"},{id:"vegan",he:"טבעוני"},
+    {id:"gf",he:"ללא גלוטן"},{id:"lf",he:"ללא לקטוז"},
+    {id:"kosher",he:"כשר"},{id:"lowsodium",he:"דל נתרן"},
+  ];
+  const ACTIVITIES=[
+    {id:"sedentary",he:"יושבני",sub:"ללא פעילות גופנית"},
+    {id:"light",he:"קל",sub:"1-2 פעמים בשבוע"},
+    {id:"moderate",he:"מתון",sub:"3-4 פעמים בשבוע"},
+    {id:"active",he:"פעיל",sub:"5+ פעמים בשבוע"},
+    {id:"very_active",he:"ספורטאי",sub:"אימונים יומיים אינטנסיביים"},
+  ];
+  const GOALS=[
+    {id:"weight_loss",he:"ירידה במשקל"},{id:"maintain",he:"שמירה על משקל"},
+    {id:"gain",he:"עלייה במסת שריר"},{id:"sugar",he:"איזון סוכר בדם"},
+    {id:"heart",he:"שיפור בריאות לב"},{id:"energy",he:"שיפור אנרגיה"},
+  ];
+
+  const toggle=(arr,setArr,id)=>setArr(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+
+  const askClaude=async()=>{
+    setLoading(true);setError(null);
+    try{
+      const allConds=[...conditions,...(condText.trim()?[condText.trim()]:[])]
+      const allDiets=[...dietPrefs,...(dietText.trim()?[dietText.trim()]:[])]
+      const allGoals=[...goals,...(goalText.trim()?[goalText.trim()]:[])]
+      const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({profileData:{age,gender,height,weight,conditions:allConds,dietPrefs:allDiets,activity,goals:allGoals}})
+      });
+      if(!res.ok) throw new Error("שגיאת שרת");
+      const d=await res.json();
+      if(d.error) throw new Error(d.error);
+      setRecs(d);
+      setEditVals({kcal:d.kcal||1800,carbs:d.carbs||130,protein:d.protein||90,fat:d.fat||60});
+      setStep(6);
+    }catch(e){setError(e.message);setLoading(false);return;}
+    setLoading(false);
+  };
+
+  const handleNext=()=>{
+    if(step===4){setStep(5);askClaude();}
+    else setStep(s=>s+1);
+  };
+
+  const handleSave=()=>{
+    const updated={
+      ...profile,
+      maxKcal:parseInt(editVals.kcal)||profile.maxKcal||1800,
+      maxCarbs:parseInt(editVals.carbs)||profile.maxCarbs||130,
+      maxProtein:parseInt(editVals.protein)||profile.maxProtein||90,
+      age:parseFloat(age)||undefined,gender,
+      height:parseFloat(height)||undefined,weight:parseFloat(weight)||undefined,
+      conditions,conditionText:condText,dietPrefs,dietText,activity,goals,goalText,
+      recommendations:{explanation:recs?.explanation||"",sources:recs?.sources||[]}
+    };
+    const all=loadProfiles();
+    saveProfiles(all.map(p=>p.id===updated.id?updated:p));
+    onSave(updated);
+  };
+
+  const stepTitles=["📋 פרטים בסיסיים","🏥 בעיות רפואיות","🥗 העדפות תזונה","🏃 פעילות גופנית","🎯 יעדים"];
+  const chipStyle=(active)=>({padding:"8px 14px",borderRadius:20,border:`1px solid ${active?C.accent:C.border}`,background:active?"rgba(90,158,30,0.1)":"#fff",color:active?C.accent:C.text,fontSize:12,fontWeight:active?700:400,cursor:"pointer"});
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"#f5f5f7",zIndex:1000,display:"flex",flexDirection:"column",overflowY:"auto"}}>
+      {/* Header */}
+      <div style={{padding:"52px 20px 12px",background:"rgba(255,255,255,.95)",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+          <div style={{fontSize:15,fontWeight:700,color:C.text}}>🎯 כוון יעדים תזונתיים</div>
+          <button onClick={onSkip} style={{background:"none",border:"none",color:C.muted,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>דלג ›</button>
+        </div>
+        {step<5&&(
+          <div style={{display:"flex",gap:4}}>
+            {stepTitles.map((_,i)=>(
+              <div key={i} style={{flex:1,height:3,borderRadius:2,background:i<=step?C.accent:"#e0e0e5",transition:"background .3s"}}/>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      <div style={{flex:1,padding:20,overflowY:"auto"}}>
+        {step===0&&(
+          <div className="fade">
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>{stepTitles[0]}</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+              <div>
+                <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:700}}>גיל</div>
+                <input type="number" value={age} onChange={e=>setAge(e.target.value)} className="inp" placeholder="35"/>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:C.muted,marginBottom:6,fontWeight:700}}>מין</div>
+                <div style={{display:"flex",gap:4}}>
+                  {[{id:"female",he:"נקבה"},{id:"male",he:"זכר"},{id:"other",he:"אחר"}].map(g=>(
+                    <button key={g.id} onClick={()=>setGender(g.id)} style={{flex:1,padding:"8px 2px",borderRadius:8,border:`1px solid ${gender===g.id?C.accent:C.border}`,background:gender===g.id?"rgba(90,158,30,0.08)":"#fff",fontSize:11,fontWeight:gender===g.id?700:400,color:gender===g.id?C.accent:C.muted,cursor:"pointer",fontFamily:"inherit"}}>{g.he}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div>
+                <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:700}}>גובה (ס״מ)</div>
+                <input type="number" value={height} onChange={e=>setHeight(e.target.value)} className="inp" placeholder="165"/>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:700}}>משקל (ק״ג)</div>
+                <input type="number" value={weight} onChange={e=>setWeight(e.target.value)} className="inp" placeholder="70"/>
+              </div>
+            </div>
+          </div>
+        )}
+        {step===1&&(
+          <div className="fade">
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>{stepTitles[1]}</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:14}}>בחרי את כל מה שרלוונטי, או השאירי ריק</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:14}}>
+              {CONDS.map(c=><button key={c.id} onClick={()=>toggle(conditions,setConditions,c.id)} style={chipStyle(conditions.includes(c.id))}>{c.he}</button>)}
+            </div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:700}}>מצב רפואי נוסף</div>
+            <input value={condText} onChange={e=>setCondText(e.target.value)} className="inp" placeholder="לדוגמה: תת פעילות בלוטת התריס"/>
+          </div>
+        )}
+        {step===2&&(
+          <div className="fade">
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>{stepTitles[2]}</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:14}}>בחרי את ההעדפות שלך</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:14}}>
+              {DIETS.map(d=><button key={d.id} onClick={()=>toggle(dietPrefs,setDietPrefs,d.id)} style={chipStyle(dietPrefs.includes(d.id))}>{d.he}</button>)}
+            </div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:700}}>העדפה נוספת</div>
+            <input value={dietText} onChange={e=>setDietText(e.target.value)} className="inp" placeholder="לדוגמה: אלרגיה לאגוזים"/>
+          </div>
+        )}
+        {step===3&&(
+          <div className="fade">
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:14}}>{stepTitles[3]}</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {ACTIVITIES.map(a=>(
+                <button key={a.id} onClick={()=>setActivity(a.id)} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,border:`2px solid ${activity===a.id?C.accent:C.border}`,background:activity===a.id?"rgba(90,158,30,0.07)":"#fff",textAlign:"right",cursor:"pointer",width:"100%",fontFamily:"inherit",transition:"border .2s"}}>
+                  <div style={{width:20,height:20,borderRadius:"50%",border:`2px solid ${activity===a.id?C.accent:C.border}`,background:activity===a.id?C.accent:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    {activity===a.id&&<div style={{width:8,height:8,borderRadius:"50%",background:"#fff"}}/>}
+                  </div>
+                  <div style={{flex:1,textAlign:"right"}}>
+                    <div style={{fontSize:13,fontWeight:700,color:activity===a.id?C.accent:C.text}}>{a.he}</div>
+                    <div style={{fontSize:11,color:C.muted}}>{a.sub}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {step===4&&(
+          <div className="fade">
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>{stepTitles[4]}</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:14}}>מה חשוב לך להשיג?</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:14}}>
+              {GOALS.map(g=><button key={g.id} onClick={()=>toggle(goals,setGoals,g.id)} style={chipStyle(goals.includes(g.id))}>{g.he}</button>)}
+            </div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:700}}>יעד נוסף</div>
+            <input value={goalText} onChange={e=>setGoalText(e.target.value)} className="inp" placeholder="לדוגמה: הפחתת דלקות"/>
+          </div>
+        )}
+        {step===5&&(
+          <div className="fade" style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:280,gap:12}}>
+            <div style={{fontSize:52,animation:"spin 2s linear infinite",display:"inline-block"}}>⟳</div>
+            <div style={{fontSize:15,fontWeight:700,color:C.text}}>Claude מנתח את הפרופיל שלך</div>
+            <div style={{fontSize:12,color:C.muted,textAlign:"center",lineHeight:1.7}}>
+              בודק המלצות האיגודים הרפואיים...<br/>מחשב יעדים מותאמים אישית...
+            </div>
+            {error&&<div style={{background:"#fff0f0",border:`1px solid ${C.danger}`,borderRadius:10,padding:"12px 16px",fontSize:12,color:C.danger,textAlign:"center",width:"100%"}}>
+              ⚠ {error}
+              <br/><button onClick={()=>{setError(null);askClaude();}} style={{marginTop:8,background:C.danger,border:"none",borderRadius:6,color:"#fff",padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>נסה שוב</button>
+            </div>}
+          </div>
+        )}
+        {step===6&&recs&&(
+          <div className="fade">
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>✨ ההמלצות שלך</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:16}}>תוכלי לשנות את הערכים לפני השמירה</div>
+            <div style={{background:"rgba(255,255,255,.9)",borderRadius:14,padding:"16px",marginBottom:10,boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}>
+              {[
+                {label:"קלוריות יומיות",key:"kcal",unit:"קק״ל",color:C.accent},
+                {label:"פחמימות",key:"carbs",unit:"g",color:C.warn},
+                {label:"חלבון",key:"protein",unit:"g",color:C.blue},
+                {label:"שומן",key:"fat",unit:"g",color:"#94a3b8"},
+              ].map(({label,key,unit,color})=>(
+                <div key={key} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                  <div style={{fontSize:11,color:C.muted,width:100,flexShrink:0}}>{label}</div>
+                  <input type="number" value={editVals[key]} onChange={e=>setEditVals(v=>({...v,[key]:e.target.value}))}
+                    className="inp" style={{flex:1,fontWeight:700,fontSize:16,color,textAlign:"center",marginBottom:0,padding:"8px 4px"}}/>
+                  <div style={{fontSize:11,color:C.muted,width:32,flexShrink:0}}>{unit}</div>
+                </div>
+              ))}
+            </div>
+            <button onClick={()=>setShowRecsInfo(true)} style={{width:"100%",background:"none",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px",fontSize:12,color:C.muted,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,fontFamily:"inherit",marginBottom:4}}>
+              ℹ על בסיס מה ניתנו ההמלצות?
+            </button>
+            {showRecsInfo&&<RecommendationsInfoModal recs={recs} onClose={()=>setShowRecsInfo(false)}/>}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      {step!==5&&(
+        <div style={{padding:"12px 20px 34px",background:"rgba(255,255,255,.97)",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+          {step===6?(
+            <button onClick={handleSave} style={{width:"100%",background:C.accent,border:"none",borderRadius:12,color:"#fff",padding:"14px",fontSize:15,fontWeight:700,cursor:"pointer"}}>
+              ✓ אשרי ושמרי יעדים
+            </button>
+          ):(
+            <div style={{display:"flex",gap:8}}>
+              {step>0&&<button onClick={()=>setStep(s=>s-1)} style={{flex:1,background:"none",border:`1px solid ${C.border}`,borderRadius:12,padding:"13px",fontSize:14,fontWeight:600,color:C.muted,cursor:"pointer",fontFamily:"inherit"}}>← חזרה</button>}
+              <button onClick={handleNext} style={{flex:2,background:C.accent,border:"none",borderRadius:12,color:"#fff",padding:"13px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                {step===4?"🔍 קבלי המלצות מ-Claude →":"הבא →"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── SetupScreen ────────────────────────────────────────────────────────────────
 function SetupScreen({onDone}){
   const [name,setName]=useState("");
@@ -2263,7 +2544,7 @@ function SetupScreen({onDone}){
   );
 }
 // ── ProfileModal ───────────────────────────────────────────────────────────────
-function ProfileModal({profiles, activeId, onSelect, onClose, onBackup}){
+function ProfileModal({profiles, activeId, onSelect, onClose, onBackup, onSetupProfile}){
   const [showNew,setShowNew]=useState(false);
   const [newName,setNewName]=useState("");
   const [newEmoji,setNewEmoji]=useState("👤");
@@ -2304,8 +2585,10 @@ function ProfileModal({profiles, activeId, onSelect, onClose, onBackup}){
                   <div style={{fontSize:10,color:C.muted}}>{p.maxKcal} קק״ל · {p.maxCarbs}g פחמ׳</div>
                 </div>
               </div>
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <div style={{display:"flex",alignItems:"center",gap:4}}>
                 {p.id===activeId && <span style={{fontSize:10,color:C.accent,fontWeight:700}}>פעיל</span>}
+                {p.recommendations && <span style={{fontSize:10,color:C.muted}} title="יש המלצות">ℹ</span>}
+                <button onClick={e=>{e.stopPropagation();onSetupProfile&&onSetupProfile(p);}} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:6,color:C.accent,fontSize:11,fontWeight:700,cursor:"pointer",padding:"3px 7px",fontFamily:"inherit"}}>🎯</button>
                 {p.id!=="default" && <button onClick={e=>{e.stopPropagation();deleteProfile(p.id);}} style={{background:"none",border:"none",color:C.muted,fontSize:16,cursor:"pointer",padding:4}}>🗑</button>}
               </div>
             </div>
@@ -2984,6 +3267,8 @@ function App(){
   const [showNewBtn,setShowNewBtn]=useState(false);
   const [showDB,setShowDB]=useState(false);
   const [showProfiles,setShowProfiles]=useState(false);
+  const [showWizard,setShowWizard]=useState(false);
+  const [wizardProfile,setWizardProfile]=useState(null);
   const [showExport,setShowExport]=useState(false);
   const [showInfo,setShowInfo]=useState(false);
   const [showPantry,setShowPantry]=useState(false);
@@ -3102,6 +3387,8 @@ function App(){
       setProfiles(updated);
       setActiveProfile(p);
       setShowSetup(false);
+      setWizardProfile(p);
+      setShowWizard(true);
     }}/>
   );
 
@@ -3112,7 +3399,8 @@ function App(){
       {showPantry && <PantryModal onClose={()=>setShowPantry(false)} lang={lang}/>}
       {showShopping && <ShoppingListModal onClose={()=>setShowShopping(false)} lang={lang} pid={pid}/>}
       {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang}/>}
-      {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}}/>}
+      {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}}/>}
+      {showWizard && <ProfileSetupWizard profile={wizardProfile} onSave={p=>{const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===p.id?p:x));setActiveProfile(p.id===pid?p:activeProfile);setProfiles(loadProfiles());setWizardProfile(null);setShowWizard(false);}} onSkip={()=>{setWizardProfile(null);setShowWizard(false);}}/>}
       {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)}/>}
       {showJournal && <JournalView pid={pid} lang={lang} onClose={()=>setShowJournal(false)} onLoadDay={saved=>{setEntries(saved.map(e=>({...e,uid:Date.now()+Math.random()})));setShowJournal(false);}}/>}
       {showNewBtn && <NewButtonModal onClose={()=>setShowNewBtn(false)} onSave={saveNewBtn}/>}
