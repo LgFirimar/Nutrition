@@ -111,6 +111,22 @@ function migrateOldData() {
 }
 migrateOldData();
 
+// ── Pantry & Shopping helpers ─────────────────────────────────────────────────
+const loadPantry=()=>{try{return JSON.parse(localStorage.getItem("nutrition_pantry")||"{}");}catch{return {};}};
+const savePantryLS=p=>localStorage.setItem("nutrition_pantry",JSON.stringify(p));
+const loadShopping=()=>{try{return JSON.parse(localStorage.getItem("nutrition_shopping")||"[]");}catch{return [];}};
+const saveShopping=s=>localStorage.setItem("nutrition_shopping",JSON.stringify(s));
+const getRecentFoodLabels=(pid,days=7)=>{
+  const j=loadJournal(pid||"default");
+  const labels=new Set();
+  for(let i=0;i<days;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    (j[k]?.entries||[]).forEach(e=>e.label&&labels.add(e.label.replace(/🍳|🍽|🥚|🧀|🥑|🍌|🥗/g,'').replace(/\(.*?\)/g,'').trim()));
+  }
+  return [...labels].filter(Boolean).slice(0,30);
+};
+
 const DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
 const getDateLabel = s => {
   let d;
@@ -1610,6 +1626,171 @@ function JournalView({onClose,onLoadDay,pid,lang}){
 
 
 
+// ── PantryModal ────────────────────────────────────────────────────────────────
+function PantryModal({onClose,lang}){
+  const isHe=(lang||'he')!=='en';
+  const [pantry,setPantry]=useState(loadPantry);
+  const [inputs,setInputs]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,{name:"",qty:""}])));
+  const [open,setOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,true])));
+
+  const update=p=>{setPantry(p);savePantryLS(p);};
+
+  const addItem=(cat)=>{
+    const {name,qty}=inputs[cat];
+    if(!name.trim())return;
+    const items=[...(pantry[cat]||[])];
+    const idx=items.findIndex(i=>i.name.toLowerCase()===name.trim().toLowerCase());
+    if(idx>=0) items[idx]={...items[idx],qty:qty.trim()||items[idx].qty};
+    else items.push({id:Date.now()+Math.random(),name:name.trim(),qty:qty.trim()});
+    update({...pantry,[cat]:items});
+    setInputs(i=>({...i,[cat]:{name:"",qty:""}}));
+  };
+
+  const removeItem=(cat,id)=>update({...pantry,[cat]:(pantry[cat]||[]).filter(i=>i.id!==id)});
+  const updateQty=(cat,id,qty)=>update({...pantry,[cat]:(pantry[cat]||[]).map(i=>i.id===id?{...i,qty}:i)});
+
+  return(
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-sheet slide" style={{maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontSize:15,fontWeight:700}}>🏪 {isHe?"מזווה":"Pantry"}</div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
+        </div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:14}}>{isHe?"מה יש בבית? הכנס פריטים עם כמויות:":"What do you have at home? Add items with quantities:"}</div>
+        {FRIDGE_CATS.map(cat=>(
+          <div key={cat.key} style={{marginBottom:10}}>
+            <button onClick={()=>setOpen(o=>({...o,[cat.key]:!o[cat.key]}))}
+              style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",background:"none",border:"none",cursor:"pointer",padding:"4px 0",fontFamily:"inherit"}}>
+              <span style={{fontSize:12,fontWeight:700,color:C.text}}>{isHe?cat.he:cat.en}
+                {(pantry[cat.key]||[]).length>0&&<span style={{marginRight:5,background:C.accent,color:"#fff",borderRadius:10,fontSize:9,padding:"1px 5px"}}>{(pantry[cat.key]||[]).length}</span>}
+              </span>
+              <span style={{fontSize:10,color:C.muted,transform:open[cat.key]?"rotate(180deg)":"none",transition:"transform .2s",display:"inline-block"}}>▾</span>
+            </button>
+            {open[cat.key]&&<>
+              <div style={{display:"flex",gap:6,marginBottom:6,marginTop:4}}>
+                <input value={inputs[cat.key].name} onChange={e=>setInputs(i=>({...i,[cat.key]:{...i[cat.key],name:e.target.value}}))}
+                  onKeyDown={e=>e.key==="Enter"&&addItem(cat.key)}
+                  placeholder={isHe?"שם מוצר":"Product"} className="inp" style={{flex:2,fontSize:12,padding:"6px 8px"}}/>
+                <input value={inputs[cat.key].qty} onChange={e=>setInputs(i=>({...i,[cat.key]:{...i[cat.key],qty:e.target.value}}))}
+                  onKeyDown={e=>e.key==="Enter"&&addItem(cat.key)}
+                  placeholder={isHe?"כמות":"Qty"} className="inp" style={{flex:1,fontSize:12,padding:"6px 8px"}}/>
+                <button onClick={()=>addItem(cat.key)} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 10px",cursor:"pointer",fontSize:16}}>+</button>
+              </div>
+              {(pantry[cat.key]||[]).map(item=>(
+                <div key={item.id} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",borderBottom:`1px solid ${C.border}`}}>
+                  <span style={{flex:1,fontSize:12,color:C.text}}>{item.name}</span>
+                  <input value={item.qty} onChange={e=>updateQty(cat.key,item.id,e.target.value)}
+                    placeholder="כמות" style={{width:70,border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 6px",fontSize:11,textAlign:"center",fontFamily:"inherit"}}/>
+                  <button onClick={()=>removeItem(cat.key,item.id)} style={{background:"none",border:"none",color:C.danger,fontSize:16,cursor:"pointer",padding:"0 3px"}}>×</button>
+                </div>
+              ))}
+            </>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── ShoppingListModal ──────────────────────────────────────────────────────────
+function ShoppingListModal({onClose,lang,pid}){
+  const isHe=(lang||'he')!=='en';
+  const [items,setItems]=useState(loadShopping);
+  const [loading,setLoading]=useState(false);
+  const [newName,setNewName]=useState("");
+  const [newQty,setNewQty]=useState("");
+  const [error,setError]=useState("");
+
+  const save=list=>{setItems(list);saveShopping(list);};
+
+  const toggle=id=>save(items.map(i=>i.id===id?{...i,checked:!i.checked}:i));
+  const remove=id=>save(items.filter(i=>i.id!==id));
+  const clearBought=()=>save(items.filter(i=>!i.checked));
+  const addManual=()=>{
+    if(!newName.trim())return;
+    save([...items,{id:Date.now()+Math.random(),name:newName.trim(),qty:newQty.trim(),checked:false,auto:false}]);
+    setNewName("");setNewQty("");
+  };
+
+  const generate=async()=>{
+    setLoading(true);setError("");
+    const pantry=loadPantry();
+    const recentFoods=getRecentFoodLabels(pid,7);
+    const pantryStr=FRIDGE_CATS.flatMap(c=>(pantry[c.key]||[]).map(i=>`${i.name}${i.qty?` (${i.qty})`:""}`)).join(', ')||"ריק";
+    try{
+      const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({shoppingList:{pantry:pantryStr,recentFoods,isHe}})});
+      const d=await r.json();
+      if(d.error)throw new Error(d.error);
+      const newItems=(d.items||[]).map(i=>({id:Date.now()+Math.random(),name:i.name,qty:i.qty||"",checked:false,auto:true}));
+      // merge: don't duplicate existing unchecked items
+      const existingNames=new Set(items.filter(i=>!i.checked).map(i=>i.name.toLowerCase()));
+      const fresh=newItems.filter(i=>!existingNames.has(i.name.toLowerCase()));
+      save([...items,...fresh]);
+    }catch(e){setError(isHe?"שגיאה בהפקת הרשימה":"Error generating list");}
+    setLoading(false);
+  };
+
+  const bought=items.filter(i=>i.checked).length;
+
+  return(
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-sheet slide" style={{maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontSize:15,fontWeight:700}}>🛒 {isHe?"רשימת קניות":"Shopping List"}</div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
+        </div>
+
+        {/* Generate button */}
+        <button onClick={generate} disabled={loading} style={{width:"100%",background:"linear-gradient(135deg,#14b8a6,#059669)",border:"none",borderRadius:10,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+          {loading?<span style={{animation:"spin 1s linear infinite",display:"inline-block"}}>⟳</span>:"✨"}
+          {loading?(isHe?"מנתח...":"Analyzing..."):(isHe?"הצע רשימת קניות לפי המזווה והרגלים":"Suggest based on pantry & habits")}
+        </button>
+        {error&&<div style={{color:C.danger,fontSize:12,marginBottom:8}}>{error}</div>}
+
+        {/* Add manual */}
+        <div style={{display:"flex",gap:6,marginBottom:12}}>
+          <input value={newName} onChange={e=>setNewName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addManual()}
+            placeholder={isHe?"הוסף פריט...":"Add item..."} className="inp" style={{flex:2,fontSize:12}}/>
+          <input value={newQty} onChange={e=>setNewQty(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addManual()}
+            placeholder={isHe?"כמות":"Qty"} className="inp" style={{flex:1,fontSize:12}}/>
+          <button onClick={addManual} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 10px",cursor:"pointer",fontSize:16}}>+</button>
+        </div>
+
+        {/* List */}
+        {items.length===0
+          ?<div style={{textAlign:"center",color:C.muted,fontSize:13,padding:"20px 0"}}>{isHe?"הרשימה ריקה":"List is empty"}</div>
+          :<div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12}}>
+            {items.filter(i=>!i.checked).map(item=>(
+              <div key={item.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"rgba(255,255,255,.7)",borderRadius:10,border:`1px solid ${item.auto?"rgba(13,148,136,.2)":C.border}`}}>
+                <button onClick={()=>toggle(item.id)} style={{width:20,height:20,borderRadius:6,border:`2px solid ${C.accent}`,background:"transparent",cursor:"pointer",flexShrink:0}}/>
+                <span style={{flex:1,fontSize:13,color:C.text}}>{item.name}</span>
+                {item.qty&&<span style={{fontSize:11,color:C.muted,fontWeight:600}}>{item.qty}</span>}
+                {item.auto&&<span style={{fontSize:9,color:C.accent,background:"rgba(13,148,136,.08)",borderRadius:8,padding:"2px 5px"}}>AI</span>}
+                <button onClick={()=>remove(item.id)} style={{background:"none",border:"none",color:C.muted,fontSize:15,cursor:"pointer",padding:"0 2px"}}>×</button>
+              </div>
+            ))}
+            {bought>0&&<>
+              <div style={{fontSize:10,color:C.muted,letterSpacing:1.2,textTransform:"uppercase",marginTop:6,marginBottom:4}}>{isHe?"נרכש":"Bought"} ({bought})</div>
+              {items.filter(i=>i.checked).map(item=>(
+                <div key={item.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"rgba(148,163,184,.06)",borderRadius:10,opacity:.7}}>
+                  <button onClick={()=>toggle(item.id)} style={{width:20,height:20,borderRadius:6,border:`2px solid ${C.accent}`,background:C.accent,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:11}}>✓</button>
+                  <span style={{flex:1,fontSize:13,color:C.muted,textDecoration:"line-through"}}>{item.name}</span>
+                  {item.qty&&<span style={{fontSize:11,color:C.muted}}>{item.qty}</span>}
+                  <button onClick={()=>remove(item.id)} style={{background:"none",border:"none",color:C.muted,fontSize:15,cursor:"pointer",padding:"0 2px"}}>×</button>
+                </div>
+              ))}
+              <button onClick={clearBought} style={{width:"100%",background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,padding:"7px",fontSize:12,color:C.muted,cursor:"pointer",marginTop:4}}>
+                {isHe?"נקה שנרכש":"Clear bought"}
+              </button>
+            </>}
+          </div>
+        }
+      </div>
+    </div>
+  );
+}
+
 // ── ExportImportModal ──────────────────────────────────────────────────────────
 function ExportImportModal({pid, onClose}){
   const [importing,setImporting]=useState(false);
@@ -2494,6 +2675,8 @@ function App(){
   const [showProfiles,setShowProfiles]=useState(false);
   const [showExport,setShowExport]=useState(false);
   const [showInfo,setShowInfo]=useState(false);
+  const [showPantry,setShowPantry]=useState(false);
+  const [showShopping,setShowShopping]=useState(false);
   const [showMealPlanner,setShowMealPlanner]=useState(false);
   const [lang,setLang]=useState(()=>localStorage.getItem('nutrition_lang')||'he');
   const T=LANG[lang]||LANG.he;
@@ -2593,6 +2776,8 @@ function App(){
     <div>
       {showSplash && <SplashScreen onDone={()=>setShowSplash(false)}/>}
       {showInfo && <InfoModal onClose={()=>setShowInfo(false)} lang={lang}/>}
+      {showPantry && <PantryModal onClose={()=>setShowPantry(false)} lang={lang}/>}
+      {showShopping && <ShoppingListModal onClose={()=>setShowShopping(false)} lang={lang} pid={pid}/>}
       {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang}/>}
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}}/>}
       {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)}/>}
@@ -2618,6 +2803,8 @@ function App(){
           <button onClick={toggleLang} style={{height:28,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:10,fontWeight:700,color:C.muted,padding:"0 8px"}}>
             {lang==='he'?'EN':'עב'}
           </button>
+          <button onClick={()=>setShowPantry(true)} style={{width:28,height:28,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>🏪</button>
+          <button onClick={()=>setShowShopping(true)} style={{width:28,height:28,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>🛒</button>
           <button onClick={()=>setShowInfo(true)} style={{width:28,height:28,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontWeight:700}}>ℹ</button>
           <button onClick={saveDay} style={{width:36,height:36,borderRadius:10,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .3s",animation:saveFlash?"pop .35s ease":"none",boxShadow:"0 2px 8px rgba(80,120,160,.1)"}}>💾</button>
           <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#14b8a6,#0d9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 2px 8px rgba(13,148,136,.35)",cursor:"pointer"}} onClick={()=>setShowProfiles(true)}>{activeProfile?.emoji}</div>

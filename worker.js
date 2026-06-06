@@ -15,7 +15,7 @@ export default {
     }
 
     try {
-      const { foodName, mealDescription, imageData, imageMediaType, mealPlan } = await request.json();
+      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList } = await request.json();
 
       let prompt, model, system, max_tokens, messages;
       if (imageData) {
@@ -63,6 +63,15 @@ After your calculation, output ONLY this JSON on the very last line (no markdown
           prompt = `הצע 3 ארוחות ל-${people} אנשים. העדפות: ${preferences || 'ללא הגבלות'}${refineText}
 {"options":[{"name":"שם ארוחה","description":"תיאור קצר בעברית","kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0}]}`;
         }
+      } else if (shoppingList) {
+        model = 'claude-haiku-4-5-20251001';
+        max_tokens = 600;
+        system = 'אתה עוזר לתכנון קניות בסופר. ענה בעברית. החזר JSON בלבד, ללא הסבר.';
+        const {pantry, recentFoods, isHe} = shoppingList;
+        prompt = `המשתמש אכל לאחרונה: ${(recentFoods||[]).join(', ')||'לא ידוע'}.
+במזווה/מקרר יש: ${pantry||'ריק'}.
+הצע 6-10 פריטים לקנות בסופר — עדיפות לפריטים שחסרים במזווה ומופיעים בהרגלי האכילה.
+{"items":[{"name":"שם מוצר","qty":"כמות מומלצת"}]}`;
       } else {
         model = 'claude-haiku-4-5-20251001';
         max_tokens = 300;
