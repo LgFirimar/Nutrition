@@ -804,12 +804,12 @@ function DBManagerModal({onClose,pid,lang}){
 }
 
 // ── FoodAutocomplete ───────────────────────────────────────────────────────────
-function FoodAutocomplete({value, onChange, onSelect, placeholder}){
+function FoodAutocomplete({value, onChange, onSelect, onSelectFood, placeholder}){
   const [open, setOpen] = useState(false);
 
   const allFoods = [
-    ...loadCustomDB(window._activePid||"default").map(f=>({label:f.label, name:f.names[0]})),
-    ...FOOD_DB.map(f=>({label:f.label, name:f.names[0]})),
+    ...loadCustomDB(window._activePid||"default").map(f=>({label:f.label, name:f.names[0], food:f})),
+    ...FOOD_DB.map(f=>({label:f.label, name:f.names[0], food:f})),
   ];
 
   const q = value.trim().toLowerCase();
@@ -832,7 +832,12 @@ function FoodAutocomplete({value, onChange, onSelect, placeholder}){
       {open && suggestions.length > 0 && (
         <div style={{position:"absolute", top:"calc(100% + 4px)", right:0, left:0, background:"#fff", border:`1px solid ${C.accent}`, borderRadius:10, zIndex:50, overflow:"hidden", boxShadow:"0 6px 20px rgba(0,0,0,0.1)", animation:"fadeIn 0.1s ease"}}>
           {suggestions.map((f,i)=>(
-            <div key={i} onMouseDown={e=>{e.preventDefault(); onChange(f.name); setOpen(false);}}
+            <div key={i} onMouseDown={e=>{
+              e.preventDefault();
+              onChange(f.label);
+              setOpen(false);
+              if(onSelectFood) onSelectFood(f.food);
+            }}
               style={{padding:"10px 14px", fontSize:13, color:C.text, cursor:"pointer", borderBottom:i<suggestions.length-1?`1px solid ${C.border}`:"none", background:"#fff"}}
               onMouseEnter={e=>e.currentTarget.style.background="#f0fae8"}
               onMouseLeave={e=>e.currentTarget.style.background="#fff"}
@@ -1200,7 +1205,7 @@ function MealPanel({onAdd,onClose}){
     const entry={names:[name.toLowerCase()],label:`🍽 ${name}`,
       kcal:Math.round(preview.kcal/s),carbs:parseFloat(((preview.carbs||0)/s).toFixed(1)),
       protein:parseFloat(((preview.protein||0)/s).toFixed(1)),fat:parseFloat(((preview.fat||0)/s).toFixed(1)),
-      defaultAmt:1,unit:"מנה"};
+      defaultAmt:1,unit:"מנה",serving_size:1};
     const pid=window._activePid||"default";
     const db=loadCustomDB(pid);
     saveCustomDB([...db.filter(f=>f.label!==entry.label),entry],pid);
@@ -1296,7 +1301,8 @@ function SmartAddPanel({onAdd,onClose}){
     setMatched(food);setCandidates([]);setNotFound(false);
     const a=parseFloat(amt||amount)||food.defaultAmt;
     setAmount(String(a));
-    const ru=u||unit||food.unit;
+    // Prefer the food's native unit when it's a serving-based unit (not g/ml)
+    const ru=food.unit==='מנה'?food.unit:(u||unit||food.unit||'g');
     setUnit(ru);
     const n=calcNutrition(food,a,ru);
     setKcal(String(n.kcal));setCarbs(String(n.carbs));setProtein(String(n.protein));setFat(String(n.fat||0));
@@ -1356,12 +1362,14 @@ function SmartAddPanel({onAdd,onClose}){
         value={query}
         onChange={v=>{setQuery(v);setMatched(null);setCandidates([]);setNotFound(false);setKcal("");setCarbs("");setProtein("");}}
         onSelect={name=>runSearch(name,amount,unit)}
+        onSelectFood={food=>applyFood(food, food.defaultAmt||amount||"", food.unit||unit)}
         placeholder="שם המאכל..."
       />
       <div style={{display:"flex",gap:8,marginBottom:10}}>
         <input type="number" value={amount} placeholder="כמות" onChange={e=>{setAmount(e.target.value);recalc(e.target.value,unit);}} className="inp" style={{flex:1,textAlign:"center",padding:"9px 6px"}}/>
         <select value={unit} onChange={e=>{setUnit(e.target.value);recalc(amount,e.target.value);}} className="inp" style={{flex:1,padding:"9px 6px",cursor:"pointer"}}>
           <option value="g">גר׳</option><option value="ml">מ״ל</option><option value="יח׳">יח׳</option><option value="קוביות">קוביות</option><option value="כף">כף (15מ״ל)</option><option value="כפית">כפית (5מ״ל)</option><option value="כוס">כוס (240מ״ל)</option>
+          {matched?.unit==='מנה'&&<option value="מנה">מנה</option>}
         </select>
       </div>
       <button className="btn-accent" onClick={()=>runSearch(query,amount,unit)} style={{marginBottom:10}}>✦ חשב ערכים</button>
