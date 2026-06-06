@@ -1483,12 +1483,15 @@ function ExportImportModal({pid, onClose}){
 
   const exportData=()=>{
     const data={
-      version:1,
+      version:2,
       exportDate:new Date().toISOString(),
       pid,
       journal:loadJournal(pid),
       customBtns:loadCustomBtns(pid),
       customDB:loadCustomDB(pid),
+      fridge:loadFridge(),
+      savedPrefs:JSON.parse(localStorage.getItem("nutrition_saved_prefs")||"[]"),
+      quickFoods:loadQuickFoods(pid),
     };
     const json=JSON.stringify(data,null,2);
     const blob=new Blob([json],{type:"application/json"});
@@ -1509,6 +1512,9 @@ function ExportImportModal({pid, onClose}){
       if(data.journal) saveJournal(data.journal,targetPid);
       if(data.customBtns) saveCustomBtns(data.customBtns,targetPid);
       if(data.customDB) saveCustomDB(data.customDB,targetPid);
+      if(data.fridge) { saveFridgeLS(data.fridge); }
+      if(data.savedPrefs) localStorage.setItem("nutrition_saved_prefs",JSON.stringify(data.savedPrefs));
+      if(data.quickFoods) saveQuickFoods(data.quickFoods,targetPid);
       setMsg({type:"success",text:`✓ יובאו ${Object.keys(data.journal||{}).length} ימים בהצלחה! רענן את הדף.`});
       setImporting(false);
       setImportText("");
@@ -1875,7 +1881,7 @@ const LANG={
       quickAdd:"הוספה מהירה",edit:"✏️ ערוך",done:"✓ סיום",reset:"↺ אפס",newBtn:"+ חדש",
       todayLog:"יומן היום",items:"פריטים",allLog:"הכל ›",addItem:"הוסף פריט",
       noEntries:"לחצי על מאכל להוספה",total:"סה״כ",
-      home:"בית",journal:"יומן",db:"מאגר",profile:"פרופיל",
+      home:"בית",journal:"יומן",db:"מאגר",backup:"גיבוי",profile:"פרופיל",
       photo:"📷 תמונה",mealBtn:"🍽 ארוחה",whatEat:"🍳 מה אוכלים",
       daySaved:"שמור",yesterday:"📋 אתמול",clear:"נקה",people:"אנשים",
       close:"סגור",cancel:"ביטול",save:"שמור",add:"הוסף",howMuchG:"כמה גרם?",
@@ -1893,7 +1899,7 @@ const LANG={
       quickAdd:"Quick Add",edit:"✏️ Edit",done:"✓ Done",reset:"↺ Reset",newBtn:"+ New",
       todayLog:"Today's Log",items:"items",allLog:"All ›",addItem:"Add Item",
       noEntries:"Tap a food to add",total:"Total",
-      home:"Home",journal:"Journal",db:"Foods",profile:"Profile",
+      home:"Home",journal:"Journal",db:"Foods",backup:"Backup",profile:"Profile",
       photo:"📷 Photo",mealBtn:"🍽 Meal",whatEat:"🍳 What to eat",
       daySaved:"Saved",yesterday:"📋 Yesterday",clear:"Clear",people:"people",
       close:"Close",cancel:"Cancel",save:"Save",add:"Add",howMuchG:"How much (g)?",
@@ -2624,6 +2630,7 @@ function App(){
           {id:"home",icon:"🏠",lk:"home",action:null},
           {id:"journal",icon:"📓",lk:"journal",action:()=>setShowJournal(true)},
           {id:"db",icon:"🗂",lk:"db",action:()=>setShowDB(true)},
+          {id:"backup",icon:"💾",lk:"backup",action:()=>setShowExport(true)},
           {id:"profile",icon:"👤",lk:"profile",action:()=>setShowProfiles(true)},
         ].map(tab=>(
           <button key={tab.id} onClick={tab.action} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"10px 0",gap:3,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit"}}>
