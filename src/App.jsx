@@ -1356,7 +1356,7 @@ function MetricWeekChart({journal,metric,color,label,lang}){
   const lp=known.length>=2?crPath(known):null;
 
   return(
-    <div style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:`1px solid ${color}33`,borderRadius:16,padding:"10px 12px 8px",marginBottom:12,boxShadow:"0 3px 14px rgba(80,130,180,.08)"}}>
+    <div style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:`1px solid ${color}33`,borderRadius:16,padding:"10px 12px 8px",marginBottom:12,boxShadow:"0 3px 14px rgba(80,130,180,.08)",maxWidth:440}}>
       <div style={{fontSize:9,color,letterSpacing:1.4,textTransform:"uppercase",marginBottom:6,fontWeight:700}}>{label} — {isHe?"7 ימים אחרונים":"last 7 days"}</div>
       <div style={{overflow:"hidden",borderRadius:8}}>
         <svg width="100%" viewBox={`0 0 ${W} ${H+14}`} style={{display:"block"}}>
