@@ -1066,6 +1066,20 @@ function SmartAddPanel({onAdd,onClose}){
   const [protein,setProtein]=useState("");
   const [fat,setFat]=useState("");
   const [notFound,setNotFound]=useState(false);
+  const [savedToDb,setSavedToDb]=useState(false);
+
+  const handleSaveToDb=()=>{
+    if(!kcal)return;
+    const pid=window._activePid||"default";
+    const name=(matched?matched.label:query)||"מאכל";
+    const entry=matched
+      ?{names:[...new Set([...(matched.names||[]),query.toLowerCase()])].filter(Boolean),label:matched.label,kcal:matched.kcal,carbs:matched.carbs,protein:matched.protein,fat:matched.fat||0,defaultAmt:matched.defaultAmt||100,unit:matched.unit||"g"}
+      :{names:[query.toLowerCase()].filter(Boolean),label:query||"מאכל",kcal:parseFloat(kcal)||0,carbs:parseFloat(carbs)||0,protein:parseFloat(protein)||0,fat:parseFloat(fat)||0,defaultAmt:parseFloat(amount)||100,unit:unit||"g"};
+    const db=loadCustomDB(pid);
+    saveCustomDB([...db.filter(f=>f.label!==entry.label),entry],pid);
+    setSavedToDb(true);
+    setTimeout(()=>setSavedToDb(false),2000);
+  };
 
   const applyFood=(food,amt,u)=>{
     setMatched(food);setCandidates([]);setNotFound(false);
@@ -1173,10 +1187,13 @@ function SmartAddPanel({onAdd,onClose}){
         {numField(carbs,setCarbs,"פחמ׳ g",C.warn)}
         {numField(protein,setProtein,"חלבון g",C.blue)}
       </div>
-      <div style={{display:"flex",gap:8}}>
+      <div style={{display:"flex",gap:6,marginBottom:6}}>
         <button className="btn-muted" onClick={onClose} style={{flex:1}}>ביטול</button>
         <button onClick={handleAdd} disabled={!kcal} style={{flex:2,background:kcal?C.accent:"#ddd",border:"none",borderRadius:8,color:kcal?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:kcal?"pointer":"default"}}>+ הוסף פריט</button>
       </div>
+      <button onClick={handleSaveToDb} disabled={!kcal} style={{width:"100%",background:savedToDb?"rgba(13,148,136,.1)":"transparent",border:`1px solid ${savedToDb?C.accent:kcal?C.border:"#e0e0e5"}`,borderRadius:8,padding:"8px",fontSize:12,fontWeight:600,color:savedToDb?C.accent:kcal?C.muted:"#ccc",cursor:kcal?"pointer":"default"}}>
+        {savedToDb?"✓ נשמר במאגר":"💾 שמור למאגר"}
+      </button>
     </div>
   );
 }
