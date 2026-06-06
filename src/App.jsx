@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import './imgUtils.js';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+const imgUtilsReady = import('./imgUtils.js');
 
 
 // ── Food DB ────────────────────────────────────────────────────────────────────
@@ -1836,7 +1836,7 @@ function EditQuickFoodModal({food,onSave,onClose}){
 function SplashScreen({onDone}){
   const wrapRef=useRef(null);
   useEffect(()=>{
-    if(window._loadSplashImages) window._loadSplashImages();
+    imgUtilsReady.then(()=>{ if(window._loadSplashImages) window._loadSplashImages(); });
     const t1=setTimeout(()=>{ // start exit at 2.5s
       const el=wrapRef.current; if(!el)return;
       // Direct DOM manipulation guarantees animation trigger
@@ -2013,6 +2013,7 @@ function MealPlannerModal({onAdd,onClose,lang}){
   const [error,setError]=useState("");
   const [fridge,setFridge]=useState(loadFridge);
   const [fridgeIn,setFridgeIn]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,""])));
+  const [fridgeOpen,setFridgeOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,true])));
   const [savedPrefs,setSavedPrefs]=useState(()=>{try{return JSON.parse(localStorage.getItem("nutrition_saved_prefs")||"[]");}catch{return [];}});
   const savePref=()=>{
     const v=prefs.trim();
@@ -2164,9 +2165,13 @@ function MealPlannerModal({onAdd,onClose,lang}){
           {/* Fridge section */}
           <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>🥗 {isHe?"מה במקרר?":"What's in the fridge?"}</div>
           {FRIDGE_CATS.map(cat=>(
-            <div key={cat.key} style={{marginBottom:12}}>
-              <div style={{fontSize:11,color:C.muted,marginBottom:4}}>{isHe?cat.he:cat.en}</div>
-              <div style={{display:"flex",gap:6,marginBottom:6}}>
+            <div key={cat.key} style={{marginBottom:8}}>
+              <button onClick={()=>setFridgeOpen(o=>({...o,[cat.key]:!o[cat.key]}))}
+                style={{display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",background:"none",border:"none",cursor:"pointer",padding:"4px 0",fontFamily:"inherit"}}>
+                <span style={{fontSize:11,fontWeight:600,color:C.muted}}>{isHe?cat.he:cat.en}{(fridge[cat.key]||[]).length>0&&<span style={{marginRight:4,background:C.accent,color:"#fff",borderRadius:10,fontSize:9,padding:"1px 5px"}}>{(fridge[cat.key]||[]).length}</span>}</span>
+                <span style={{fontSize:10,color:C.muted,transform:fridgeOpen[cat.key]?"rotate(180deg)":"none",transition:"transform .2s",display:"inline-block"}}>▾</span>
+              </button>
+              {fridgeOpen[cat.key]&&<><div style={{display:"flex",gap:6,marginBottom:6}}>
                 <input
                   value={fridgeIn[cat.key]}
                   onChange={e=>setFridgeIn(i=>({...i,[cat.key]:e.target.value}))}
@@ -2186,7 +2191,7 @@ function MealPlannerModal({onAdd,onClose,lang}){
                     </span>
                   ))}
                 </div>
-              )}
+              )}</>}
             </div>
           ))}
 
@@ -2373,6 +2378,8 @@ function App(){
   const toggleLang=()=>{const nl=lang==='he'?'en':'he';setLang(nl);localStorage.setItem('nutrition_lang',nl);};
   const [customBtns,setCustomBtns]=useState(()=>loadCustomBtns(pid));
   const [saveFlash,setSaveFlash]=useState(false);
+  const [clearConfirm,setClearConfirm]=useState(false);
+  const [sugarFlash,setSugarFlash]=useState(false);
   const [activeDate,setActiveDate]=useState(()=>getTodayKey());
   const [showDatePicker,setShowDatePicker]=useState(false);
 
@@ -2387,6 +2394,7 @@ function App(){
     if(val) j[activeDate].bloodSugar=parseFloat(val);
     else delete j[activeDate].bloodSugar;
     saveJournal(j,pid);
+    if(val){setSugarFlash(true);setTimeout(()=>setSugarFlash(false),1500);}
   };
 
   const copyPrevDay=()=>{
@@ -2399,11 +2407,14 @@ function App(){
   const isToday = activeDate === getTodayKey();
   const savedToday = !!loadJournal(pid)[activeDate];
 
-  const totals=entries.reduce((acc,e)=>({kcal:acc.kcal+e.kcal,carbs:acc.carbs+e.carbs,protein:acc.protein+e.protein,fat:acc.fat+(e.fat||0)}),{kcal:0,carbs:0,protein:0,fat:0});
+  const totals=useMemo(()=>entries.reduce((acc,e)=>({kcal:acc.kcal+e.kcal,carbs:acc.carbs+e.carbs,protein:acc.protein+e.protein,fat:acc.fat+(e.fat||0)}),{kcal:0,carbs:0,protein:0,fat:0}),[entries]);
   const addEntry=food=>setEntries(prev=>[...prev,{...food,uid:food.uid||(Date.now()+Math.random())}]);
   const removeEntry=uid=>setEntries(prev=>prev.filter(e=>e.uid!==uid));
   const updateEntry=(uid,ch)=>setEntries(prev=>prev.map(e=>e.uid===uid?{...e,...ch}:e));
-  const clearAll=()=>setEntries([]);
+  const clearAll=()=>{
+    if(clearConfirm){setEntries([]);setClearConfirm(false);}
+    else{setClearConfirm(true);setTimeout(()=>setClearConfirm(false),3000);}
+  };
 
   const saveDay=()=>{
     if(!entries.length&&!bloodSugar)return;
@@ -2422,19 +2433,13 @@ function App(){
   });
 
   const selectDate=key=>{
-    // Auto-save current day before switching
+    const j=loadJournal(pid);
+    // Auto-save current day before switching (single loadJournal call)
     if(entries.length||bloodSugar){
-      const j=loadJournal(pid);
-      if(!j[activeDate]) j[activeDate]={entries:[],totals:{kcal:0,carbs:0,protein:0}};
       j[activeDate]={entries:entries.map(e=>({label:e.label,kcal:e.kcal,carbs:e.carbs,protein:e.protein,fat:e.fat||0,...(e.count&&{count:e.count}),...(e.perUnit&&{perUnit:e.perUnit})})),totals,...(bloodSugar&&{bloodSugar:parseFloat(bloodSugar)})};
       saveJournal(j,pid);
     }
-    const j=loadJournal(pid);
-    if(j[key]){
-      setEntries(j[key].entries.map(e=>({...e,uid:Date.now()+Math.random()})));
-    } else {
-      setEntries([]);
-    }
+    setEntries(j[key]?j[key].entries.map(e=>({...e,uid:Date.now()+Math.random()})):[]);
     setActiveDate(key);
     setShowDatePicker(false);
   };
@@ -2582,7 +2587,7 @@ function App(){
               </div>
               <div style={{height:1,background:"rgba(148,163,184,.2)"}}></div>
               <label style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"text"}}>
-                <span style={{fontSize:12,color:"#475569",flexShrink:0}}>🩸 {T.sugar}</span>
+                <span style={{fontSize:12,color:"#475569",flexShrink:0}}>🩸 {T.sugar}{sugarFlash&&<span style={{marginRight:4,fontSize:10,color:C.accent}}> ✓</span>}</span>
                 <input type="number" value={bloodSugar} onChange={e=>setBloodSugar(e.target.value)}
                   onBlur={e=>saveBloodSugar(e.target.value)}
                   placeholder="— mg/dL" style={{flex:1,minWidth:0,background:"transparent",border:"none",textAlign:"right",fontSize:13,fontWeight:700,color:sugarColor(bloodSugar),fontFamily:"inherit",paddingRight:2}}/>
@@ -2683,8 +2688,8 @@ function App(){
             {isToday&&<button onClick={copyPrevDay} style={{flex:1,background:"rgba(255,255,255,.7)",border:`1px solid ${C.border}`,borderRadius:10,padding:"8px",fontSize:12,fontWeight:600,color:C.muted,cursor:"pointer"}}>
               {T.yesterday}
             </button>}
-            <button onClick={clearAll} style={{flex:1,background:"rgba(255,255,255,.7)",border:`1px solid ${C.border}`,borderRadius:10,padding:"8px",fontSize:12,fontWeight:600,color:C.muted,cursor:"pointer"}}>
-              🗑 {T.clear}
+            <button onClick={clearAll} style={{flex:1,background:clearConfirm?"rgba(220,38,38,.08)":"rgba(255,255,255,.7)",border:`1px solid ${clearConfirm?C.danger:C.border}`,borderRadius:10,padding:"8px",fontSize:12,fontWeight:600,color:clearConfirm?C.danger:C.muted,cursor:"pointer",transition:"all .2s"}}>
+              {clearConfirm?(isToday?"בטוח?":"Sure?"):`🗑 ${T.clear}`}
             </button>
           </div>
         )}
@@ -2700,17 +2705,23 @@ function App(){
 
       {/* ── BOTTOM NAV ── */}
       <div style={{position:"sticky",bottom:0,background:"rgba(255,255,255,.92)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",borderTop:"1px solid rgba(148,163,184,.2)",display:"flex",zIndex:10,paddingBottom:"env(safe-area-inset-bottom)"}}>
-        {[
-          {id:"home",icon:"🏠",lk:"home",action:null},
-          {id:"journal",icon:"📓",lk:"journal",action:()=>setShowJournal(true)},
-          {id:"db",icon:"🗂",lk:"db",action:()=>setShowDB(true)},
-          {id:"profile",icon:"👤",lk:"profile",action:()=>setShowProfiles(true)},
-        ].map(tab=>(
-          <button key={tab.id} onClick={tab.action} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"10px 0",gap:3,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit"}}>
-            <span style={{fontSize:20,lineHeight:1}}>{tab.icon}</span>
-            <span style={{fontSize:9,letterSpacing:.4,color:tab.id==="home"?C.accent:"#94a3b8",fontWeight:tab.id==="home"?700:400}}>{T[tab.lk]}</span>
-          </button>
-        ))}
+        {(()=>{
+          const activeTab=showJournal?"journal":showDB?"db":showProfiles?"profile":"home";
+          return [{id:"home",icon:"🏠",lk:"home",action:null},
+            {id:"journal",icon:"📓",lk:"journal",action:()=>setShowJournal(true)},
+            {id:"db",icon:"🗂",lk:"db",action:()=>setShowDB(true)},
+            {id:"profile",icon:"👤",lk:"profile",action:()=>setShowProfiles(true)},
+          ].map(tab=>{
+            const active=activeTab===tab.id;
+            return (
+              <button key={tab.id} onClick={tab.action} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"10px 0",gap:3,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit"}}>
+                <span style={{fontSize:20,lineHeight:1}}>{tab.icon}</span>
+                <span style={{fontSize:9,letterSpacing:.4,color:active?C.accent:"#94a3b8",fontWeight:active?700:400}}>{T[tab.lk]}</span>
+                {active&&<span style={{width:4,height:4,borderRadius:"50%",background:C.accent,marginTop:-1}}/>}
+              </button>
+            );
+          });
+        })()}
       </div>
     </div>
   );
