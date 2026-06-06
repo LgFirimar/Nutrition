@@ -986,6 +986,7 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
   const [localAmt,setLocalAmt]=useState("1");
   const [qtyUnit,setQtyUnit]=useState("יח׳");
   const [mealWeight,setMealWeight]=useState("");
+  const [totalUnits,setTotalUnits]=useState(0);
   const fileRef=useRef(null);
 
   useEffect(()=>{
@@ -1011,13 +1012,16 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
     return null;
   };
 
-  const computeVals=(p,s,amt,unit,mealW)=>{
+  const computeVals=(p,s,amt,unit,mealW,mealU)=>{
     const a=parseFloat(amt)||1;
-    if(unit!=='יח׳'&&unit!=='מנות'){
-      const pg=getP100g(p,mealW);
-      if(pg){
-        const g=unitToG(a,unit);
-        const factor=g/100/s;
+    const pg=getP100g(p,mealW);
+    if(unit==='יח׳'||unit==='מנות'){
+      // When we know grams-per-unit, use gram path for accuracy
+      const uCount=parseFloat(mealU)||0;
+      if(pg&&uCount>0&&parseFloat(mealW)>0){
+        const gPerUnit=parseFloat(mealW)/uCount;
+        const totalG=a*gPerUnit;
+        const factor=totalG/100/s;
         return {
           kcal:Math.round(pg.kcal*factor),
           carbs:parseFloat(((pg.carbs||0)*factor).toFixed(1)),
@@ -1025,21 +1029,31 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
           fat:parseFloat(((pg.fat||0)*factor).toFixed(1))
         };
       }
-      // No weight info at all — show 0 so user knows to enter meal weight
-      return {kcal:0,carbs:0,protein:0,fat:0};
+      // Fallback: fraction of whole meal
+      const factor=a/s;
+      return {
+        kcal:Math.round(p.kcal*factor),
+        carbs:parseFloat(((p.carbs||0)*factor).toFixed(1)),
+        protein:parseFloat(((p.protein||0)*factor).toFixed(1)),
+        fat:parseFloat(((p.fat||0)*factor).toFixed(1))
+      };
     }
-    const factor=a/s;
-    return {
-      kcal:Math.round(p.kcal*factor),
-      carbs:parseFloat(((p.carbs||0)*factor).toFixed(1)),
-      protein:parseFloat(((p.protein||0)*factor).toFixed(1)),
-      fat:parseFloat(((p.fat||0)*factor).toFixed(1))
-    };
+    if(pg){
+      const g=unitToG(a,unit);
+      const factor=g/100/s;
+      return {
+        kcal:Math.round(pg.kcal*factor),
+        carbs:parseFloat(((pg.carbs||0)*factor).toFixed(1)),
+        protein:parseFloat(((pg.protein||0)*factor).toFixed(1)),
+        fat:parseFloat(((pg.fat||0)*factor).toFixed(1))
+      };
+    }
+    return {kcal:0,carbs:0,protein:0,fat:0};
   };
 
   const analyze=async(base64,mediaType)=>{
     setLoading(true);setPreview(null);setCalcVals(null);setError(null);
-    setServings(1);setLocalAmt("1");setQtyUnit("יח׳");setMealWeight("");
+    setServings(1);setLocalAmt("1");setQtyUnit("יח׳");setMealWeight("");setTotalUnits(0);
     try{
       const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{
         method:"POST",headers:{"Content-Type":"application/json"},
@@ -1057,23 +1071,27 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
           fat:parseFloat(((d.fat||0)/d.totalGrams*100).toFixed(1))
         };
       }
-      const initW=d.totalGrams>=20?String(d.totalGrams):"";
-      const initAmt=d.per100g&&d.totalGrams>=20?String(d.totalGrams):"1";
-      const initUnit=d.per100g&&d.totalGrams>=20?"g":"יח׳";
-      setMealWeight(initW);setLocalAmt(initAmt);setQtyUnit(initUnit);
+      // Parse unit count from portions string (e.g. "14 יח׳ 50g" → 14)
+      const parsedU=d.portions?parseInt((d.portions.match(/(\d+)\s*יח/)||[])[1]||"0"):0;
+      const hasGrams=d.totalGrams>=20;
+      const initW=hasGrams?String(d.totalGrams):"";
+      // Default to totalGrams in grams (works immediately without extra steps)
+      const initAmt=hasGrams?String(d.totalGrams):"1";
+      const initUnit=hasGrams?"g":"יח׳";
+      setMealWeight(initW);setTotalUnits(parsedU);setLocalAmt(initAmt);setQtyUnit(initUnit);
       setPreview(d);
-      setCalcVals(computeVals(d,1,initAmt,initUnit,initW));
+      setCalcVals(computeVals(d,1,initAmt,initUnit,initW,parsedU));
     }catch(e){setError(e.message);}
     setLoading(false);
   };
 
   const recalc=()=>{
     if(!preview)return;
-    setCalcVals(computeVals(preview,servings,localAmt,qtyUnit,mealWeight));
+    setCalcVals(computeVals(preview,servings,localAmt,qtyUnit,mealWeight,totalUnits));
   };
 
   // Auto-recalc whenever any input changes
-  useEffect(()=>{ if(preview) recalc(); },[servings,localAmt,qtyUnit,mealWeight]);
+  useEffect(()=>{ if(preview) recalc(); },[servings,localAmt,qtyUnit,mealWeight,totalUnits]);
 
   const handleFile=e=>{
     const file=e.target.files[0];
@@ -1126,13 +1144,18 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
               📐 {preview.portions}
             </div>
           )}
-          {/* Meal weight — needed for gram-based calculations */}
+          {/* Serving info — drives all calculations */}
           <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:8,background:"rgba(255,255,255,0.85)",borderRadius:8,padding:"6px 10px",border:`1px solid ${mealWeight?C.accent:C.border}`}}>
-            <span style={{fontSize:11,color:mealWeight?C.accent:C.muted,flex:1,fontWeight:mealWeight?600:400}}>⚖️ משקל הצילום (גר׳):</span>
+            <span style={{fontSize:10,color:C.muted}}>⚖️ מנה:</span>
             <input type="number" value={mealWeight} onChange={e=>setMealWeight(e.target.value)}
-              placeholder="למשל 50" className="inp"
-              style={{width:70,padding:"4px 6px",fontSize:13,textAlign:"center",marginBottom:0,fontWeight:700,borderColor:mealWeight?C.accent:C.border}}/>
-            <span style={{fontSize:11,color:C.muted}}>גר׳</span>
+              placeholder="גר׳" className="inp"
+              style={{width:58,padding:"4px 6px",fontSize:13,textAlign:"center",marginBottom:0,fontWeight:700,borderColor:mealWeight?C.accent:C.border}}/>
+            <span style={{fontSize:10,color:C.muted}}>גר׳</span>
+            {totalUnits>0&&<span style={{fontSize:10,color:C.muted,marginRight:4}}>/</span>}
+            {totalUnits>0&&<input type="number" value={totalUnits} onChange={e=>setTotalUnits(parseFloat(e.target.value)||0)}
+              className="inp"
+              style={{width:46,padding:"4px 6px",fontSize:13,textAlign:"center",marginBottom:0,fontWeight:700}}/>}
+            {totalUnits>0&&<span style={{fontSize:10,color:C.muted}}>יח׳</span>}
           </div>
           <div className="g3" style={{marginBottom:8}}>
             {[{l:"קק״ל",v:calcVals.kcal,c:C.accent},{l:"פחמ׳g",v:calcVals.carbs,c:C.warn},{l:"חלבוןg",v:calcVals.protein,c:C.blue}].map(({l,v,c})=>(
