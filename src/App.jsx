@@ -957,19 +957,27 @@ function AskClaude({foodName, amount, unit, onAddToDay, onSaved}){
 function PhotoMealPanel({onAdd,onClose,initialPhoto}){
   const [loading,setLoading]=useState(false);
   const [preview,setPreview]=useState(null);
+  const [calcVals,setCalcVals]=useState(null);
   const [error,setError]=useState(null);
   const [imgSrc,setImgSrc]=useState(initialPhoto?.src||null);
   const [servings,setServings]=useState(1);
   const [qty,setQty]=useState(1);
-  const [qtyUnit,setQtyUnit]=useState("יח׳");
   const fileRef=useRef(null);
 
   useEffect(()=>{
     if(initialPhoto?.base64) analyze(initialPhoto.base64,initialPhoto.mediaType);
   },[]);
 
+  const computeVals=(p,s,q)=>({
+    kcal:Math.round(p.kcal/s*q),
+    carbs:parseFloat(((p.carbs||0)/s*q).toFixed(1)),
+    protein:parseFloat(((p.protein||0)/s*q).toFixed(1)),
+    fat:parseFloat(((p.fat||0)/s*q).toFixed(1))
+  });
+
   const analyze=async(base64,mediaType)=>{
-    setLoading(true);setPreview(null);setError(null);
+    setLoading(true);setPreview(null);setCalcVals(null);setError(null);
+    setServings(1);setQty(1);
     try{
       const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{
         method:"POST",headers:{"Content-Type":"application/json"},
@@ -979,8 +987,14 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
       const d=await res.json();
       if(d.error||!d.kcal) throw new Error(d.error||"לא הצלחתי לנתח את התמונה");
       setPreview(d);
+      setCalcVals(computeVals(d,1,1));
     }catch(e){setError(e.message);}
     setLoading(false);
+  };
+
+  const recalc=()=>{
+    if(!preview)return;
+    setCalcVals(computeVals(preview,servings,qty));
   };
 
   const handleFile=e=>{
@@ -991,22 +1005,17 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
     reader.onload=ev=>{
       const b64=ev.target.result.split(',')[1];
       setImgSrc(ev.target.result);
-      setPreview(null);setError(null);
+      setPreview(null);setCalcVals(null);setError(null);
       analyze(b64,file.type||'image/jpeg');
     };
     reader.readAsDataURL(file);
   };
 
-  const dKcal=preview?Math.round(preview.kcal/servings*qty):0;
-  const dCarbs=preview?parseFloat(((preview.carbs||0)/servings*qty).toFixed(1)):0;
-  const dProtein=preview?parseFloat(((preview.protein||0)/servings*qty).toFixed(1)):0;
-  const dFat=preview?parseFloat(((preview.fat||0)/servings*qty).toFixed(1)):0;
-
   const addToDay=()=>{
-    if(!preview)return;
+    if(!preview||!calcVals)return;
     onAdd({uid:Date.now()+Math.random(),
-      label:`📷 ${preview.label}${servings>1?` (1/${servings})`:""}${qty>1?` ×${qty}`:""}`,
-      kcal:dKcal,carbs:dCarbs,protein:dProtein,fat:dFat});
+      label:`📷 ${preview.label}${servings>1?` (1/${servings})`:""}${qty!==1?` ×${qty}`:""}`,
+      kcal:calcVals.kcal,carbs:calcVals.carbs,protein:calcVals.protein,fat:calcVals.fat});
     onClose();
   };
 
@@ -1030,7 +1039,7 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
         <span>⚠ {error}</span>
         <button onClick={()=>fileRef.current.click()} style={{background:C.danger,border:"none",borderRadius:6,color:"#fff",padding:"2px 8px",fontSize:11,fontWeight:700,cursor:"pointer"}}>נסי שוב</button>
       </div>}
-      {preview&&(
+      {preview&&calcVals&&(
         <div className="green-box fade" style={{marginBottom:8}}>
           <div style={{fontSize:11,color:C.accent,fontWeight:700,marginBottom:4}}>✨ {preview.label}</div>
           {preview.portions&&(
@@ -1039,7 +1048,7 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
             </div>
           )}
           <div className="g3" style={{marginBottom:8}}>
-            {[{l:"קק״ל",v:dKcal,c:C.accent},{l:"פחמ׳g",v:dCarbs,c:C.warn},{l:"חלבוןg",v:dProtein,c:C.blue}].map(({l,v,c})=>(
+            {[{l:"קק״ל",v:calcVals.kcal,c:C.accent},{l:"פחמ׳g",v:calcVals.carbs,c:C.warn},{l:"חלבוןg",v:calcVals.protein,c:C.blue}].map(({l,v,c})=>(
               <div key={l} className="preview-box"><div className="preview-val" style={{color:c}}>{v}</div><div className="preview-lbl">{l}</div></div>
             ))}
           </div>
@@ -1051,13 +1060,11 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
             <span style={{fontSize:11,color:C.muted}}>{servings===1?"אנשים (כל הארוחה לי)":"אנשים"}</span>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,background:"rgba(255,255,255,0.7)",borderRadius:8,padding:"5px 10px"}}>
-            <span style={{fontSize:11,color:C.muted}}>כמות:</span>
-            <button onClick={()=>setQty(v=>Math.max(1,v-1))} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>−</button>
-            <input type="number" value={qty} min="1" onChange={e=>setQty(Math.max(1,parseFloat(e.target.value)||1))} style={{width:38,textAlign:"center",border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 2px",fontSize:13,fontFamily:"inherit"}}/>
-            <button onClick={()=>setQty(v=>v+1)} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>+</button>
-            <select value={qtyUnit} onChange={e=>setQtyUnit(e.target.value)} style={{flex:1,border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 4px",fontSize:11,fontFamily:"inherit",cursor:"pointer",background:"#f5f5f7"}}>
-              <option value="יח׳">יח׳</option><option value="מנות">מנות</option><option value="g">גר׳</option><option value="ml">מ״ל</option><option value="כף">כף</option><option value="כוס">כוס</option>
-            </select>
+            <span style={{fontSize:11,color:C.muted}}>מנות:</span>
+            <button onClick={()=>setQty(v=>parseFloat(Math.max(0.5,v-0.5).toFixed(1)))} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>−</button>
+            <input type="number" value={qty} min="0.5" step="0.5" onChange={e=>setQty(Math.max(0.5,parseFloat(e.target.value)||0.5))} style={{width:42,textAlign:"center",border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 2px",fontSize:13,fontFamily:"inherit"}}/>
+            <button onClick={()=>setQty(v=>parseFloat((v+0.5).toFixed(1)))} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>+</button>
+            <button onClick={recalc} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"5px 14px",fontSize:16,cursor:"pointer",lineHeight:1,marginRight:"auto"}}>🔄</button>
           </div>
           <button onClick={addToDay} style={{width:"100%",background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ הוסף ליום</button>
         </div>
