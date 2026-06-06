@@ -985,6 +985,7 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
   const [servings,setServings]=useState(1);
   const [localAmt,setLocalAmt]=useState("1");
   const [qtyUnit,setQtyUnit]=useState("יח׳");
+  const [mealWeight,setMealWeight]=useState("");
   const fileRef=useRef(null);
 
   useEffect(()=>{
@@ -998,27 +999,34 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
     return amt;
   };
 
-  const computeVals=(p,s,amt,unit)=>{
+  const getP100g=(p,mealW)=>{
+    if(p.per100g) return p.per100g;
+    const w=parseFloat(mealW);
+    if(w>0) return {
+      kcal:Math.round(p.kcal/w*100),
+      carbs:parseFloat(((p.carbs||0)/w*100).toFixed(1)),
+      protein:parseFloat(((p.protein||0)/w*100).toFixed(1)),
+      fat:parseFloat(((p.fat||0)/w*100).toFixed(1))
+    };
+    return null;
+  };
+
+  const computeVals=(p,s,amt,unit,mealW)=>{
     const a=parseFloat(amt)||1;
     if(unit!=='יח׳'&&unit!=='מנות'){
-      if(p.per100g){
+      const pg=getP100g(p,mealW);
+      if(pg){
         const g=unitToG(a,unit);
         const factor=g/100/s;
         return {
-          kcal:Math.round(p.per100g.kcal*factor),
-          carbs:parseFloat(((p.per100g.carbs||0)*factor).toFixed(1)),
-          protein:parseFloat(((p.per100g.protein||0)*factor).toFixed(1)),
-          fat:parseFloat(((p.per100g.fat||0)*factor).toFixed(1))
+          kcal:Math.round(pg.kcal*factor),
+          carbs:parseFloat(((pg.carbs||0)*factor).toFixed(1)),
+          protein:parseFloat(((pg.protein||0)*factor).toFixed(1)),
+          fat:parseFloat(((pg.fat||0)*factor).toFixed(1))
         };
       }
-      // per100g unavailable — treat gram input as a fraction of 1 יח׳
-      const factor=(a/100)/s;
-      return {
-        kcal:Math.round(p.kcal*factor),
-        carbs:parseFloat(((p.carbs||0)*factor).toFixed(1)),
-        protein:parseFloat(((p.protein||0)*factor).toFixed(1)),
-        fat:parseFloat(((p.fat||0)*factor).toFixed(1))
-      };
+      // No weight info at all — show 0 so user knows to enter meal weight
+      return {kcal:0,carbs:0,protein:0,fat:0};
     }
     const factor=a/s;
     return {
@@ -1031,7 +1039,7 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
 
   const analyze=async(base64,mediaType)=>{
     setLoading(true);setPreview(null);setCalcVals(null);setError(null);
-    setServings(1);setLocalAmt("1");setQtyUnit("יח׳");
+    setServings(1);setLocalAmt("1");setQtyUnit("יח׳");setMealWeight("");
     try{
       const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{
         method:"POST",headers:{"Content-Type":"application/json"},
@@ -1040,8 +1048,8 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
       if(!res.ok) throw new Error("שגיאת שרת");
       const d=await res.json();
       if(d.error||!d.kcal) throw new Error(d.error||"לא הצלחתי לנתח את התמונה");
-      // Derive per100g from totalGrams if server didn't include it
-      if(!d.per100g && d.totalGrams >= 50){
+      // Derive per100g from totalGrams if server included a sensible weight
+      if(!d.per100g && d.totalGrams >= 20){
         d.per100g={
           kcal:Math.round(d.kcal/d.totalGrams*100),
           carbs:parseFloat(((d.carbs||0)/d.totalGrams*100).toFixed(1)),
@@ -1049,18 +1057,19 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
           fat:parseFloat(((d.fat||0)/d.totalGrams*100).toFixed(1))
         };
       }
-      const initAmt=d.per100g&&d.totalGrams>=50?String(d.totalGrams):"1";
-      const initUnit=d.per100g&&d.totalGrams>=50?"g":"יח׳";
-      setLocalAmt(initAmt);setQtyUnit(initUnit);
+      const initW=d.totalGrams>=20?String(d.totalGrams):"";
+      const initAmt=d.per100g&&d.totalGrams>=20?String(d.totalGrams):"1";
+      const initUnit=d.per100g&&d.totalGrams>=20?"g":"יח׳";
+      setMealWeight(initW);setLocalAmt(initAmt);setQtyUnit(initUnit);
       setPreview(d);
-      setCalcVals(computeVals(d,1,initAmt,initUnit));
+      setCalcVals(computeVals(d,1,initAmt,initUnit,initW));
     }catch(e){setError(e.message);}
     setLoading(false);
   };
 
   const recalc=()=>{
     if(!preview)return;
-    setCalcVals(computeVals(preview,servings,localAmt,qtyUnit));
+    setCalcVals(computeVals(preview,servings,localAmt,qtyUnit,mealWeight));
   };
 
   const handleFile=e=>{
@@ -1110,10 +1119,17 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
         <div className="green-box fade" style={{marginBottom:8}}>
           <div style={{fontSize:11,color:C.accent,fontWeight:700,marginBottom:4}}>✨ {preview.label}</div>
           {preview.portions&&(
-            <div style={{fontSize:10,color:C.muted,background:"#fff",borderRadius:6,padding:"5px 8px",marginBottom:8,lineHeight:1.5}}>
+            <div style={{fontSize:10,color:C.muted,background:"#fff",borderRadius:6,padding:"5px 8px",marginBottom:6,lineHeight:1.5}}>
               📐 {preview.portions}
             </div>
           )}
+          <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:8,background:"rgba(255,255,255,0.7)",borderRadius:8,padding:"4px 8px"}}>
+            <span style={{fontSize:10,color:C.muted,flex:1}}>משקל הצילום (לחישוב גר׳):</span>
+            <input type="number" value={mealWeight} onChange={e=>setMealWeight(e.target.value)}
+              placeholder="גר׳" className="inp"
+              style={{width:60,padding:"3px 6px",fontSize:12,textAlign:"center",marginBottom:0}}/>
+            <span style={{fontSize:10,color:C.muted}}>גר׳</span>
+          </div>
           <div className="g3" style={{marginBottom:8}}>
             {[{l:"קק״ל",v:calcVals.kcal,c:C.accent},{l:"פחמ׳g",v:calcVals.carbs,c:C.warn},{l:"חלבוןg",v:calcVals.protein,c:C.blue}].map(({l,v,c})=>(
               <div key={l} className="preview-box"><div className="preview-val" style={{color:c}}>{v}</div><div className="preview-lbl">{l}</div></div>
@@ -1133,11 +1149,11 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
             <select value={qtyUnit} onChange={e=>setQtyUnit(e.target.value)} className="inp" style={{flex:1,padding:"7px 6px",fontSize:12,cursor:"pointer"}}>
               <option value="יח׳">יח׳</option>
               <option value="מנות">מנות</option>
-              {preview?.per100g&&<option value="g">גר׳</option>}
-              {preview?.per100g&&<option value="ml">מ״ל</option>}
-              {preview?.per100g&&<option value="כף">כף (15מ״ל)</option>}
-              {preview?.per100g&&<option value="כפית">כפית (5מ״ל)</option>}
-              {preview?.per100g&&<option value="כוס">כוס (240מ״ל)</option>}
+              <option value="g">גר׳</option>
+              <option value="ml">מ״ל</option>
+              <option value="כף">כף (15מ״ל)</option>
+              <option value="כפית">כפית (5מ״ל)</option>
+              <option value="כוס">כוס (240מ״ל)</option>
             </select>
             <button onClick={recalc} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"7px 12px",fontSize:16,cursor:"pointer",lineHeight:1}}>🔄</button>
           </div>
@@ -1368,8 +1384,7 @@ function SmartAddPanel({onAdd,onClose}){
       <div style={{display:"flex",gap:8,marginBottom:10}}>
         <input type="number" value={amount} placeholder="כמות" onChange={e=>{setAmount(e.target.value);recalc(e.target.value,unit);}} className="inp" style={{flex:1,textAlign:"center",padding:"9px 6px"}}/>
         <select value={unit} onChange={e=>{setUnit(e.target.value);recalc(amount,e.target.value);}} className="inp" style={{flex:1,padding:"9px 6px",cursor:"pointer"}}>
-          <option value="g">גר׳</option><option value="ml">מ״ל</option><option value="יח׳">יח׳</option><option value="קוביות">קוביות</option><option value="כף">כף (15מ״ל)</option><option value="כפית">כפית (5מ״ל)</option><option value="כוס">כוס (240מ״ל)</option>
-          {matched?.unit==='מנה'&&<option value="מנה">מנה</option>}
+          <option value="g">גר׳</option><option value="ml">מ״ל</option><option value="יח׳">יח׳</option><option value="מנה">מנה</option><option value="קוביות">קוביות</option><option value="כף">כף (15מ״ל)</option><option value="כפית">כפית (5מ״ל)</option><option value="כוס">כוס (240מ״ל)</option>
         </select>
       </div>
       <button className="btn-accent" onClick={()=>runSearch(query,amount,unit)} style={{marginBottom:10}}>✦ חשב ערכים</button>
@@ -1476,7 +1491,7 @@ function NewButtonModal({onClose,onSave}){
           </div>
           <div style={{flex:1}}><div style={{fontSize:11,color:C.muted,marginBottom:5}}>יחידה</div>
             <select value={unit} onChange={e=>{setUnit(e.target.value);recalc(amount,e.target.value);}} className="inp" style={{cursor:"pointer"}}>
-              <option value="g">גר׳</option><option value="ml">מ״ל</option><option value="יח׳">יח׳</option><option value="קוביות">קוביות</option><option value="כף">כף (15מ״ל)</option><option value="כפית">כפית (5מ״ל)</option><option value="כוס">כוס (240מ״ל)</option>
+              <option value="g">גר׳</option><option value="ml">מ״ל</option><option value="יח׳">יח׳</option><option value="מנה">מנה</option><option value="קוביות">קוביות</option><option value="כף">כף (15מ״ל)</option><option value="כפית">כפית (5מ״ל)</option><option value="כוס">כוס (240מ״ל)</option>
             </select>
           </div>
         </div>
