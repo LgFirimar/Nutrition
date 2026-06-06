@@ -995,18 +995,26 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
 
   const computeVals=(p,s,amt,unit)=>{
     const a=parseFloat(amt)||1;
-    // For g-based units use per100g values from Claude (accurate per-gram data)
-    if(unit!=='יח׳'&&unit!=='מנות'&&p.per100g){
-      const g=unitToG(a,unit);
-      const factor=g/100/s;
+    if(unit!=='יח׳'&&unit!=='מנות'){
+      if(p.per100g){
+        const g=unitToG(a,unit);
+        const factor=g/100/s;
+        return {
+          kcal:Math.round(p.per100g.kcal*factor),
+          carbs:parseFloat(((p.per100g.carbs||0)*factor).toFixed(1)),
+          protein:parseFloat(((p.per100g.protein||0)*factor).toFixed(1)),
+          fat:parseFloat(((p.per100g.fat||0)*factor).toFixed(1))
+        };
+      }
+      // per100g unavailable — treat gram input as a fraction of 1 יח׳
+      const factor=(a/100)/s;
       return {
-        kcal:Math.round(p.per100g.kcal*factor),
-        carbs:parseFloat(((p.per100g.carbs||0)*factor).toFixed(1)),
-        protein:parseFloat(((p.per100g.protein||0)*factor).toFixed(1)),
-        fat:parseFloat(((p.per100g.fat||0)*factor).toFixed(1))
+        kcal:Math.round(p.kcal*factor),
+        carbs:parseFloat(((p.carbs||0)*factor).toFixed(1)),
+        protein:parseFloat(((p.protein||0)*factor).toFixed(1)),
+        fat:parseFloat(((p.fat||0)*factor).toFixed(1))
       };
     }
-    // For יח׳/מנות (or missing per100g): plain multiplier on total values
     const factor=a/s;
     return {
       kcal:Math.round(p.kcal*factor),
@@ -1027,8 +1035,20 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
       if(!res.ok) throw new Error("שגיאת שרת");
       const d=await res.json();
       if(d.error||!d.kcal) throw new Error(d.error||"לא הצלחתי לנתח את התמונה");
+      // Derive per100g from totalGrams if server didn't include it
+      if(!d.per100g && d.totalGrams >= 50){
+        d.per100g={
+          kcal:Math.round(d.kcal/d.totalGrams*100),
+          carbs:parseFloat(((d.carbs||0)/d.totalGrams*100).toFixed(1)),
+          protein:parseFloat(((d.protein||0)/d.totalGrams*100).toFixed(1)),
+          fat:parseFloat(((d.fat||0)/d.totalGrams*100).toFixed(1))
+        };
+      }
+      const initAmt=d.per100g&&d.totalGrams>=50?String(d.totalGrams):"1";
+      const initUnit=d.per100g&&d.totalGrams>=50?"g":"יח׳";
+      setLocalAmt(initAmt);setQtyUnit(initUnit);
       setPreview(d);
-      setCalcVals(computeVals(d,1,"1","יח׳"));
+      setCalcVals(computeVals(d,1,initAmt,initUnit));
     }catch(e){setError(e.message);}
     setLoading(false);
   };
@@ -1108,11 +1128,11 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
             <select value={qtyUnit} onChange={e=>setQtyUnit(e.target.value)} className="inp" style={{flex:1,padding:"7px 6px",fontSize:12,cursor:"pointer"}}>
               <option value="יח׳">יח׳</option>
               <option value="מנות">מנות</option>
-              <option value="g">גר׳</option>
-              <option value="ml">מ״ל</option>
-              <option value="כף">כף (15מ״ל)</option>
-              <option value="כפית">כפית (5מ״ל)</option>
-              <option value="כוס">כוס (240מ״ל)</option>
+              {preview?.per100g&&<option value="g">גר׳</option>}
+              {preview?.per100g&&<option value="ml">מ״ל</option>}
+              {preview?.per100g&&<option value="כף">כף (15מ״ל)</option>}
+              {preview?.per100g&&<option value="כפית">כפית (5מ״ל)</option>}
+              {preview?.per100g&&<option value="כוס">כוס (240מ״ל)</option>}
             </select>
             <button onClick={recalc} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"7px 12px",fontSize:16,cursor:"pointer",lineHeight:1}}>🔄</button>
           </div>
@@ -1808,8 +1828,8 @@ function PantryModal({onClose,lang}){
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <div className="modal-sheet slide" style={{maxHeight:"90vh",overflowY:"auto"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontSize:15,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
-            <img src={isHe?"/Nutrition/pantry-he.png":"/Nutrition/pantry-en.png"} style={{width:28,height:28,objectFit:"contain"}} alt=""/>
+          <div style={{fontSize:15,fontWeight:700,display:"flex",alignItems:"center",gap:8}}>
+            <img src={isHe?"/Nutrition/pantry-he.png":"/Nutrition/pantry-en.png"} style={{width:44,height:44,objectFit:"contain"}} alt=""/>
             {isHe?"מזווה":"Pantry"}
           </div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
@@ -1901,8 +1921,8 @@ function ShoppingListModal({onClose,lang,pid}){
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <div className="modal-sheet slide" style={{maxHeight:"90vh",overflowY:"auto"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontSize:15,fontWeight:700,display:"flex",alignItems:"center",gap:6}}>
-            <img src="/Nutrition/shopping-cart.png" style={{width:28,height:28,objectFit:"contain"}} alt=""/>
+          <div style={{fontSize:15,fontWeight:700,display:"flex",alignItems:"center",gap:8}}>
+            <img src="/Nutrition/shopping-cart.png" style={{width:44,height:44,objectFit:"contain"}} alt=""/>
             {isHe?"רשימת קניות":"Shopping List"}
           </div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
@@ -2989,11 +3009,11 @@ function App(){
           <button onClick={toggleLang} style={{height:22,borderRadius:7,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:9,fontWeight:700,color:C.muted,padding:"0 6px"}}>
             {lang==='he'?'EN':'עב'}
           </button>
-          <button onClick={()=>setShowPantry(true)} style={{width:showPantry?38:26,height:showPantry?38:26,borderRadius:8,background:showPantry?"rgba(13,148,136,.15)":"rgba(255,255,255,.75)",border:`1px solid ${showPantry?"rgba(13,148,136,.4)":"rgba(255,255,255,.9)"}`,backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .25s"}}>
-            <img src={lang==='he'?"/Nutrition/pantry-he.png":"/Nutrition/pantry-en.png"} style={{width:showPantry?32:20,height:showPantry?32:20,objectFit:"contain",transition:"all .25s"}} alt="מזווה"/>
+          <button onClick={()=>setShowPantry(true)} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <img src={lang==='he'?"/Nutrition/pantry-he.png":"/Nutrition/pantry-en.png"} style={{width:20,height:20,objectFit:"contain"}} alt="מזווה"/>
           </button>
-          <button onClick={()=>setShowShopping(true)} style={{width:showShopping?38:26,height:showShopping?38:26,borderRadius:8,background:showShopping?"rgba(13,148,136,.15)":"rgba(255,255,255,.75)",border:`1px solid ${showShopping?"rgba(13,148,136,.4)":"rgba(255,255,255,.9)"}`,backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .25s"}}>
-            <img src="/Nutrition/shopping-cart.png" style={{width:showShopping?32:20,height:showShopping?32:20,objectFit:"contain",transition:"all .25s"}} alt="קניות"/>
+          <button onClick={()=>setShowShopping(true)} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <img src="/Nutrition/shopping-cart.png" style={{width:20,height:20,objectFit:"contain"}} alt="קניות"/>
           </button>
           <button onClick={()=>setShowInfo(true)} style={{width:24,height:24,borderRadius:7,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontWeight:700}}>ℹ</button>
           <button onClick={saveDay} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .3s",animation:saveFlash?"pop .35s ease":"none",boxShadow:"0 2px 8px rgba(80,120,160,.1)"}}>💾</button>
