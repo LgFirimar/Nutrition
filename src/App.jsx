@@ -3266,7 +3266,7 @@ function App(){
         {!isHiddenSpecial('coffee')&&<div style={{flexShrink:0}}><CoffeeBtn onAdd={addEntry} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/></div>}
         {customBtns.map(btn=>(
           <div key={btn.id} style={{flexShrink:0,position:"relative"}}>
-            <button className="chip chip-yellow" onClick={()=>showEditQuick?null:addEntry(btn)} style={{paddingLeft:26,opacity:showEditQuick?0.7:1}}>
+            <button className="chip" onClick={()=>showEditQuick?null:addEntry(btn)} style={{paddingLeft:26,opacity:showEditQuick?0.7:1}}>
               <span>{btn.label}</span><span className="chip-sub">{btn.kcal} {getT().kcal} · {btn.carbs}g {getT().carbs}</span>
             </button>
             <button onClick={()=>removeBtn(btn.id)} style={{position:"absolute",top:4,left:6,background:"none",border:"none",color:"#ccc",fontSize:13,cursor:"pointer",lineHeight:1,padding:0}}>×</button>
