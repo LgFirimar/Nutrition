@@ -1001,6 +1001,8 @@ function MealPanel({onAdd,onClose}){
   };
 
   const [savedToDb,setSavedToDb]=useState(false);
+  const [showDbInput,setShowDbInput]=useState(false);
+  const [dbName,setDbName]=useState("");
 
   const addToDay=()=>{
     if(!preview)return;
@@ -1014,10 +1016,16 @@ function MealPanel({onAdd,onClose}){
     onClose();
   };
 
+  const openDbSave=()=>{
+    if(!preview)return;
+    setDbName(preview.label||text.slice(0,40)||"ארוחה");
+    setShowDbInput(true);
+  };
+
   const saveToDb=()=>{
     if(!preview)return;
     const s=Math.max(1,servings);
-    const name=preview.label||text.slice(0,40)||"ארוחה";
+    const name=(dbName.trim()||preview.label||text.slice(0,40)||"ארוחה");
     const entry={names:[name.toLowerCase()],label:`🍽 ${name}`,
       kcal:Math.round(preview.kcal/s),carbs:parseFloat(((preview.carbs||0)/s).toFixed(1)),
       protein:parseFloat(((preview.protein||0)/s).toFixed(1)),fat:parseFloat(((preview.fat||0)/s).toFixed(1)),
@@ -1025,6 +1033,7 @@ function MealPanel({onAdd,onClose}){
     const pid=window._activePid||"default";
     const db=loadCustomDB(pid);
     saveCustomDB([...db.filter(f=>f.label!==entry.label),entry],pid);
+    setShowDbInput(false);
     setSavedToDb(true);
     setTimeout(()=>setSavedToDb(false),2000);
   };
@@ -1065,10 +1074,19 @@ function MealPanel({onAdd,onClose}){
           </div>
           <div style={{display:"flex",gap:6}}>
             <button onClick={addToDay} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ הוסף ליום</button>
-            <button onClick={saveToDb} style={{flex:1,background:savedToDb?"rgba(13,148,136,.1)":"transparent",border:`1px solid ${savedToDb?C.accent:C.border}`,borderRadius:8,padding:"10px",fontSize:12,fontWeight:600,color:savedToDb?C.accent:C.muted,cursor:"pointer"}}>
+            <button onClick={openDbSave} style={{flex:1,background:savedToDb?"rgba(13,148,136,.1)":"transparent",border:`1px solid ${savedToDb?C.accent:C.border}`,borderRadius:8,padding:"10px",fontSize:12,fontWeight:600,color:savedToDb?C.accent:C.muted,cursor:"pointer"}}>
               {savedToDb?"✓":"💾"}
             </button>
           </div>
+          {showDbInput&&(
+            <div className="fade" style={{marginTop:8,display:"flex",gap:6}}>
+              <input value={dbName} onChange={e=>setDbName(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&saveToDb()}
+                className="inp" style={{flex:1,fontSize:12}} autoFocus/>
+              <button onClick={saveToDb} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 12px",cursor:"pointer",fontSize:12,fontWeight:700}}>שמור</button>
+              <button onClick={()=>setShowDbInput(false)} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,padding:"0 10px",cursor:"pointer",fontSize:12}}>✕</button>
+            </div>
+          )}
         </div>
       )}
       <button onClick={onClose} className="btn-muted" style={{marginTop:4}}>ביטול</button>
