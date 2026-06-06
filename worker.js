@@ -15,7 +15,7 @@ export default {
     }
 
     try {
-      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, dbEditText, dbEditImageData, dbEditImageMediaType } = await request.json();
+      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, profileData } = await request.json();
 
       let prompt, model, system, max_tokens, messages;
       if (pantryImageData) {
@@ -93,6 +93,29 @@ After your calculation, output ONLY this JSON on the very last line (no markdown
 במזווה/מקרר יש: ${pantry||'ריק'}.
 הצע 6-10 פריטים לקנות בסופר — עדיפות לפריטים שחסרים במזווה ומופיעים בהרגלי האכילה.
 {"items":[{"name":"שם מוצר","qty":"כמות מומלצת"}]}`;
+      } else if (profileData) {
+        model = 'claude-sonnet-4-6';
+        max_tokens = 2000;
+        system = 'אתה תזונאי קליני ורופא משפחה מומחה. אתה מכיר היטב את הנחיות האיגודים הרפואיים הישראליים והבינלאומיים. ענה בעברית בלבד. החזר JSON בלבד ללא markdown.';
+        const {age, gender, height, weight, conditions=[], dietPrefs=[], activity='moderate', goals=[]} = profileData;
+        const bmi = (weight && height) ? (weight / Math.pow(height/100, 2)).toFixed(1) : null;
+        const genderHe = gender==='female'?'נקבה':gender==='male'?'זכר':'אחר';
+        const actMap = {sedentary:'יושבני (ללא פעילות)',light:'קל (1-2×/שבוע)',moderate:'מתון (3-4×/שבוע)',active:'פעיל (5+×/שבוע)',very_active:'ספורטאי (יומי)'};
+        prompt = `חשב יעדים תזונתיים יומיים מותאמים אישית:
+
+גיל: ${age||'לא צוין'}, מין: ${genderHe}
+גובה: ${height||'לא צוין'}ס"מ, משקל: ${weight||'לא צוין'}ק"ג${bmi?`, BMI: ${bmi}`:''}
+בעיות רפואיות: ${conditions.length?conditions.join(', '):'אין'}
+העדפות תזונה: ${dietPrefs.length?dietPrefs.join(', '):'אין'}
+רמת פעילות: ${actMap[activity]||activity}
+יעדים: ${goals.length?goals.join(', '):'בריאות כללית'}
+
+חשב BMR לפי Mifflin-St Jeor, הכפל במקדם פעילות מתאים, והתאם לפי היעדים.
+בסס על: ADA/IDF (סוכרת), NAMS/EMAS (גיל המעבר), ESC/AHA (לב), WHO, ואיגוד התזונה הישראלי.
+ספק 3-5 מקורות עם קישורים אמיתיים.
+
+החזר JSON בלבד:
+{"kcal":מספר,"carbs":מספר,"protein":מספר,"fat":מספר,"explanation":"הסבר 3-4 משפטים בעברית","sources":[{"title":"שם המקור","url":"https://..."}]}`;
       } else {
         model = 'claude-haiku-4-5-20251001';
         max_tokens = 300;
