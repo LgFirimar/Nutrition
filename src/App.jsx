@@ -978,12 +978,19 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
 
   const computeVals=(p,s,amt,unit)=>{
     const a=parseFloat(amt)||1;
-    let factor;
-    if(unit==='יח׳'||unit==='מנות'||!p.totalGrams){
-      factor=a/s;
-    } else {
-      factor=unitToG(a,unit)/p.totalGrams/s;
+    // For g-based units use per100g values from Claude (accurate per-gram data)
+    if(unit!=='יח׳'&&unit!=='מנות'&&p.per100g){
+      const g=unitToG(a,unit);
+      const factor=g/100/s;
+      return {
+        kcal:Math.round(p.per100g.kcal*factor),
+        carbs:parseFloat(((p.per100g.carbs||0)*factor).toFixed(1)),
+        protein:parseFloat(((p.per100g.protein||0)*factor).toFixed(1)),
+        fat:parseFloat(((p.per100g.fat||0)*factor).toFixed(1))
+      };
     }
+    // For יח׳/מנות (or missing per100g): plain multiplier on total values
+    const factor=a/s;
     return {
       kcal:Math.round(p.kcal*factor),
       carbs:parseFloat(((p.carbs||0)*factor).toFixed(1)),
@@ -2940,24 +2947,26 @@ function App(){
       }} onClose={()=>setEditingQuickFood(null)}/>}
 
       {/* ── TOP BAR ── */}
-      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",padding:"50px 20px 0"}}>
-        <div>
-          <div style={{fontSize:11,color:C.muted,letterSpacing:.3,marginBottom:3}}>{getDateLabel(isToday?undefined:activeDate)}</div>
-          <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:"-.5px"}}>{T.greeting}, {activeProfile?.name} {isToday?"👋":""}</div>
-        </div>
-        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+      <div style={{padding:"50px 20px 0"}}>
+        {/* Icon row — above the date, aligned to the left edge */}
+        <div style={{display:"flex",justifyContent:"flex-end",gap:6,alignItems:"center",marginBottom:10}}>
           <button onClick={toggleLang} style={{height:22,borderRadius:7,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:9,fontWeight:700,color:C.muted,padding:"0 6px"}}>
             {lang==='he'?'EN':'עב'}
           </button>
-          <button onClick={()=>setShowPantry(true)} style={{width:showPantry?32:26,height:showPantry?32:26,borderRadius:8,background:showPantry?"rgba(13,148,136,.12)":"rgba(255,255,255,.75)",border:`1px solid ${showPantry?"rgba(13,148,136,.35)":"rgba(255,255,255,.9)"}`,backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
-            <img src={lang==='he'?"/Nutrition/pantry-he.png":"/Nutrition/pantry-en.png"} style={{width:showPantry?26:20,height:showPantry?26:20,objectFit:"contain",transition:"all .2s"}} alt="מזווה"/>
+          <button onClick={()=>setShowPantry(true)} style={{width:showPantry?38:26,height:showPantry?38:26,borderRadius:8,background:showPantry?"rgba(13,148,136,.15)":"rgba(255,255,255,.75)",border:`1px solid ${showPantry?"rgba(13,148,136,.4)":"rgba(255,255,255,.9)"}`,backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .25s"}}>
+            <img src={lang==='he'?"/Nutrition/pantry-he.png":"/Nutrition/pantry-en.png"} style={{width:showPantry?32:20,height:showPantry?32:20,objectFit:"contain",transition:"all .25s"}} alt="מזווה"/>
           </button>
-          <button onClick={()=>setShowShopping(true)} style={{width:showShopping?32:26,height:showShopping?32:26,borderRadius:8,background:showShopping?"rgba(13,148,136,.12)":"rgba(255,255,255,.75)",border:`1px solid ${showShopping?"rgba(13,148,136,.35)":"rgba(255,255,255,.9)"}`,backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
-            <img src="/Nutrition/shopping-cart.png" style={{width:showShopping?26:20,height:showShopping?26:20,objectFit:"contain",transition:"all .2s"}} alt="קניות"/>
+          <button onClick={()=>setShowShopping(true)} style={{width:showShopping?38:26,height:showShopping?38:26,borderRadius:8,background:showShopping?"rgba(13,148,136,.15)":"rgba(255,255,255,.75)",border:`1px solid ${showShopping?"rgba(13,148,136,.4)":"rgba(255,255,255,.9)"}`,backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .25s"}}>
+            <img src="/Nutrition/shopping-cart.png" style={{width:showShopping?32:20,height:showShopping?32:20,objectFit:"contain",transition:"all .25s"}} alt="קניות"/>
           </button>
           <button onClick={()=>setShowInfo(true)} style={{width:24,height:24,borderRadius:7,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontWeight:700}}>ℹ</button>
           <button onClick={saveDay} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .3s",animation:saveFlash?"pop .35s ease":"none",boxShadow:"0 2px 8px rgba(80,120,160,.1)"}}>💾</button>
           <div style={{width:26,height:26,borderRadius:8,background:"linear-gradient(135deg,#14b8a6,#0d9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,boxShadow:"0 2px 8px rgba(13,148,136,.35)",cursor:"pointer"}} onClick={()=>setShowProfiles(true)}>{activeProfile?.emoji}</div>
+        </div>
+        {/* Date + greeting below the icons */}
+        <div>
+          <div style={{fontSize:11,color:C.muted,letterSpacing:.3,marginBottom:3}}>{getDateLabel(isToday?undefined:activeDate)}</div>
+          <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:"-.5px"}}>{T.greeting}, {activeProfile?.name} {isToday?"👋":""}</div>
         </div>
       </div>
 
