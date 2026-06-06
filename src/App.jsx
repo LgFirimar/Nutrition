@@ -1494,12 +1494,22 @@ function ExportImportModal({pid, onClose}){
       quickFoods:loadQuickFoods(pid),
     };
     const json=JSON.stringify(data,null,2);
+    const filename=`nutrition-backup-${pid}-${new Date().toISOString().slice(0,10)}.json`;
     const blob=new Blob([json],{type:"application/json"});
+    // iOS PWA: use Web Share API if available, otherwise fallback
+    if(navigator.share && navigator.canShare) {
+      const file=new File([blob],filename,{type:"application/json"});
+      if(navigator.canShare({files:[file]})){
+        navigator.share({files:[file],title:"Nutrition Backup"});
+        setMsg({type:"success",text:"✓ שתף/שמור את הקובץ"});
+        return;
+      }
+    }
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
-    a.href=url;
-    a.download=`nutrition-backup-${pid}-${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
+    a.href=url; a.download=filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
     setMsg({type:"success",text:"✓ הקובץ הורד בהצלחה"});
   };
@@ -1627,7 +1637,7 @@ function SetupScreen({onDone}){
   );
 }
 // ── ProfileModal ───────────────────────────────────────────────────────────────
-function ProfileModal({profiles, activeId, onSelect, onClose}){
+function ProfileModal({profiles, activeId, onSelect, onClose, onBackup}){
   const [showNew,setShowNew]=useState(false);
   const [newName,setNewName]=useState("");
   const [newEmoji,setNewEmoji]=useState("👤");
@@ -1676,7 +1686,9 @@ function ProfileModal({profiles, activeId, onSelect, onClose}){
           ))}
         </div>
         {!showNew
-          ? <button onClick={()=>setShowNew(true)} style={{width:"100%",background:"transparent",border:`1px dashed ${C.border}`,borderRadius:10,padding:"10px",fontSize:13,color:C.muted,cursor:"pointer"}}>+ פרופיל חדש</button>
+          ? <><button onClick={()=>setShowNew(true)} style={{width:"100%",background:"transparent",border:`1px dashed ${C.border}`,borderRadius:10,padding:"10px",fontSize:13,color:C.muted,cursor:"pointer",marginBottom:8}}>+ פרופיל חדש</button>
+            <button onClick={onBackup} style={{width:"100%",background:"transparent",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px",fontSize:13,color:C.muted,cursor:"pointer"}}>💾 גיבוי וייבוא נתונים</button></>
+
           : (
             <div className="fade" style={{background:"#f5f5f7",borderRadius:10,padding:12}}>
               <div style={{fontSize:11,color:C.muted,marginBottom:6}}>שם</div>
@@ -2046,31 +2058,38 @@ function MealPlannerModal({onAdd,onClose,lang}){
     setLoading(false);
   };
 
-  const [editBeforeAdd,setEditBeforeAdd]=useState(false);
-  const [editVals,setEditVals]=useState({});
+  const [showIngEdit,setShowIngEdit]=useState(false);
+  const [editIngs,setEditIngs]=useState([]);
+  const [editNutr,setEditNutr]=useState({});
+  const [recalcLoading,setRecalcLoading]=useState(false);
+  const [newIngItem,setNewIngItem]=useState("");
+  const [newIngAmt,setNewIngAmt]=useState("");
 
-  const addToDay=(withEdit)=>{
+  const addToDay=(nutr)=>{
     if(!recipe)return;
-    onAdd({
-      uid:Date.now()+Math.random(),
-      label: withEdit ? (editVals.label||recipe.name) : recipe.name,
-      kcal: withEdit ? (Number(editVals.kcal)||0) : (recipe.kcalPerPerson||0),
-      carbs: withEdit ? (Number(editVals.carbs)||0) : (recipe.carbsPerPerson||0),
-      protein: withEdit ? (Number(editVals.protein)||0) : (recipe.proteinPerPerson||0),
-      fat: withEdit ? (Number(editVals.fat)||0) : (recipe.fatPerPerson||0),
-    });
+    const n=nutr||{kcal:recipe.kcalPerPerson||0,carbs:recipe.carbsPerPerson||0,protein:recipe.proteinPerPerson||0,fat:recipe.fatPerPerson||0};
+    onAdd({uid:Date.now()+Math.random(),label:recipe.name,kcal:n.kcal,carbs:n.carbs,protein:n.protein,fat:n.fat});
     onClose();
   };
 
-  const openEdit=()=>{
-    setEditVals({
-      label:recipe.name,
-      kcal:String(recipe.kcalPerPerson||0),
-      carbs:String(recipe.carbsPerPerson||0),
-      protein:String(recipe.proteinPerPerson||0),
-      fat:String(recipe.fatPerPerson||0),
-    });
-    setEditBeforeAdd(true);
+  const openIngEdit=()=>{
+    setEditIngs((recipe.ingredients||[]).map((ing,i)=>({...ing,_id:i})));
+    setEditNutr({kcal:recipe.kcalPerPerson||0,carbs:recipe.carbsPerPerson||0,protein:recipe.proteinPerPerson||0,fat:recipe.fatPerPerson||0});
+    setShowIngEdit(true);
+  };
+
+  const recalculate=async()=>{
+    setRecalcLoading(true);
+    const mealDesc=editIngs.map(i=>`${i.item} ${i.amount}`).join(', ');
+    try{
+      const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({mealDescription:mealDesc})});
+      const d=await r.json();
+      if(d.kcal!==undefined){
+        setEditNutr({kcal:Math.round(d.kcal/people),carbs:parseFloat((d.carbs/people).toFixed(1)),protein:parseFloat((d.protein/people).toFixed(1)),fat:parseFloat(((d.fat||0)/people).toFixed(1))});
+      }
+    }catch(e){}
+    setRecalcLoading(false);
   };
 
   return(
@@ -2192,60 +2211,69 @@ function MealPlannerModal({onAdd,onClose,lang}){
 
         {/* Step 3 — Recipe */}
         {step===3&&recipe&&<>
-          <div style={{fontSize:16,fontWeight:900,color:C.text,marginBottom:4}}>{recipe.name}</div>
-          <div style={{fontSize:11,color:C.muted,marginBottom:14}}>{isHe?"לאדם":"per person"}: {Math.round(recipe.kcalPerPerson||0)} {isHe?"קק״ל":"kcal"} · {Math.round(recipe.carbsPerPerson||0)}g {isHe?"פחמ׳":"carbs"} · {Math.round(recipe.proteinPerPerson||0)}g {isHe?"חלבון":"prot"}</div>
-          <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1.2,marginBottom:8}}>{isHe?"רכיבים (ל-":"Ingredients (for "}{people}{isHe?" אנשים)":")"}</div>
-          <div style={{background:"rgba(148,163,184,.08)",borderRadius:12,padding:"10px 14px",marginBottom:14}}>
-            {(recipe.ingredients||[]).map((ing,i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:i<recipe.ingredients.length-1?`1px solid ${C.border}`:"none"}}>
-                <span style={{fontSize:13,color:C.text}}>{ing.item}</span>
-                <span style={{fontSize:12,color:C.muted,fontWeight:600}}>{ing.amount}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1.2,marginBottom:8}}>{isHe?"הכנה":"Instructions"}</div>
-          <ol style={{paddingRight:16,marginBottom:16}}>
-            {(recipe.steps||[]).map((s,i)=><li key={i} style={{fontSize:13,color:C.text,marginBottom:6,lineHeight:1.5}}>{s}</li>)}
-          </ol>
-          {error&&<div style={{color:C.danger,fontSize:12,marginBottom:8}}>{error}</div>}
-
-          {/* Edit before add form */}
-          {editBeforeAdd&&(
-            <div className="fade" style={{background:"rgba(148,163,184,.08)",borderRadius:12,padding:"12px 14px",marginBottom:12}}>
-              <div style={{fontSize:11,fontWeight:700,color:C.muted,marginBottom:10}}>{isHe?"ערוך לפני הוספה":"Edit before adding"}</div>
-              <input value={editVals.label||""} onChange={e=>setEditVals(v=>({...v,label:e.target.value}))}
-                className="inp" style={{marginBottom:8,fontSize:13}}/>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:10}}>
-                {[["kcal",isHe?"קק״ל":"kcal",C.accent],["carbs",isHe?"פחמ׳ g":"carbs g",C.warn],["protein",isHe?"חלבון g":"prot g",C.blue],["fat",isHe?"שומן g":"fat g","#999"]].map(([k,lbl,c])=>(
-                  <div key={k} className="num-wrap">
-                    <input type="number" value={editVals[k]||""} onChange={e=>setEditVals(v=>({...v,[k]:e.target.value}))}
-                      style={{borderColor:c}} className="num-wrap"/>
-                    <div className="num-lbl" style={{color:c}}>{lbl}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{display:"flex",gap:6}}>
-                <button onClick={()=>setEditBeforeAdd(false)} className="btn-muted" style={{flex:1,padding:"8px",borderRadius:8}}>{isHe?"ביטול":"Cancel"}</button>
-                <button onClick={()=>addToDay(true)} className="btn-accent" style={{flex:2,borderRadius:8}}>
-                  {isHe?"✓ הוסף":"✓ Add"}
-                </button>
-              </div>
+          {!showIngEdit ? <>
+            <div style={{fontSize:16,fontWeight:900,color:C.text,marginBottom:4}}>{recipe.name}</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:14}}>{isHe?"לאדם":"per person"}: {Math.round(recipe.kcalPerPerson||0)} {isHe?"קק״ל":"kcal"} · {Math.round(recipe.carbsPerPerson||0)}g {isHe?"פחמ׳":"carbs"} · {Math.round(recipe.proteinPerPerson||0)}g {isHe?"חלבון":"prot"}</div>
+            <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1.2,marginBottom:8}}>{isHe?"רכיבים (ל-":"Ingredients (for "}{people}{isHe?" אנשים)":")"}</div>
+            <div style={{background:"rgba(148,163,184,.08)",borderRadius:12,padding:"10px 14px",marginBottom:14}}>
+              {(recipe.ingredients||[]).map((ing,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:i<recipe.ingredients.length-1?`1px solid ${C.border}`:"none"}}>
+                  <span style={{fontSize:13,color:C.text}}>{ing.item}</span>
+                  <span style={{fontSize:12,color:C.muted,fontWeight:600}}>{ing.amount}</span>
+                </div>
+              ))}
             </div>
-          )}
-
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            <div style={{display:"flex",gap:8}}>
-              <button onClick={()=>{setStep(2);setRecipe(null);setEditBeforeAdd(false);}} className="btn-muted" style={{flex:1,borderRadius:10}}>{isHe?"חזרה":"Back"}</button>
-              <button onClick={()=>addToDay(false)} className="btn-accent" style={{flex:2,borderRadius:10}}>
-                {isHe?"+ הוסף ליומן היום":"+ Add to today"}
-              </button>
-            </div>
-            {!editBeforeAdd&&(
-              <button onClick={openEdit} style={{width:"100%",background:"none",border:`1px solid ${C.accent}`,color:C.accent,borderRadius:10,padding:"9px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+            <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1.2,marginBottom:8}}>{isHe?"הכנה":"Instructions"}</div>
+            <ol style={{paddingRight:16,marginBottom:16}}>
+              {(recipe.steps||[]).map((s,i)=><li key={i} style={{fontSize:13,color:C.text,marginBottom:6,lineHeight:1.5}}>{s}</li>)}
+            </ol>
+            {error&&<div style={{color:C.danger,fontSize:12,marginBottom:8}}>{error}</div>}
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>{setStep(2);setRecipe(null);}} className="btn-muted" style={{flex:1,borderRadius:10}}>{isHe?"חזרה":"Back"}</button>
+                <button onClick={()=>addToDay()} className="btn-accent" style={{flex:2,borderRadius:10}}>{isHe?"+ הוסף ליומן היום":"+ Add to today"}</button>
+              </div>
+              <button onClick={openIngEdit} style={{width:"100%",background:"none",border:`1px solid ${C.accent}`,color:C.accent,borderRadius:10,padding:"9px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
                 {isHe?"✏️ הוסף עם שינויים":"✏️ Add with changes"}
               </button>
-            )}
-          </div>
+            </div>
+          </> : <>
+            {/* Ingredient editor */}
+            <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>{isHe?"ערוך מרכיבים":"Edit ingredients"}</div>
+            <div style={{background:"rgba(148,163,184,.06)",borderRadius:12,padding:"8px 12px",marginBottom:10}}>
+              {editIngs.map((ing,i)=>(
+                <div key={ing._id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 0",borderBottom:i<editIngs.length-1?`1px solid ${C.border}`:"none"}}>
+                  <span style={{flex:1,fontSize:12,color:C.text}}>{ing.item}</span>
+                  <input value={ing.amount} onChange={e=>setEditIngs(prev=>prev.map(x=>x._id===ing._id?{...x,amount:e.target.value}:x))}
+                    style={{width:90,border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 6px",fontSize:11,textAlign:"center",fontFamily:"inherit"}}/>
+                  <button onClick={()=>setEditIngs(prev=>prev.filter(x=>x._id!==ing._id))}
+                    style={{background:"none",border:"none",color:C.danger,fontSize:16,cursor:"pointer",padding:"0 2px",lineHeight:1}}>×</button>
+                </div>
+              ))}
+            </div>
+            {/* Add ingredient */}
+            <div style={{display:"flex",gap:6,marginBottom:12}}>
+              <input value={newIngItem} onChange={e=>setNewIngItem(e.target.value)} placeholder={isHe?"שם מרכיב":"Ingredient"} className="inp" style={{flex:2,fontSize:12}}/>
+              <input value={newIngAmt} onChange={e=>setNewIngAmt(e.target.value)} placeholder={isHe?"כמות":"Amount"} className="inp" style={{flex:1,fontSize:12}}/>
+              <button onClick={()=>{if(newIngItem.trim()){setEditIngs(p=>[...p,{item:newIngItem,amount:newIngAmt,_id:Date.now()}]);setNewIngItem("");setNewIngAmt("");}}} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 10px",cursor:"pointer",fontSize:16}}>+</button>
+            </div>
+            {/* Nutrition display */}
+            <div style={{display:"flex",gap:6,marginBottom:10}}>
+              {[["kcal",editNutr.kcal,C.accent],["carbs",editNutr.carbs,C.warn],["protein",editNutr.protein,C.blue],["fat",editNutr.fat,"#999"]].map(([k,v,c])=>(
+                <div key={k} style={{flex:1,background:`${c}11`,borderRadius:8,padding:"6px 4px",textAlign:"center"}}>
+                  <div style={{fontSize:14,fontWeight:700,color:c}}>{Math.round(v||0)}</div>
+                  <div style={{fontSize:9,color:C.muted}}>{isHe?(k==="kcal"?"קק״ל":k==="carbs"?"פחמ׳":k==="protein"?"חלבון":"שומן"):k}/{isHe?"אדם":"p"}</div>
+                </div>
+              ))}
+            </div>
+            <button onClick={recalculate} disabled={recalcLoading} style={{width:"100%",background:"rgba(13,148,136,.08)",border:`1px solid rgba(13,148,136,.3)`,borderRadius:10,padding:"9px",fontSize:13,fontWeight:600,color:C.accent,cursor:"pointer",marginBottom:10}}>
+              {recalcLoading?(isHe?"מחשב...":"Calculating..."):(isHe?"🔄 חשב ערכים מחדש":"🔄 Recalculate")}
+            </button>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setShowIngEdit(false)} className="btn-muted" style={{flex:1,borderRadius:10}}>{isHe?"חזרה":"Back"}</button>
+              <button onClick={()=>addToDay(editNutr)} className="btn-accent" style={{flex:2,borderRadius:10}}>{isHe?"✓ הוסף ליומן":"✓ Add to log"}</button>
+            </div>
+          </>}
         </>}
       </div>
     </div>
@@ -2393,7 +2421,7 @@ function App(){
       {showSplash && <SplashScreen onDone={()=>setShowSplash(false)}/>}
       {showInfo && <InfoModal onClose={()=>setShowInfo(false)} lang={lang}/>}
       {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang}/>}
-      {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)}/>}
+      {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}}/>}
       {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)}/>}
       {showJournal && <JournalView pid={pid} lang={lang} onClose={()=>setShowJournal(false)} onLoadDay={saved=>{setEntries(saved.map(e=>({...e,uid:Date.now()+Math.random()})));setShowJournal(false);}}/>}
       {showNewBtn && <NewButtonModal onClose={()=>setShowNewBtn(false)} onSave={saveNewBtn}/>}
@@ -2630,7 +2658,6 @@ function App(){
           {id:"home",icon:"🏠",lk:"home",action:null},
           {id:"journal",icon:"📓",lk:"journal",action:()=>setShowJournal(true)},
           {id:"db",icon:"🗂",lk:"db",action:()=>setShowDB(true)},
-          {id:"backup",icon:"💾",lk:"backup",action:()=>setShowExport(true)},
           {id:"profile",icon:"👤",lk:"profile",action:()=>setShowProfiles(true)},
         ].map(tab=>(
           <button key={tab.id} onClick={tab.action} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"10px 0",gap:3,background:"none",border:"none",cursor:"pointer",fontFamily:"inherit"}}>
