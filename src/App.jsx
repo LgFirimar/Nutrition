@@ -2982,6 +2982,19 @@ function App(){
     else{setClearConfirm(true);setTimeout(()=>setClearConfirm(false),3000);}
   };
 
+  // Auto-save on every change so reopening the app restores the current day
+  useEffect(()=>{
+    const j=loadJournal(pid);
+    if(entries.length||bloodSugar){
+      j[activeDate]={
+        entries:entries.map(e=>({label:e.label,kcal:e.kcal,carbs:e.carbs,protein:e.protein,fat:e.fat||0,...(e.count&&{count:e.count}),...(e.perUnit&&{perUnit:e.perUnit})})),
+        totals,
+        ...(bloodSugar&&{bloodSugar:parseFloat(bloodSugar)})
+      };
+      saveJournal(j,pid);
+    }
+  },[entries,bloodSugar,activeDate,pid]);
+
   const saveDay=()=>{
     if(!entries.length&&!bloodSugar)return;
     const j=loadJournal(pid);
