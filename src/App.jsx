@@ -961,23 +961,40 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
   const [error,setError]=useState(null);
   const [imgSrc,setImgSrc]=useState(initialPhoto?.src||null);
   const [servings,setServings]=useState(1);
-  const [qty,setQty]=useState(1);
+  const [localAmt,setLocalAmt]=useState("1");
+  const [qtyUnit,setQtyUnit]=useState("יח׳");
   const fileRef=useRef(null);
 
   useEffect(()=>{
     if(initialPhoto?.base64) analyze(initialPhoto.base64,initialPhoto.mediaType);
   },[]);
 
-  const computeVals=(p,s,q)=>({
-    kcal:Math.round(p.kcal/s*q),
-    carbs:parseFloat(((p.carbs||0)/s*q).toFixed(1)),
-    protein:parseFloat(((p.protein||0)/s*q).toFixed(1)),
-    fat:parseFloat(((p.fat||0)/s*q).toFixed(1))
-  });
+  const unitToG=(amt,unit)=>{
+    if(unit==='כף') return amt*15;
+    if(unit==='כפית') return amt*5;
+    if(unit==='כוס') return amt*240;
+    return amt;
+  };
+
+  const computeVals=(p,s,amt,unit)=>{
+    const a=parseFloat(amt)||1;
+    let factor;
+    if(unit==='יח׳'||unit==='מנות'||!p.totalGrams){
+      factor=a/s;
+    } else {
+      factor=unitToG(a,unit)/p.totalGrams/s;
+    }
+    return {
+      kcal:Math.round(p.kcal*factor),
+      carbs:parseFloat(((p.carbs||0)*factor).toFixed(1)),
+      protein:parseFloat(((p.protein||0)*factor).toFixed(1)),
+      fat:parseFloat(((p.fat||0)*factor).toFixed(1))
+    };
+  };
 
   const analyze=async(base64,mediaType)=>{
     setLoading(true);setPreview(null);setCalcVals(null);setError(null);
-    setServings(1);setQty(1);
+    setServings(1);setLocalAmt("1");setQtyUnit("יח׳");
     try{
       const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{
         method:"POST",headers:{"Content-Type":"application/json"},
@@ -987,14 +1004,14 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
       const d=await res.json();
       if(d.error||!d.kcal) throw new Error(d.error||"לא הצלחתי לנתח את התמונה");
       setPreview(d);
-      setCalcVals(computeVals(d,1,1));
+      setCalcVals(computeVals(d,1,"1","יח׳"));
     }catch(e){setError(e.message);}
     setLoading(false);
   };
 
   const recalc=()=>{
     if(!preview)return;
-    setCalcVals(computeVals(preview,servings,qty));
+    setCalcVals(computeVals(preview,servings,localAmt,qtyUnit));
   };
 
   const handleFile=e=>{
@@ -1013,8 +1030,9 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
 
   const addToDay=()=>{
     if(!preview||!calcVals)return;
+    const a=parseFloat(localAmt)||1;
     onAdd({uid:Date.now()+Math.random(),
-      label:`📷 ${preview.label}${servings>1?` (1/${servings})`:""}${qty!==1?` ×${qty}`:""}`,
+      label:`📷 ${preview.label}${servings>1?` (1/${servings})`:""}${(a!==1||qtyUnit!=='יח׳')?` ${a}${qtyUnit}`:""}`,
       kcal:calcVals.kcal,carbs:calcVals.carbs,protein:calcVals.protein,fat:calcVals.fat});
     onClose();
   };
@@ -1059,12 +1077,20 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
             <button onClick={()=>setServings(v=>v+1)} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>+</button>
             <span style={{fontSize:11,color:C.muted}}>{servings===1?"אנשים (כל הארוחה לי)":"אנשים"}</span>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,background:"rgba(255,255,255,0.7)",borderRadius:8,padding:"5px 10px"}}>
-            <span style={{fontSize:11,color:C.muted}}>מנות:</span>
-            <button onClick={()=>setQty(v=>parseFloat(Math.max(0.5,v-0.5).toFixed(1)))} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>−</button>
-            <input type="number" value={qty} min="0.5" step="0.5" onChange={e=>setQty(Math.max(0.5,parseFloat(e.target.value)||0.5))} style={{width:42,textAlign:"center",border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 2px",fontSize:13,fontFamily:"inherit"}}/>
-            <button onClick={()=>setQty(v=>parseFloat((v+0.5).toFixed(1)))} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>+</button>
-            <button onClick={recalc} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"5px 14px",fontSize:16,cursor:"pointer",lineHeight:1,marginRight:"auto"}}>🔄</button>
+          <div style={{display:"flex",gap:6,marginBottom:8,alignItems:"center"}}>
+            <input type="number" value={localAmt} onChange={e=>setLocalAmt(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&recalc()}
+              className="inp" style={{flex:1,textAlign:"center",padding:"7px 6px",fontSize:13}}/>
+            <select value={qtyUnit} onChange={e=>setQtyUnit(e.target.value)} className="inp" style={{flex:1,padding:"7px 6px",fontSize:12,cursor:"pointer"}}>
+              <option value="יח׳">יח׳</option>
+              <option value="מנות">מנות</option>
+              <option value="g">גר׳</option>
+              <option value="ml">מ״ל</option>
+              <option value="כף">כף (15מ״ל)</option>
+              <option value="כפית">כפית (5מ״ל)</option>
+              <option value="כוס">כוס (240מ״ל)</option>
+            </select>
+            <button onClick={recalc} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"7px 12px",fontSize:16,cursor:"pointer",lineHeight:1}}>🔄</button>
           </div>
           <button onClick={addToDay} style={{width:"100%",background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ הוסף ליום</button>
         </div>
