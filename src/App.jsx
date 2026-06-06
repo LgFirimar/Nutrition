@@ -113,9 +113,42 @@ migrateOldData();
 
 // ── Pantry & Shopping helpers ─────────────────────────────────────────────────
 const loadPantry=()=>{try{return JSON.parse(localStorage.getItem("nutrition_pantry")||"{}");}catch{return {};}};
-const savePantryLS=p=>localStorage.setItem("nutrition_pantry",JSON.stringify(p));
 const loadShopping=()=>{try{return JSON.parse(localStorage.getItem("nutrition_shopping")||"[]");}catch{return [];}};
-const saveShopping=s=>localStorage.setItem("nutrition_shopping",JSON.stringify(s));
+
+// ── Household / Firebase ──────────────────────────────────────────────────────
+let _fbDb=null,_fbRefFn=null,_fbSet=null,_fbOnValue=null;
+let _householdId=null,_memberName="";
+
+async function _fbInit(cfg){
+  if(_fbDb&&_householdId===cfg.householdId)return true;
+  try{
+    const[appMod,dbMod]=await Promise.all([import('firebase/app'),import('firebase/database')]);
+    const{initializeApp,getApps}=appMod;
+    const{getDatabase,ref,set,onValue}=dbMod;
+    const ANAME='nutrition-household';
+    const app=getApps().find(a=>a.name===ANAME)||initializeApp(cfg.firebaseConfig,ANAME);
+    _fbDb=getDatabase(app);
+    _fbRefFn=ref;_fbSet=set;_fbOnValue=onValue;
+    _householdId=cfg.householdId;
+    _memberName=cfg.memberName||"";
+    return true;
+  }catch(e){console.error('Firebase init:',e);return false;}
+}
+
+function _fbSyncPantry(p){
+  if(!_fbDb||!_householdId)return;
+  _fbSet(_fbRefFn(_fbDb,`households/${_householdId}/pantry`),p).catch(()=>{});
+}
+
+function _fbSyncShopping(s){
+  if(!_fbDb||!_householdId)return;
+  // Store as object (Firebase handles arrays inconsistently)
+  const obj={};s.forEach(item=>{obj[String(item.id).replace('.','_')]=item;});
+  _fbSet(_fbRefFn(_fbDb,`households/${_householdId}/shopping`),obj).catch(()=>{});
+}
+
+const savePantryLS=p=>{localStorage.setItem("nutrition_pantry",JSON.stringify(p));_fbSyncPantry(p);};
+const saveShopping=s=>{localStorage.setItem("nutrition_shopping",JSON.stringify(s));_fbSyncShopping(s);};
 const getRecentFoodLabels=(pid,days=7)=>{
   const j=loadJournal(pid||"default");
   const labels=new Set();
@@ -1995,7 +2028,7 @@ function ShoppingListModal({onClose,lang,pid}){
   const clearBought=()=>save(items.filter(i=>!i.checked));
   const addManual=()=>{
     if(!newName.trim())return;
-    save([...items,{id:Date.now()+Math.random(),name:newName.trim(),qty:newQty.trim(),checked:false,auto:false}]);
+    save([...items,{id:Date.now()+Math.random(),name:newName.trim(),qty:newQty.trim(),checked:false,auto:false,addedBy:_memberName||""}]);
     setNewName("");setNewQty("");
   };
 
@@ -2054,7 +2087,10 @@ function ShoppingListModal({onClose,lang,pid}){
             {items.filter(i=>!i.checked).map(item=>(
               <div key={item.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"rgba(255,255,255,.7)",borderRadius:10,border:`1px solid ${item.auto?"rgba(13,148,136,.2)":C.border}`}}>
                 <button onClick={()=>toggle(item.id)} style={{width:20,height:20,borderRadius:6,border:`2px solid ${C.accent}`,background:"transparent",cursor:"pointer",flexShrink:0}}/>
-                <span style={{flex:1,fontSize:13,color:C.text}}>{item.name}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <span style={{fontSize:13,color:C.text}}>{item.name}</span>
+                  {item.addedBy&&<span style={{display:"block",fontSize:9,color:C.muted,marginTop:1}}>{item.addedBy}</span>}
+                </div>
                 {item.qty&&<span style={{fontSize:11,color:C.muted,fontWeight:600}}>{item.qty}</span>}
                 {item.auto&&<span style={{fontSize:9,color:C.accent,background:"rgba(13,148,136,.08)",borderRadius:8,padding:"2px 5px"}}>AI</span>}
                 <button onClick={()=>remove(item.id)} style={{background:"none",border:"none",color:C.muted,fontSize:15,cursor:"pointer",padding:"0 2px"}}>×</button>
@@ -3228,6 +3264,195 @@ function MealPlannerModal({onAdd,onClose,lang}){
   );
 }
 
+// ── HouseholdModal ────────────────────────────────────────────────────────────
+function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
+  const isHe=(lang||'he')!=='en';
+  const connected=!!householdCfg;
+  const[tab,setTab]=useState(connected?'connected':'create');
+  const[memberName,setMemberName]=useState(householdCfg?.memberName||'');
+  const[configText,setConfigText]=useState('');
+  const[joinCode,setJoinCode]=useState('');
+  const[loading,setLoading]=useState(false);
+  const[error,setError]=useState('');
+  const[copied,setCopied]=useState(false);
+  const[members,setMembers]=useState({});
+
+  useEffect(()=>{
+    if(!householdCfg||!_fbDb||!_fbOnValue||!_fbRefFn)return;
+    const unsub=_fbOnValue(_fbRefFn(_fbDb,`households/${_householdId}/members`),snap=>{
+      setMembers(snap.val()||{});
+    });
+    return()=>unsub();
+  },[householdCfg]);
+
+  const genId=()=>{
+    const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    return Array.from({length:8},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+  };
+
+  const getDeviceId=()=>{
+    let id=ls.get('nutrition_device_id');
+    if(!id){id=Date.now().toString(36)+Math.random().toString(36).slice(2);ls.set('nutrition_device_id',id);}
+    return id;
+  };
+
+  const registerMember=async(hid,name)=>{
+    if(!_fbDb)return;
+    const did=getDeviceId();
+    await _fbSet(_fbRefFn(_fbDb,`households/${hid}/members/${did}`),{name,joinedAt:Date.now()}).catch(()=>{});
+  };
+
+  const handleCreate=async()=>{
+    if(!memberName.trim()){setError(isHe?'נא להזין שם':'Please enter your name');return;}
+    let cfg;
+    try{cfg=JSON.parse(configText);}catch{setError(isHe?'הגדרות Firebase לא תקינות':'Invalid Firebase config');return;}
+    if(!cfg.apiKey||!cfg.databaseURL){setError(isHe?'חסרים שדות: apiKey ו-databaseURL':'Missing: apiKey and databaseURL');return;}
+    setLoading(true);setError('');
+    const hid=genId();
+    const newCfg={firebaseConfig:cfg,householdId:hid,memberName:memberName.trim()};
+    const ok=await _fbInit(newCfg);
+    if(!ok){setError(isHe?'שגיאה בחיבור ל-Firebase':'Firebase connection error');setLoading(false);return;}
+    await registerMember(hid,memberName.trim());
+    ls.set('nutrition_household',newCfg);
+    onConnect(newCfg);
+    setLoading(false);
+  };
+
+  const handleJoin=async()=>{
+    if(!memberName.trim()){setError(isHe?'נא להזין שם':'Please enter your name');return;}
+    if(!joinCode.trim()){setError(isHe?'נא להזין קוד הצטרפות':'Please enter join code');return;}
+    let decoded;
+    try{decoded=JSON.parse(atob(joinCode.trim()));}catch{setError(isHe?'קוד הצטרפות לא תקין':'Invalid join code');return;}
+    setLoading(true);setError('');
+    const newCfg={...decoded,memberName:memberName.trim()};
+    const ok=await _fbInit(newCfg);
+    if(!ok){setError(isHe?'שגיאה בחיבור':'Connection error');setLoading(false);return;}
+    await registerMember(newCfg.householdId,memberName.trim());
+    ls.set('nutrition_household',newCfg);
+    onConnect(newCfg);
+    setLoading(false);
+  };
+
+  const getSharingCode=()=>{
+    if(!householdCfg)return'';
+    const{memberName:_mn,...shareData}=householdCfg;
+    return btoa(JSON.stringify(shareData));
+  };
+
+  const copyCode=()=>{
+    navigator.clipboard.writeText(getSharingCode()).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);}).catch(()=>{});
+  };
+
+  const handleLeave=()=>{
+    ls.set('nutrition_household',null);
+    _fbDb=null;_fbRefFn=null;_fbSet=null;_fbOnValue=null;_householdId=null;_memberName="";
+    onLeave();
+  };
+
+  const btnStyle={flex:1,padding:"8px 0",fontSize:12,fontWeight:700,borderRadius:8,cursor:"pointer",border:"none",transition:"all .2s"};
+  const inputStyle={width:"100%",boxSizing:"border-box",padding:"9px 10px",borderRadius:10,border:"1px solid rgba(148,163,184,.3)",fontSize:12,fontFamily:"inherit",background:"rgba(255,255,255,.8)",marginBottom:8};
+
+  return(
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-sheet slide" style={{maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div style={{fontSize:15,fontWeight:700,display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:22}}>👥</span>
+            {isHe?"משק בית משותף":"Shared Household"}
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#94a3b8"}}>×</button>
+        </div>
+
+        {!connected?(
+          <>
+            {/* Tabs */}
+            <div style={{display:"flex",gap:6,marginBottom:16,background:"rgba(148,163,184,.1)",borderRadius:10,padding:4}}>
+              {['create','join'].map(t=>(
+                <button key={t} onClick={()=>{setTab(t);setError('');}}
+                  style={{...btnStyle,flex:1,background:tab===t?"#fff":"transparent",color:tab===t?"#0d9488":"#94a3b8",boxShadow:tab===t?"0 1px 4px rgba(0,0,0,.08)":"none"}}>
+                  {t==='create'?(isHe?'צור משק בית':'Create'):(isHe?'הצטרף':'Join')}
+                </button>
+              ))}
+            </div>
+
+            <input value={memberName} onChange={e=>setMemberName(e.target.value)}
+              placeholder={isHe?"השם שלך (יוצג בעגלה)":"Your name (shown in cart)"}
+              style={inputStyle}/>
+
+            {tab==='create'?(
+              <>
+                <div style={{fontSize:11,color:"#64748b",marginBottom:8,lineHeight:1.5}}>
+                  {isHe?"1. כנסו ל-":"1. Go to "}<b>console.firebase.google.com</b><br/>
+                  {isHe?"2. צרו פרויקט חדש":"2. Create a new project"}<br/>
+                  {isHe?"3. Realtime Database → Create → Test mode":"3. Realtime Database → Create → Test mode"}<br/>
+                  {isHe?"4. Project Settings → Your apps → Add web app":"4. Project Settings → Your apps → Add web app"}<br/>
+                  {isHe?"5. העתיקו את ":"5. Copy the "}<b>firebaseConfig</b>{isHe?" והדביקו כאן:":" and paste it:"}
+                </div>
+                <textarea value={configText} onChange={e=>setConfigText(e.target.value)}
+                  placeholder={'{\n  "apiKey": "...",\n  "databaseURL": "https://...",\n  ...\n}'}
+                  style={{...inputStyle,height:110,resize:"vertical",fontFamily:"monospace",fontSize:11}}/>
+                {error&&<div style={{color:"#dc2626",fontSize:11,marginBottom:8}}>{error}</div>}
+                <button onClick={handleCreate} disabled={loading}
+                  style={{...btnStyle,width:"100%",background:"linear-gradient(135deg,#14b8a6,#059669)",color:"#fff",padding:"10px"}}>
+                  {loading?(isHe?"מתחבר...":"Connecting..."):(isHe?"צור משק בית":"Create Household")}
+                </button>
+              </>
+            ):(
+              <>
+                <textarea value={joinCode} onChange={e=>setJoinCode(e.target.value)}
+                  placeholder={isHe?"הדבק כאן את קוד ההצטרפות":"Paste the join code here"}
+                  style={{...inputStyle,height:80,resize:"vertical",fontFamily:"monospace",fontSize:11}}/>
+                {error&&<div style={{color:"#dc2626",fontSize:11,marginBottom:8}}>{error}</div>}
+                <button onClick={handleJoin} disabled={loading}
+                  style={{...btnStyle,width:"100%",background:"linear-gradient(135deg,#14b8a6,#059669)",color:"#fff",padding:"10px"}}>
+                  {loading?(isHe?"מתחבר...":"Connecting..."):(isHe?"הצטרף למשק בית":"Join Household")}
+                </button>
+              </>
+            )}
+          </>
+        ):(
+          <>
+            {/* Connected view */}
+            <div style={{background:"rgba(13,148,136,.06)",borderRadius:12,padding:"12px 14px",marginBottom:14,border:"1px solid rgba(13,148,136,.15)"}}>
+              <div style={{fontSize:11,color:"#64748b",marginBottom:6}}>{isHe?"קוד הצטרפות לשיתוף:":"Join code to share:"}</div>
+              <div style={{fontFamily:"monospace",fontSize:13,fontWeight:700,color:"#0d9488",letterSpacing:1,wordBreak:"break-all",marginBottom:8}}>
+                {getSharingCode().slice(0,40)}...
+              </div>
+              <button onClick={copyCode}
+                style={{...btnStyle,background:copied?"rgba(13,148,136,.12)":"rgba(255,255,255,.9)",color:copied?"#0d9488":"#475569",border:"1px solid rgba(148,163,184,.3)",padding:"7px 14px",width:"auto"}}>
+                {copied?(isHe?"✓ הועתק!":"✓ Copied!"):(isHe?"העתק קוד":"Copy code")}
+              </button>
+            </div>
+
+            {Object.keys(members).length>0&&(
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:11,color:"#64748b",marginBottom:8,fontWeight:600}}>{isHe?"חברי המשק:":"Household members:"}</div>
+                {Object.values(members).map((m,i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",background:"rgba(255,255,255,.6)",borderRadius:8,marginBottom:4}}>
+                    <span style={{fontSize:16}}>👤</span>
+                    <span style={{fontSize:13,fontWeight:600}}>{m.name}</span>
+                    {m.name===householdCfg.memberName&&<span style={{fontSize:10,color:"#0d9488",background:"rgba(13,148,136,.08)",borderRadius:8,padding:"1px 6px"}}>{isHe?"אני":"me"}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{fontSize:11,color:"#64748b",marginBottom:14,display:"flex",alignItems:"center",gap:6}}>
+              <span style={{width:8,height:8,borderRadius:"50%",background:"#22c55e",display:"inline-block"}}/>
+              {isHe?"מזווה ועגלה מסונכרנים":"Pantry & cart are synced"}
+            </div>
+
+            <button onClick={handleLeave}
+              style={{...btnStyle,width:"100%",background:"rgba(220,38,38,.06)",color:"#dc2626",border:"1px solid rgba(220,38,38,.2)",padding:"9px"}}>
+              {isHe?"עזוב משק בית":"Leave Household"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── App ────────────────────────────────────────────────────────────────────────
 function App(){
   const [profiles,setProfiles]=useState(()=>loadProfiles());
@@ -3285,6 +3510,10 @@ function App(){
   const [showPantry,setShowPantry]=useState(false);
   const [showShopping,setShowShopping]=useState(false);
   const [showMealPlanner,setShowMealPlanner]=useState(false);
+  const [showHousehold,setShowHousehold]=useState(false);
+  const [householdCfg,setHouseholdCfg]=useState(()=>ls.get('nutrition_household'));
+  const [hhSynced,setHhSynced]=useState(false);
+  const hhUnsubRef=useRef([]);
   const [activeRing,setActiveRing]=useState('kcal');
   const [lang,setLang]=useState(()=>localStorage.getItem('nutrition_lang')||'he');
   const T=LANG[lang]||LANG.he;
@@ -3295,6 +3524,31 @@ function App(){
   const [sugarFlash,setSugarFlash]=useState(false);
   const [activeDate,setActiveDate]=useState(()=>getTodayKey());
   const [showDatePicker,setShowDatePicker]=useState(false);
+
+  // Firebase household sync
+  useEffect(()=>{
+    hhUnsubRef.current.forEach(u=>u?.());
+    hhUnsubRef.current=[];
+    setHhSynced(false);
+    if(!householdCfg)return;
+    _fbInit(householdCfg).then(ok=>{
+      if(!ok)return;
+      setHhSynced(true);
+      const unsubPantry=_fbOnValue(_fbRefFn(_fbDb,`households/${_householdId}/pantry`),snap=>{
+        const data=snap.val();
+        if(data&&typeof data==='object')localStorage.setItem("nutrition_pantry",JSON.stringify(data));
+      });
+      const unsubShopping=_fbOnValue(_fbRefFn(_fbDb,`households/${_householdId}/shopping`),snap=>{
+        const data=snap.val();
+        if(data!==null){
+          const arr=Array.isArray(data)?data:Object.values(data||{});
+          localStorage.setItem("nutrition_shopping",JSON.stringify(arr.filter(Boolean)));
+        }
+      });
+      hhUnsubRef.current=[unsubPantry,unsubShopping];
+    });
+    return()=>{hhUnsubRef.current.forEach(u=>u?.());};
+  },[householdCfg]);
 
   // Reset to calorie ring whenever returning to main screen
   useEffect(()=>{
@@ -3409,6 +3663,7 @@ function App(){
       {showInfo && <InfoModal onClose={()=>setShowInfo(false)} lang={lang}/>}
       {showPantry && <PantryModal onClose={()=>setShowPantry(false)} lang={lang}/>}
       {showShopping && <ShoppingListModal onClose={()=>setShowShopping(false)} lang={lang} pid={pid}/>}
+      {showHousehold && <HouseholdModal householdCfg={householdCfg} onConnect={cfg=>{setHouseholdCfg(cfg);setShowHousehold(false);}} onLeave={()=>{setHouseholdCfg(null);setHhSynced(false);setShowHousehold(false);}} onClose={()=>setShowHousehold(false)} lang={lang}/>}
       {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang}/>}
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}}/>}
       {showWizard && <ProfileSetupWizard profile={wizardProfile} onSave={p=>{const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===p.id?p:x));setActiveProfile(p.id===pid?p:activeProfile);setProfiles(loadProfiles());setWizardProfile(null);setShowWizard(false);}} onSkip={()=>{setWizardProfile(null);setShowWizard(false);}}/>}
@@ -3440,6 +3695,10 @@ function App(){
           </button>
           <button onClick={()=>setShowInfo(true)} style={{width:24,height:24,borderRadius:7,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontWeight:700}}>ℹ</button>
           <button onClick={saveDay} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .3s",animation:saveFlash?"pop .35s ease":"none",boxShadow:"0 2px 8px rgba(80,120,160,.1)"}}>💾</button>
+          <button onClick={()=>setShowHousehold(true)} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+            👥
+            {householdCfg&&<span style={{position:"absolute",top:-1,right:-1,width:7,height:7,borderRadius:"50%",background:hhSynced?"#22c55e":"#f59e0b",border:"1.5px solid white"}}/>}
+          </button>
           <div style={{width:26,height:26,borderRadius:8,background:"linear-gradient(135deg,#14b8a6,#0d9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,boxShadow:"0 2px 8px rgba(13,148,136,.35)",cursor:"pointer"}} onClick={()=>setShowProfiles(true)}>{activeProfile?.emoji}</div>
         </div>
         {/* Date + greeting below the icons */}
