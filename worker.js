@@ -56,12 +56,12 @@ After your calculation, output ONLY this JSON on the very last line (no markdown
           prompt = `כתוב מתכון עבור "${selectedMeal}" ל-${people} אנשים. עד 6 רכיבים, עד 4 שלבים.
 {"recipe":{"name":"שם בעברית","ingredients":[{"item":"שם חומר","amount":"כמות"}],"steps":["שלב הכנה"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`;
         } else {
-          model = 'claude-haiku-4-5-20251001';
-          max_tokens = 500;
-          system = 'אתה תזונאי ושף ישראלי. ענה בעברית. החזר JSON בלבד, ללא הסבר וללא markdown.';
+          model = 'claude-sonnet-4-6';
+          max_tokens = 600;
+          system = 'אתה שף ותזונאי ישראלי. כתוב בעברית תקנית ונכונה. הפלט הוא JSON בלבד — ללא הסבר, ללא markdown, ללא טקסט לפני או אחרי.';
           const refineText = refine ? `\nהערות: ${refine}` : '';
           prompt = `הצע 3 ארוחות ל-${people} אנשים. העדפות: ${preferences || 'ללא הגבלות'}${refineText}
-{"options":[{"name":"שם","description":"תיאור","kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0}]}`;
+{"options":[{"name":"שם ארוחה","description":"תיאור קצר בעברית","kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0}]}`;
         }
       } else {
         model = 'claude-haiku-4-5-20251001';
