@@ -2080,6 +2080,18 @@ function MealPlannerModal({onAdd,onClose,lang}){
     setShowIngEdit(true);
   };
 
+  const [savedToDb,setSavedToDb]=useState(false);
+  const saveToDb=(nutr)=>{
+    const n=nutr||{kcal:recipe.kcalPerPerson||0,carbs:recipe.carbsPerPerson||0,protein:recipe.proteinPerPerson||0,fat:recipe.fatPerPerson||0};
+    const name=recipe.name;
+    const entry={names:[name.toLowerCase()],label:`🍳 ${name}`,kcal:n.kcal,carbs:n.carbs,protein:n.protein,fat:n.fat,defaultAmt:1,unit:isHe?"מנה":"serving"};
+    const pid=window._activePid||"default";
+    const db=loadCustomDB(pid);
+    saveCustomDB([...db.filter(f=>f.label!==entry.label),entry],pid);
+    setSavedToDb(true);
+    setTimeout(()=>setSavedToDb(false),2000);
+  };
+
   const recalculate=async()=>{
     setRecalcLoading(true);
     const mealDesc=editIngs.map(i=>`${i.item} ${i.amount}`).join(', ');
@@ -2235,9 +2247,14 @@ function MealPlannerModal({onAdd,onClose,lang}){
                 <button onClick={()=>{setStep(2);setRecipe(null);}} className="btn-muted" style={{flex:1,borderRadius:10}}>{isHe?"חזרה":"Back"}</button>
                 <button onClick={()=>addToDay()} className="btn-accent" style={{flex:2,borderRadius:10}}>{isHe?"+ הוסף ליומן היום":"+ Add to today"}</button>
               </div>
-              <button onClick={openIngEdit} style={{width:"100%",background:"none",border:`1px solid ${C.accent}`,color:C.accent,borderRadius:10,padding:"9px",fontSize:13,fontWeight:600,cursor:"pointer"}}>
-                {isHe?"✏️ הוסף עם שינויים":"✏️ Add with changes"}
-              </button>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={openIngEdit} style={{flex:1,background:"none",border:`1px solid ${C.accent}`,color:C.accent,borderRadius:10,padding:"9px",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                  {isHe?"✏️ הוסף עם שינויים":"✏️ Add with changes"}
+                </button>
+                <button onClick={()=>saveToDb()} style={{flex:1,background:savedToDb?"rgba(13,148,136,.12)":"none",border:`1px solid ${savedToDb?C.accent:C.border}`,color:savedToDb?C.accent:C.muted,borderRadius:10,padding:"9px",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                  {savedToDb?(isHe?"✓ נשמר":"✓ Saved"):(isHe?"💾 שמור למאגר":"💾 Save to DB")}
+                </button>
+              </div>
             </div>
           </> : <>
             {/* Ingredient editor */}
@@ -2271,9 +2288,12 @@ function MealPlannerModal({onAdd,onClose,lang}){
             <button onClick={recalculate} disabled={recalcLoading} style={{width:"100%",background:"rgba(13,148,136,.08)",border:`1px solid rgba(13,148,136,.3)`,borderRadius:10,padding:"9px",fontSize:13,fontWeight:600,color:C.accent,cursor:"pointer",marginBottom:10}}>
               {recalcLoading?(isHe?"מחשב...":"Calculating..."):(isHe?"🔄 חשב ערכים מחדש":"🔄 Recalculate")}
             </button>
-            <div style={{display:"flex",gap:8}}>
+            <div style={{display:"flex",gap:6}}>
               <button onClick={()=>setShowIngEdit(false)} className="btn-muted" style={{flex:1,borderRadius:10}}>{isHe?"חזרה":"Back"}</button>
               <button onClick={()=>addToDay(editNutr)} className="btn-accent" style={{flex:2,borderRadius:10}}>{isHe?"✓ הוסף ליומן":"✓ Add to log"}</button>
+              <button onClick={()=>saveToDb(editNutr)} style={{flex:1,background:savedToDb?"rgba(13,148,136,.12)":"none",border:`1px solid ${savedToDb?C.accent:C.border}`,color:savedToDb?C.accent:C.muted,borderRadius:10,padding:"9px",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                {savedToDb?"✓":"💾"}
+              </button>
             </div>
           </>}
         </>}
