@@ -2263,6 +2263,7 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
   const [dietPrefs,setDietPrefs]=useState(profile?.dietPrefs||[]);
   const [dietText,setDietText]=useState(profile?.dietText||"");
   const [activity,setActivity]=useState(profile?.activity||"moderate");
+  const [activityText,setActivityText]=useState(profile?.activityText||"");
   const [goals,setGoals]=useState(profile?.goals||[]);
   const [goalText,setGoalText]=useState(profile?.goalText||"");
   const [loading,setLoading]=useState(false);
@@ -2305,7 +2306,7 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
       const allGoals=[...goals,...(goalText.trim()?[goalText.trim()]:[])]
       const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{
         method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({profileData:{age,gender,height,weight,conditions:allConds,dietPrefs:allDiets,activity,goals:allGoals}})
+        body:JSON.stringify({profileData:{age,gender,height,weight,conditions:allConds,dietPrefs:allDiets,activity,activityText,goals:allGoals}})
       });
       if(!res.ok) throw new Error("שגיאת שרת");
       const d=await res.json();
@@ -2330,7 +2331,7 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
       maxProtein:parseInt(editVals.protein)||profile.maxProtein||90,
       age:parseFloat(age)||undefined,gender,
       height:parseFloat(height)||undefined,weight:parseFloat(weight)||undefined,
-      conditions,conditionText:condText,dietPrefs,dietText,activity,goals,goalText,
+      conditions,conditionText:condText,dietPrefs,dietText,activity,activityText,goals,goalText,
       recommendations:{explanation:recs?.explanation||"",sources:recs?.sources||[]}
     };
     const all=loadProfiles();
@@ -2427,6 +2428,8 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
                 </button>
               ))}
             </div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:700,marginTop:14}}>פירוט פעילות (אופציונלי)</div>
+            <input value={activityText} onChange={e=>setActivityText(e.target.value)} className="inp" placeholder="לדוגמה: ריצה 5 ק״מ 3×/שבוע, הליכה יומית, אימוני כוח"/>
           </div>
         )}
         {step===4&&(

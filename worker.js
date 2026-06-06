@@ -97,7 +97,7 @@ After your calculation, output ONLY this JSON on the very last line (no markdown
         model = 'claude-sonnet-4-6';
         max_tokens = 2000;
         system = 'אתה תזונאי קליני ורופא משפחה מומחה. אתה מכיר היטב את הנחיות האיגודים הרפואיים הישראליים והבינלאומיים. ענה בעברית בלבד. החזר JSON בלבד ללא markdown.';
-        const {age, gender, height, weight, conditions=[], dietPrefs=[], activity='moderate', goals=[]} = profileData;
+        const {age, gender, height, weight, conditions=[], dietPrefs=[], activity='moderate', activityText='', goals=[]} = profileData;
         const bmi = (weight && height) ? (weight / Math.pow(height/100, 2)).toFixed(1) : null;
         const genderHe = gender==='female'?'נקבה':gender==='male'?'זכר':'אחר';
         const actMap = {sedentary:'יושבני (ללא פעילות)',light:'קל (1-2×/שבוע)',moderate:'מתון (3-4×/שבוע)',active:'פעיל (5+×/שבוע)',very_active:'ספורטאי (יומי)'};
@@ -107,7 +107,7 @@ After your calculation, output ONLY this JSON on the very last line (no markdown
 גובה: ${height||'לא צוין'}ס"מ, משקל: ${weight||'לא צוין'}ק"ג${bmi?`, BMI: ${bmi}`:''}
 בעיות רפואיות: ${conditions.length?conditions.join(', '):'אין'}
 העדפות תזונה: ${dietPrefs.length?dietPrefs.join(', '):'אין'}
-רמת פעילות: ${actMap[activity]||activity}
+רמת פעילות: ${actMap[activity]||activity}${activityText?`\nפירוט פעילות: ${activityText}`:''}
 יעדים: ${goals.length?goals.join(', '):'בריאות כללית'}
 
 חשב BMR לפי Mifflin-St Jeor, הכפל במקדם פעילות מתאים, והתאם לפי היעדים.
