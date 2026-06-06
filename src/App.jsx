@@ -3256,7 +3256,7 @@ function App(){
           reader.readAsDataURL(file);
         }}
       />
-      <div style={{display:"flex",gap:8,padding:"0 16px 14px"}}>
+      <div style={{display:"flex",gap:8,padding:"14px 16px 14px"}}>
         <button onClick={()=>{if(showPhoto){setShowPhoto(false);setPendingPhoto(null);}else{setShowPresets(false);photoInputRef.current.click();}}} style={{flex:1,background:showPhoto?"#1a6b9e":"rgba(255,255,255,.75)",border:`1px solid ${showPhoto?"#1a6b9e":C.border}`,color:showPhoto?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>{T.photo}</button>
         <button onClick={()=>{setShowMeal(v=>!v);setShowSmart(false);setShowPhoto(false);setPendingPhoto(null);setShowMealPlanner(false);setShowPresets(false);}} style={{flex:1,background:showMeal?"#5a3e8e":"rgba(255,255,255,.75)",border:`1px solid ${showMeal?"#5a3e8e":C.border}`,color:showMeal?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>{T.mealBtn}</button>
         <button onClick={()=>{setShowSmart(v=>!v);setShowMeal(false);setShowPhoto(false);setPendingPhoto(null);setShowMealPlanner(false);setShowPresets(false);}} style={{flex:1,background:showSmart?"#0d9488":"rgba(255,255,255,.75)",border:`1px solid ${showSmart?"#0d9488":C.border}`,color:showSmart?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>+ {T.addItem}</button>
