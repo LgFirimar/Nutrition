@@ -211,6 +211,23 @@ function calcNutrition(f, amt, unit) {
 
 const C = { accent:"#0d9488", warn:"#d97706", danger:"#dc2626", blue:"#2563eb", muted:"#64748b", text:"#0f172a", border:"rgba(148,163,184,.25)" };
 const sugarColor = v => { const n=Number(v); return n>=100?'#dc2626':n>=86?'#f59e0b':n>0?'#15803d':'#94a3b8'; };
+// Returns color based on % of daily goal: dark-green → amber → orange → red
+const goalColor=(consumed,max)=>{
+  if(!max||isNaN(consumed)) return "#166534";
+  const p=consumed/max;
+  if(p>=0.9) return "#dc2626";
+  if(p>=0.6) return "#ea580c";
+  if(p>=0.35) return "#ca8a04";
+  return "#166534";
+};
+const goalGrad=(consumed,max)=>{
+  if(!max) return ["#166534","#22c55e"];
+  const p=consumed/max;
+  if(p>=0.9) return ["#dc2626","#f87171"];
+  if(p>=0.6) return ["#ea580c","#fb923c"];
+  if(p>=0.35) return ["#ca8a04","#fbbf24"];
+  return ["#166534","#22c55e"];
+};
 const MAX_KCAL=1800, MAX_CARBS=80;
 const QUICK_FOODS = [
   {id:"cheese",label:"🧀 אצבע גבינה",labelEn:"🧀 Cheese Finger",kcal:60,carbs:1,protein:6,fat:3.5},
@@ -1946,10 +1963,11 @@ function ExportImportModal({pid, onClose}){
   const [importing,setImporting]=useState(false);
   const [importText,setImportText]=useState("");
   const [msg,setMsg]=useState(null);
+  const [filename,setFilename]=useState(`nutrition-backup-${pid}-${new Date().toISOString().slice(0,10)}`);
 
   const exportData=()=>{
     const data={
-      version:3,
+      version:4,
       exportDate:new Date().toISOString(),
       pid,
       profiles:loadProfiles(),
@@ -1958,15 +1976,16 @@ function ExportImportModal({pid, onClose}){
       customBtns:loadCustomBtns(pid),
       customDB:loadCustomDB(pid),
       fridge:loadFridge(),
+      pantry:loadPantry(),
+      shopping:loadShopping(),
       savedPrefs:JSON.parse(localStorage.getItem("nutrition_saved_prefs")||"[]"),
       quickFoods:loadQuickFoods(pid),
     };
     const json=JSON.stringify(data,null,2);
-    const filename=`nutrition-backup-${pid}-${new Date().toISOString().slice(0,10)}.json`;
+    const fname=(filename.trim()||`nutrition-backup-${pid}`).replace(/\.json$/,"")+".json";
     const blob=new Blob([json],{type:"application/json"});
-    // iOS PWA: use Web Share API if available, otherwise fallback
     if(navigator.share && navigator.canShare) {
-      const file=new File([blob],filename,{type:"application/json"});
+      const file=new File([blob],fname,{type:"application/json"});
       if(navigator.canShare({files:[file]})){
         navigator.share({files:[file],title:"Nutrition Backup"});
         setMsg({type:"success",text:"✓ שתף/שמור את הקובץ"});
@@ -1975,11 +1994,11 @@ function ExportImportModal({pid, onClose}){
     }
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
-    a.href=url; a.download=filename;
+    a.href=url; a.download=fname;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    setMsg({type:"success",text:"✓ הקובץ הורד בהצלחה"});
+    setMsg({type:"success",text:"✓ הקובץ נשמר בהצלחה"});
   };
 
   const importData=()=>{
@@ -1993,6 +2012,8 @@ function ExportImportModal({pid, onClose}){
       if(data.customBtns) saveCustomBtns(data.customBtns,targetPid);
       if(data.customDB) saveCustomDB(data.customDB,targetPid);
       if(data.fridge) saveFridgeLS(data.fridge);
+      if(data.pantry) savePantryLS(data.pantry);
+      if(data.shopping) saveShopping(data.shopping);
       if(data.savedPrefs) localStorage.setItem("nutrition_saved_prefs",JSON.stringify(data.savedPrefs));
       if(data.quickFoods) saveQuickFoods(data.quickFoods,targetPid);
       setMsg({type:"success",text:`✓ יובאו ${Object.keys(data.journal||{}).length} ימים בהצלחה! רענן את הדף.`});
@@ -2028,10 +2049,18 @@ function ExportImportModal({pid, onClose}){
         <div style={{marginBottom:16}}>
           <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:6}}>ייצוא נתונים</div>
           <div style={{fontSize:11,color:C.muted,marginBottom:10,lineHeight:1.6}}>
-            מוריד קובץ JSON עם כל היומן, הכפתורים והמאגר האישי שלך.
+            שומר קובץ JSON עם כל היומן, הכפתורים, המאגר האישי והמזווה שלך.
+          </div>
+          <div style={{marginBottom:8}}>
+            <input
+              value={filename}
+              onChange={e=>setFilename(e.target.value)}
+              style={{width:"100%",boxSizing:"border-box",border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:12,fontFamily:"inherit",direction:"ltr",textAlign:"left"}}
+              placeholder="שם הקובץ"
+            />
           </div>
           <button onClick={exportData} style={{width:"100%",background:C.accent,border:"none",borderRadius:10,color:"#fff",padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
-            📥 הורד קובץ גיבוי
+            💾 שמור קובץ גיבוי
           </button>
         </div>
 
@@ -2357,8 +2386,8 @@ function SplashScreen({onDone}){
 
 // ── i18n ───────────────────────────────────────────────────────────────────────
 const LANG={
-  he:{greeting:"שלום",calories:"קלוריות היום",consumed:"נאכל",target:"יעד",sugar:"סוכר",left:"נותרו",
-      kcal:"קק״ל",mgdl:"mg/dL",goal:"יעד",
+  he:{greeting:"שלום",calories:"קלוריות היום",consumed:"נאכל",target:"עד",sugar:"סוכר",left:"נותרו",
+      kcal:"קק״ל",mgdl:"mg/dL",goal:"עד",
       carbs:"פחמ׳",carbsFull:"פחמימות",protein:"חלבון",fat:"שומן",noLimit:"ללא הגבלה",
       quickAdd:"הוספה מהירה",edit:"✏️ ערוך",done:"✓ סיום",reset:"↺ אפס",newBtn:"+ חדש",
       todayLog:"יומן היום",items:"פריטים",allLog:"הכל ›",addItem:"הוסף פריט",
@@ -2841,6 +2870,13 @@ function App(){
   const [activeDate,setActiveDate]=useState(()=>getTodayKey());
   const [showDatePicker,setShowDatePicker]=useState(false);
 
+  // Reset to calorie ring whenever returning to main screen
+  useEffect(()=>{
+    if(!showSmart&&!showMeal&&!showPhoto&&!showJournal&&!showDB&&!showPantry&&!showShopping&&!showMealPlanner){
+      setActiveRing('kcal');
+    }
+  },[showSmart,showMeal,showPhoto,showJournal,showDB,showPantry,showShopping,showMealPlanner]);
+
   useEffect(()=>{
     const j=loadJournal(pid);
     setBloodSugar(j[activeDate]?.bloodSugar||"");
@@ -3025,13 +3061,15 @@ function App(){
       {/* ── DYNAMIC RING CARD ── */}
       {(()=>{
         const ringCfg={
-          kcal:{label:T.calories,consumed:Math.round(totals.kcal),max:MAX_KCAL,remaining:Math.max(0,Math.round(kcalLeft)),unit:T.kcal,color:C.accent,g0:"#22c55e",g1:"#4ade80",id:"rg"},
-          carbs:{label:T.carbsFull,consumed:parseFloat(totals.carbs.toFixed(1)),max:MAX_CARBS,remaining:parseFloat(Math.max(0,MAX_CARBS-totals.carbs).toFixed(1)),unit:"g",color:C.warn,g0:"#ea580c",g1:"#fb923c",id:"rg-c"},
-          protein:{label:T.protein,consumed:parseFloat(totals.protein.toFixed(1)),max:maxProtein,remaining:parseFloat(Math.max(0,maxProtein-totals.protein).toFixed(1)),unit:"g",color:C.blue,g0:"#2563eb",g1:"#60a5fa",id:"rg-p"},
-          fat:{label:T.fat,consumed:parseFloat((totals.fat||0).toFixed(1)),max:null,remaining:null,unit:"g",color:C.accent,g0:"#0d9488",g1:"#14b8a6",id:"rg-f"}
+          kcal:{label:T.calories,consumed:Math.round(totals.kcal),max:MAX_KCAL,remaining:Math.max(0,Math.round(kcalLeft)),unit:T.kcal,id:"rg"},
+          carbs:{label:T.carbsFull,consumed:parseFloat(totals.carbs.toFixed(1)),max:MAX_CARBS,remaining:parseFloat(Math.max(0,MAX_CARBS-totals.carbs).toFixed(1)),unit:"g",id:"rg-c"},
+          protein:{label:T.protein,consumed:parseFloat(totals.protein.toFixed(1)),max:maxProtein,remaining:parseFloat(Math.max(0,maxProtein-totals.protein).toFixed(1)),unit:"g",id:"rg-p"},
+          fat:{label:T.fat,consumed:parseFloat((totals.fat||0).toFixed(1)),max:null,remaining:null,unit:"g",id:"rg-f"}
         };
         const rc=ringCfg[activeRing];
         const pct=rc.max?Math.min(rc.consumed/rc.max,1):0;
+        const rcColor=goalColor(rc.consumed,rc.max);
+        const [rcG0,rcG1]=goalGrad(rc.consumed,rc.max);
         return (
           <div className="card" style={{margin:"12px 16px 0",padding:20}}>
             <div style={{display:"flex",alignItems:"center",gap:18}}>
@@ -3039,8 +3077,8 @@ function App(){
                 <svg width="112" height="112" viewBox="0 0 112 112" style={{transform:"rotate(-90deg)"}}>
                   <defs>
                     <linearGradient id={rc.id} x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stopColor={rc.g0}/>
-                      <stop offset="100%" stopColor={rc.g1}/>
+                      <stop offset="0%" stopColor={rcG0}/>
+                      <stop offset="100%" stopColor={rcG1}/>
                     </linearGradient>
                   </defs>
                   <circle cx="56" cy="56" r="46" fill="none" stroke="rgba(148,163,184,.2)" strokeWidth="9"/>
@@ -3048,7 +3086,7 @@ function App(){
                     style={{strokeDasharray:`${pct*289} 289`,transition:"stroke-dasharray .7s cubic-bezier(.4,0,.2,1)"}}/>}
                 </svg>
                 <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
-                  <div style={{fontSize:22,fontWeight:900,color:rc.color,lineHeight:1}}>{rc.consumed}</div>
+                  <div style={{fontSize:22,fontWeight:900,color:rcColor,lineHeight:1}}>{rc.consumed}</div>
                   <div style={{fontSize:8,color:C.muted,letterSpacing:.5,marginTop:1}}>{T.consumed}</div>
                 </div>
               </div>
@@ -3058,7 +3096,7 @@ function App(){
                   {rc.remaining!==null&&(
                     <div style={{display:"flex",justifyContent:"space-between"}}>
                       <span style={{fontSize:12,color:"#475569"}}>{T.left}</span>
-                      <span style={{fontSize:14,fontWeight:700,color:rc.color}}>{rc.remaining} <span style={{fontSize:10,fontWeight:400,color:C.muted}}>{rc.unit}</span></span>
+                      <span style={{fontSize:14,fontWeight:700,color:rcColor}}>{rc.remaining} <span style={{fontSize:10,fontWeight:400,color:C.muted}}>{rc.unit}</span></span>
                     </div>
                   )}
                   {rc.max&&(
@@ -3093,33 +3131,37 @@ function App(){
       {/* ── MACRO CARDS ── */}
       {(()=>{
         const allMacros=[
-          {lk:"carbs",val:totals.carbs.toFixed(1),max:MAX_CARBS,color:C.warn,grad:"linear-gradient(90deg,#ea580c,#fb923c)"},
-          {lk:"protein",val:totals.protein.toFixed(1),max:maxProtein,color:C.blue,grad:"linear-gradient(90deg,#2563eb,#60a5fa)"},
-          {lk:"fat",val:(totals.fat||0).toFixed(1),max:null,color:C.accent,grad:"linear-gradient(90deg,#0d9488,#14b8a6)"},
+          {lk:"carbs",val:totals.carbs.toFixed(1),max:MAX_CARBS},
+          {lk:"protein",val:totals.protein.toFixed(1),max:maxProtein},
+          {lk:"fat",val:(totals.fat||0).toFixed(1),max:null},
         ];
         const cards=allMacros.map(m=>m.lk===activeRing?{lk:"kcal_mini"}:m);
         return (
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,margin:"10px 16px 0"}}>
             {cards.map(card=>{
               if(card.lk==="kcal_mini"){
+                const kColor=goalColor(totals.kcal,MAX_KCAL);
+                const [kg0,kg1]=goalGrad(totals.kcal,MAX_KCAL);
                 return (
-                  <div key="kcal_mini" className="card" style={{padding:"13px 12px",borderRadius:16,cursor:"pointer",border:`1.5px solid rgba(20,184,166,.3)`}} onClick={()=>setActiveRing('kcal')}>
+                  <div key="kcal_mini" className="card" style={{padding:"13px 12px",borderRadius:16,cursor:"pointer",border:`1.5px solid ${kColor}40`}} onClick={()=>setActiveRing('kcal')}>
                     <div style={{fontSize:9,letterSpacing:1.2,textTransform:"uppercase",color:C.muted}}>{T.calories}</div>
-                    <div style={{fontSize:20,fontWeight:900,color:C.accent,marginTop:5,lineHeight:1}}>{Math.round(totals.kcal)}<span style={{fontSize:9,fontWeight:500,color:C.muted}}>{T.kcal}</span></div>
+                    <div style={{fontSize:20,fontWeight:900,color:kColor,marginTop:5,lineHeight:1}}>{Math.round(totals.kcal)}<span style={{fontSize:9,fontWeight:500,color:C.muted}}>{T.kcal}</span></div>
                     <div style={{height:4,borderRadius:3,background:"rgba(148,163,184,.2)",overflow:"hidden",marginTop:7}}>
-                      <div style={{height:"100%",borderRadius:3,background:"linear-gradient(90deg,#22c55e,#4ade80)",width:`${Math.min(100,totals.kcal/MAX_KCAL*100)}%`}}></div>
+                      <div style={{height:"100%",borderRadius:3,background:`linear-gradient(90deg,${kg0},${kg1})`,width:`${Math.min(100,totals.kcal/MAX_KCAL*100)}%`}}></div>
                     </div>
                     <div style={{fontSize:9,color:C.muted,marginTop:5}}>{T.goal} {MAX_KCAL}</div>
                   </div>
                 );
               }
-              const {lk,val,max,color,grad}=card;
+              const {lk,val,max}=card;
+              const mColor=goalColor(parseFloat(val),max);
+              const [mg0,mg1]=goalGrad(parseFloat(val),max);
               return (
                 <div key={lk} className="card" style={{padding:"13px 12px",borderRadius:16,cursor:"pointer"}} onClick={()=>setActiveRing(lk)}>
                   <div style={{fontSize:9,letterSpacing:1.2,textTransform:"uppercase",color:C.muted}}>{T[lk]}</div>
-                  <div style={{fontSize:20,fontWeight:900,color,marginTop:5,lineHeight:1}}>{val}<span style={{fontSize:10,fontWeight:500,color:C.muted}}>g</span></div>
+                  <div style={{fontSize:20,fontWeight:900,color:mColor,marginTop:5,lineHeight:1}}>{val}<span style={{fontSize:10,fontWeight:500,color:C.muted}}>g</span></div>
                   <div style={{height:4,borderRadius:3,background:"rgba(148,163,184,.2)",overflow:"hidden",marginTop:7}}>
-                    {max&&<div style={{height:"100%",borderRadius:3,background:grad,width:`${Math.min(100,parseFloat(val)/max*100)}%`}}></div>}
+                    {max&&<div style={{height:"100%",borderRadius:3,background:`linear-gradient(90deg,${mg0},${mg1})`,width:`${Math.min(100,parseFloat(val)/max*100)}%`}}></div>}
                   </div>
                   <div style={{fontSize:9,color:C.muted,marginTop:5}}>{max?`${T.goal} ${max}g`:T.noLimit}</div>
                 </div>
