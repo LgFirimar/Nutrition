@@ -2453,9 +2453,9 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
             </div>}
           </div>
         )}
-        {step===6&&recs&&(
+        {step===6&&(
           <div className="fade">
-            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>✨ ההמלצות שלך</div>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>{recs?"✨ ההמלצות שלך":"✏️ קבעי יעדים ידנית"}</div>
             <div style={{fontSize:11,color:C.muted,marginBottom:16}}>תוכלי לשנות את הערכים לפני השמירה</div>
             <div style={{background:"rgba(255,255,255,.9)",borderRadius:14,padding:"16px",marginBottom:10,boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}>
               {[
@@ -2472,10 +2472,10 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
                 </div>
               ))}
             </div>
-            <button onClick={()=>setShowRecsInfo(true)} style={{width:"100%",background:"none",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px",fontSize:12,color:C.muted,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,fontFamily:"inherit",marginBottom:4}}>
+            {recs&&<button onClick={()=>setShowRecsInfo(true)} style={{width:"100%",background:"none",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px",fontSize:12,color:C.muted,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,fontFamily:"inherit",marginBottom:4}}>
               ℹ על בסיס מה ניתנו ההמלצות?
-            </button>
-            {showRecsInfo&&<RecommendationsInfoModal recs={recs} onClose={()=>setShowRecsInfo(false)}/>}
+            </button>}
+            {showRecsInfo&&recs&&<RecommendationsInfoModal recs={recs} onClose={()=>setShowRecsInfo(false)}/>}
           </div>
         )}
       </div>
@@ -2488,12 +2488,19 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
               ✓ אשרי ושמרי יעדים
             </button>
           ):(
+            <>
             <div style={{display:"flex",gap:8}}>
               {step>0&&<button onClick={()=>setStep(s=>s-1)} style={{flex:1,background:"none",border:`1px solid ${C.border}`,borderRadius:12,padding:"13px",fontSize:14,fontWeight:600,color:C.muted,cursor:"pointer",fontFamily:"inherit"}}>← חזרה</button>}
               <button onClick={handleNext} style={{flex:2,background:C.accent,border:"none",borderRadius:12,color:"#fff",padding:"13px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                 {step===4?"🔍 קבלי המלצות מ-Claude →":"הבא →"}
               </button>
             </div>
+            {step===4&&(
+              <button onClick={()=>setStep(6)} style={{width:"100%",marginTop:8,background:"none",border:"none",color:C.muted,fontSize:12,cursor:"pointer",fontFamily:"inherit",padding:"6px"}}>
+                ✏️ קבע ידנית במקום
+              </button>
+            )}
+            </>
           )}
         </div>
       )}
