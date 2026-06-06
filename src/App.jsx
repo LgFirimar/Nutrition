@@ -2564,6 +2564,7 @@ function ProfileModal({profiles, activeId, onSelect, onClose, onBackup, onSetupP
     const updated=[...profiles,p];
     saveProfiles(updated);
     onSelect(p);
+    onSetupProfile&&onSetupProfile(p);
   };
 
   const deleteProfile=(id)=>{
