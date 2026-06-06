@@ -2461,7 +2461,7 @@ const LANG={
   he:{greeting:"שלום",calories:"קלוריות היום",consumed:"נאכל",target:"עד",sugar:"סוכר",left:"נותרו",
       kcal:"קק״ל",mgdl:"mg/dL",goal:"עד",
       carbs:"פחמ׳",carbsFull:"פחמימות",protein:"חלבון",fat:"שומן",noLimit:"ללא הגבלה",
-      quickAdd:"הוספה מהירה",edit:"✏️ ערוך",done:"✓ סיום",reset:"↺ אפס",newBtn:"+ חדש",
+      quickAdd:"הוספה מהירה",edit:"✏️ ערוך",done:"✓ סיום",reset:"↺ אפס",newBtn:"+ חדש",presets:"⭐ קבועים",
       todayLog:"יומן היום",items:"פריטים",allLog:"הכל ›",addItem:"הוסף פריט",
       noEntries:"לחצי על מאכל להוספה",total:"סה״כ",
       home:"בית",journal:"יומן",db:"מאגר",backup:"גיבוי",profile:"פרופיל",
@@ -2479,7 +2479,7 @@ const LANG={
   en:{greeting:"Hello",calories:"Today's Calories",consumed:"Eaten",target:"Goal",sugar:"Sugar",left:"Left",
       kcal:"kcal",mgdl:"mg/dL",goal:"Goal",
       carbs:"Carbs",carbsFull:"Carbs",protein:"Protein",fat:"Fat",noLimit:"No limit",
-      quickAdd:"Quick Add",edit:"✏️ Edit",done:"✓ Done",reset:"↺ Reset",newBtn:"+ New",
+      quickAdd:"Quick Add",edit:"✏️ Edit",done:"✓ Done",reset:"↺ Reset",newBtn:"+ New",presets:"⭐ Presets",
       todayLog:"Today's Log",items:"items",allLog:"All ›",addItem:"Add Item",
       noEntries:"Tap a food to add",total:"Total",
       home:"Home",journal:"Journal",db:"Foods",backup:"Backup",profile:"Profile",
@@ -3012,6 +3012,7 @@ function App(){
 
   const [quickFoods,setQuickFoods]=useState(()=>loadQuickFoods(pid)||QUICK_FOODS);
   const [showEditQuick,setShowEditQuick]=useState(false);
+  const [showPresets,setShowPresets]=useState(false);
 
   const saveNewBtn=btn=>{const u=[...customBtns,btn];setCustomBtns(u);saveCustomBtns(u,pid);};
   const updateCustomBtn=(id,ch)=>{const u=customBtns.map(b=>b.id===id?{...b,...ch}:b);setCustomBtns(u);saveCustomBtns(u,pid);};
@@ -3243,37 +3244,6 @@ function App(){
         );
       })()}
 
-      {/* ── QUICK ADD HEADER ── */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 20px 10px"}}>
-        <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:C.muted}}>{T.quickAdd}</div>
-        <div style={{display:"flex",gap:6}}>
-          {showEditQuick&&<button onClick={resetQuickFoods} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:16,padding:"4px 10px",fontSize:11,color:C.muted,cursor:"pointer"}}>{T.reset}</button>}
-          <button onClick={()=>setShowEditQuick(v=>!v)} style={{background:showEditQuick?"rgba(217,119,6,.08)":"none",border:`1px solid ${showEditQuick?C.warn:C.border}`,borderRadius:16,padding:"4px 10px",fontSize:11,color:showEditQuick?C.warn:C.muted,cursor:"pointer"}}>{showEditQuick?T.done:T.edit}</button>
-          <button onClick={()=>setShowNewBtn(true)} style={{background:"rgba(13,148,136,.08)",border:"1px solid rgba(13,148,136,.25)",borderRadius:16,padding:"4px 10px",fontSize:11,color:C.accent,cursor:"pointer"}}>{T.newBtn}</button>
-        </div>
-      </div>
-
-      {/* ── QUICK ADD CHIPS — compact wrap grid ── */}
-      <div className="qa-wrap" style={{display:"flex",flexWrap:"wrap",gap:6,padding:"0 16px 8px"}}>
-        {quickFoods.map(food=>(
-          <div key={food.id} style={{flexShrink:0,position:"relative"}}>
-            <QuickFoodChip food={food} onAdd={addEntry} editMode={showEditQuick} onRemove={removeQuickFood} onEdit={setEditingQuickFood}/>
-          </div>
-        ))}
-        {!isHiddenSpecial('var_crackers')&&<div style={{flexShrink:0}}><VarButton foodKey="crackers" onAdd={addEntry} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/></div>}
-        {!isHiddenSpecial('var_granola')&&<div style={{flexShrink:0}}><VarButton foodKey="granola" onAdd={addEntry} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/></div>}
-        {!isHiddenSpecial('yogurt')&&<div style={{flexShrink:0}}><YogurtBtn onAdd={addEntry} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/></div>}
-        {!isHiddenSpecial('coffee')&&<div style={{flexShrink:0}}><CoffeeBtn onAdd={addEntry} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/></div>}
-        {customBtns.map(btn=>(
-          <div key={btn.id} style={{flexShrink:0,position:"relative"}}>
-            <button className="chip" onClick={()=>showEditQuick?null:addEntry(btn)} style={{paddingLeft:26,opacity:showEditQuick?0.7:1}}>
-              <span>{btn.label}</span><span className="chip-sub">{btn.kcal} {getT().kcal} · {btn.carbs}g {getT().carbs}</span>
-            </button>
-            <button onClick={()=>removeBtn(btn.id)} style={{position:"absolute",top:4,left:6,background:"none",border:"none",color:"#ccc",fontSize:13,cursor:"pointer",lineHeight:1,padding:0}}>×</button>
-            {showEditQuick&&<button onClick={()=>setEditingQuickFood({...btn,_type:'custom'})} style={{position:"absolute",top:-4,right:-4,background:C.warn,border:"none",borderRadius:"50%",width:18,height:18,color:"#fff",fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✏</button>}
-          </div>
-        ))}
-      </div>
       {/* ── ACTION BUTTONS ROW ── */}
       <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif" style={{display:"none"}}
         onChange={e=>{
@@ -3281,20 +3251,55 @@ function App(){
           const reader=new FileReader();
           reader.onload=ev=>{
             setPendingPhoto({base64:ev.target.result.split(',')[1],mediaType:file.type||'image/jpeg',src:ev.target.result});
-            setShowPhoto(true); setShowMeal(false); setShowSmart(false); setShowMealPlanner(false);
+            setShowPhoto(true); setShowMeal(false); setShowSmart(false); setShowMealPlanner(false); setShowPresets(false);
           };
           reader.readAsDataURL(file);
         }}
       />
       <div style={{display:"flex",gap:8,padding:"0 16px 14px"}}>
-        <button onClick={()=>{if(showPhoto){setShowPhoto(false);setPendingPhoto(null);}else{photoInputRef.current.click();}}} style={{flex:1,background:showPhoto?"#1a6b9e":"rgba(255,255,255,.75)",border:`1px solid ${showPhoto?"#1a6b9e":C.border}`,color:showPhoto?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>{T.photo}</button>
-        <button onClick={()=>{setShowMeal(v=>!v);setShowSmart(false);setShowPhoto(false);setPendingPhoto(null);setShowMealPlanner(false);}} style={{flex:1,background:showMeal?"#5a3e8e":"rgba(255,255,255,.75)",border:`1px solid ${showMeal?"#5a3e8e":C.border}`,color:showMeal?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>{T.mealBtn}</button>
-        <button onClick={()=>{setShowSmart(v=>!v);setShowMeal(false);setShowPhoto(false);setPendingPhoto(null);setShowMealPlanner(false);}} style={{flex:1,background:showSmart?"#0d9488":"rgba(255,255,255,.75)",border:`1px solid ${showSmart?"#0d9488":C.border}`,color:showSmart?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>+ {T.addItem}</button>
+        <button onClick={()=>{if(showPhoto){setShowPhoto(false);setPendingPhoto(null);}else{setShowPresets(false);photoInputRef.current.click();}}} style={{flex:1,background:showPhoto?"#1a6b9e":"rgba(255,255,255,.75)",border:`1px solid ${showPhoto?"#1a6b9e":C.border}`,color:showPhoto?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>{T.photo}</button>
+        <button onClick={()=>{setShowMeal(v=>!v);setShowSmart(false);setShowPhoto(false);setPendingPhoto(null);setShowMealPlanner(false);setShowPresets(false);}} style={{flex:1,background:showMeal?"#5a3e8e":"rgba(255,255,255,.75)",border:`1px solid ${showMeal?"#5a3e8e":C.border}`,color:showMeal?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>{T.mealBtn}</button>
+        <button onClick={()=>{setShowSmart(v=>!v);setShowMeal(false);setShowPhoto(false);setPendingPhoto(null);setShowMealPlanner(false);setShowPresets(false);}} style={{flex:1,background:showSmart?"#0d9488":"rgba(255,255,255,.75)",border:`1px solid ${showSmart?"#0d9488":C.border}`,color:showSmart?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>+ {T.addItem}</button>
+        <button onClick={()=>{setShowPresets(v=>!v);setShowMeal(false);setShowPhoto(false);setPendingPhoto(null);setShowSmart(false);setShowMealPlanner(false);}} style={{flex:1,background:showPresets?"#b45309":"rgba(255,255,255,.75)",border:`1px solid ${showPresets?"#b45309":C.border}`,color:showPresets?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>{T.presets}</button>
       </div>
 
       {showPhoto&&<PhotoMealPanel onAdd={addEntry} initialPhoto={pendingPhoto} onClose={()=>{setShowPhoto(false);setPendingPhoto(null);}}/>}
       {showMeal&&<MealPanel onAdd={addEntry} onClose={()=>setShowMeal(false)}/>}
       {showSmart&&<SmartAddPanel onAdd={addEntry} onClose={()=>setShowSmart(false)}/>}
+
+      {/* ── PRESETS PANEL ── */}
+      {showPresets&&(
+        <div style={{margin:"0 0 8px",background:"rgba(255,255,255,.6)",borderTop:"1px solid rgba(148,163,184,.15)",borderBottom:"1px solid rgba(148,163,184,.15)",paddingBottom:8}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 20px 8px"}}>
+            <div style={{fontSize:10,letterSpacing:1.5,textTransform:"uppercase",color:C.muted}}>{T.quickAdd}</div>
+            <div style={{display:"flex",gap:6}}>
+              {showEditQuick&&<button onClick={resetQuickFoods} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:16,padding:"4px 10px",fontSize:11,color:C.muted,cursor:"pointer"}}>{T.reset}</button>}
+              <button onClick={()=>setShowEditQuick(v=>!v)} style={{background:showEditQuick?"rgba(217,119,6,.08)":"none",border:`1px solid ${showEditQuick?C.warn:C.border}`,borderRadius:16,padding:"4px 10px",fontSize:11,color:showEditQuick?C.warn:C.muted,cursor:"pointer"}}>{showEditQuick?T.done:T.edit}</button>
+              <button onClick={()=>setShowNewBtn(true)} style={{background:"rgba(13,148,136,.08)",border:"1px solid rgba(13,148,136,.25)",borderRadius:16,padding:"4px 10px",fontSize:11,color:C.accent,cursor:"pointer"}}>{T.newBtn}</button>
+            </div>
+          </div>
+          <div className="qa-wrap" style={{display:"flex",flexWrap:"wrap",gap:6,padding:"0 16px 4px"}}>
+            {quickFoods.map(food=>(
+              <div key={food.id} style={{flexShrink:0,position:"relative"}}>
+                <QuickFoodChip food={food} onAdd={e=>{addEntry(e);setShowPresets(false);}} editMode={showEditQuick} onRemove={removeQuickFood} onEdit={setEditingQuickFood}/>
+              </div>
+            ))}
+            {!isHiddenSpecial('var_crackers')&&<div style={{flexShrink:0}}><VarButton foodKey="crackers" onAdd={e=>{addEntry(e);setShowPresets(false);}} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/></div>}
+            {!isHiddenSpecial('var_granola')&&<div style={{flexShrink:0}}><VarButton foodKey="granola" onAdd={e=>{addEntry(e);setShowPresets(false);}} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/></div>}
+            {!isHiddenSpecial('yogurt')&&<div style={{flexShrink:0}}><YogurtBtn onAdd={e=>{addEntry(e);setShowPresets(false);}} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/></div>}
+            {!isHiddenSpecial('coffee')&&<div style={{flexShrink:0}}><CoffeeBtn onAdd={e=>{addEntry(e);setShowPresets(false);}} editMode={showEditQuick} onEdit={f=>{if(f)setEditingQuickFood(f);}}/></div>}
+            {customBtns.map(btn=>(
+              <div key={btn.id} style={{flexShrink:0,position:"relative"}}>
+                <button className="chip" onClick={()=>{if(!showEditQuick){addEntry(btn);setShowPresets(false);}}} style={{paddingLeft:26,opacity:showEditQuick?0.7:1}}>
+                  <span>{btn.label}</span><span className="chip-sub">{btn.kcal} {getT().kcal} · {btn.carbs}g {getT().carbs}</span>
+                </button>
+                <button onClick={()=>removeBtn(btn.id)} style={{position:"absolute",top:4,left:6,background:"none",border:"none",color:"#ccc",fontSize:13,cursor:"pointer",lineHeight:1,padding:0}}>×</button>
+                {showEditQuick&&<button onClick={()=>setEditingQuickFood({...btn,_type:'custom'})} style={{position:"absolute",top:-4,right:-4,background:C.warn,border:"none",borderRadius:"50%",width:18,height:18,color:"#fff",fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✏</button>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── LOG CARD ── */}
       <div className="card" style={{margin:"0 16px 14px",overflow:"hidden"}}>
