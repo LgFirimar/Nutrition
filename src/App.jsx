@@ -2797,6 +2797,7 @@ function App(){
   const [showPantry,setShowPantry]=useState(false);
   const [showShopping,setShowShopping]=useState(false);
   const [showMealPlanner,setShowMealPlanner]=useState(false);
+  const [activeRing,setActiveRing]=useState('kcal');
   const [lang,setLang]=useState(()=>localStorage.getItem('nutrition_lang')||'he');
   const T=LANG[lang]||LANG.he;
   const toggleLang=()=>{const nl=lang==='he'?'en':'he';setLang(nl);localStorage.setItem('nutrition_lang',nl);};
@@ -2918,19 +2919,19 @@ function App(){
           <div style={{fontSize:11,color:C.muted,letterSpacing:.3,marginBottom:3}}>{getDateLabel(isToday?undefined:activeDate)}</div>
           <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:"-.5px"}}>{T.greeting}, {activeProfile?.name} {isToday?"👋":""}</div>
         </div>
-        <div style={{display:"flex",gap:8,alignItems:"center",marginTop:4}}>
-          <button onClick={toggleLang} style={{height:28,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:10,fontWeight:700,color:C.muted,padding:"0 8px"}}>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <button onClick={toggleLang} style={{height:22,borderRadius:7,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:9,fontWeight:700,color:C.muted,padding:"0 6px"}}>
             {lang==='he'?'EN':'עב'}
           </button>
-          <button onClick={()=>setShowPantry(true)} style={{width:34,height:34,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <img src={lang==='he'?"/Nutrition/pantry-he.png":"/Nutrition/pantry-en.png"} style={{width:30,height:30,objectFit:"contain"}} alt="מזווה"/>
+          <button onClick={()=>setShowPantry(true)} style={{width:showPantry?32:26,height:showPantry?32:26,borderRadius:8,background:showPantry?"rgba(13,148,136,.12)":"rgba(255,255,255,.75)",border:`1px solid ${showPantry?"rgba(13,148,136,.35)":"rgba(255,255,255,.9)"}`,backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
+            <img src={lang==='he'?"/Nutrition/pantry-he.png":"/Nutrition/pantry-en.png"} style={{width:showPantry?26:20,height:showPantry?26:20,objectFit:"contain",transition:"all .2s"}} alt="מזווה"/>
           </button>
-          <button onClick={()=>setShowShopping(true)} style={{width:34,height:34,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <img src="/Nutrition/shopping-cart.png" style={{width:30,height:30,objectFit:"contain"}} alt="קניות"/>
+          <button onClick={()=>setShowShopping(true)} style={{width:showShopping?32:26,height:showShopping?32:26,borderRadius:8,background:showShopping?"rgba(13,148,136,.12)":"rgba(255,255,255,.75)",border:`1px solid ${showShopping?"rgba(13,148,136,.35)":"rgba(255,255,255,.9)"}`,backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .2s"}}>
+            <img src="/Nutrition/shopping-cart.png" style={{width:showShopping?26:20,height:showShopping?26:20,objectFit:"contain",transition:"all .2s"}} alt="קניות"/>
           </button>
-          <button onClick={()=>setShowInfo(true)} style={{width:28,height:28,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontWeight:700}}>ℹ</button>
-          <button onClick={saveDay} style={{width:36,height:36,borderRadius:10,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .3s",animation:saveFlash?"pop .35s ease":"none",boxShadow:"0 2px 8px rgba(80,120,160,.1)"}}>💾</button>
-          <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#14b8a6,#0d9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 2px 8px rgba(13,148,136,.35)",cursor:"pointer"}} onClick={()=>setShowProfiles(true)}>{activeProfile?.emoji}</div>
+          <button onClick={()=>setShowInfo(true)} style={{width:24,height:24,borderRadius:7,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontWeight:700}}>ℹ</button>
+          <button onClick={saveDay} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .3s",animation:saveFlash?"pop .35s ease":"none",boxShadow:"0 2px 8px rgba(80,120,160,.1)"}}>💾</button>
+          <div style={{width:26,height:26,borderRadius:8,background:"linear-gradient(135deg,#14b8a6,#0d9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,boxShadow:"0 2px 8px rgba(13,148,136,.35)",cursor:"pointer"}} onClick={()=>setShowProfiles(true)}>{activeProfile?.emoji}</div>
         </div>
       </div>
 
@@ -2986,66 +2987,112 @@ function App(){
         </div>
       )}
 
-      {/* ── CALORIE RING CARD ── */}
-      <div className="card" style={{margin:"12px 16px 0",padding:20}}>
-        <div style={{display:"flex",alignItems:"center",gap:18}}>
-          <div style={{position:"relative",flexShrink:0}}>
-            <svg width="112" height="112" viewBox="0 0 112 112" style={{transform:"rotate(-90deg)"}}>
-              <defs>
-                <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#22c55e"/>
-                  <stop offset="100%" stopColor="#4ade80"/>
-                </linearGradient>
-              </defs>
-              <circle cx="56" cy="56" r="46" fill="none" stroke="rgba(148,163,184,.2)" strokeWidth="9"/>
-              <circle cx="56" cy="56" r="46" fill="none" stroke="url(#rg)" strokeWidth="9" strokeLinecap="round"
-                style={{strokeDasharray:`${Math.min(totals.kcal/MAX_KCAL,1)*289} 289`,transition:"stroke-dasharray .7s cubic-bezier(.4,0,.2,1)"}}/>
-            </svg>
-            <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
-              <div style={{fontSize:22,fontWeight:900,color:C.accent,lineHeight:1}}>{Math.max(0,Math.round(kcalLeft))}</div>
-              <div style={{fontSize:8,color:C.muted,letterSpacing:.5,marginTop:1}}>{T.left}</div>
+      {/* ── DYNAMIC RING CARD ── */}
+      {(()=>{
+        const ringCfg={
+          kcal:{label:T.calories,consumed:Math.round(totals.kcal),max:MAX_KCAL,remaining:Math.max(0,Math.round(kcalLeft)),unit:T.kcal,color:C.accent,g0:"#22c55e",g1:"#4ade80",id:"rg"},
+          carbs:{label:T.carbsFull,consumed:parseFloat(totals.carbs.toFixed(1)),max:MAX_CARBS,remaining:parseFloat(Math.max(0,MAX_CARBS-totals.carbs).toFixed(1)),unit:"g",color:C.warn,g0:"#ea580c",g1:"#fb923c",id:"rg-c"},
+          protein:{label:T.protein,consumed:parseFloat(totals.protein.toFixed(1)),max:maxProtein,remaining:parseFloat(Math.max(0,maxProtein-totals.protein).toFixed(1)),unit:"g",color:C.blue,g0:"#2563eb",g1:"#60a5fa",id:"rg-p"},
+          fat:{label:T.fat,consumed:parseFloat((totals.fat||0).toFixed(1)),max:null,remaining:null,unit:"g",color:C.accent,g0:"#0d9488",g1:"#14b8a6",id:"rg-f"}
+        };
+        const rc=ringCfg[activeRing];
+        const pct=rc.max?Math.min(rc.consumed/rc.max,1):0;
+        return (
+          <div className="card" style={{margin:"12px 16px 0",padding:20}}>
+            <div style={{display:"flex",alignItems:"center",gap:18}}>
+              <div style={{position:"relative",flexShrink:0}}>
+                <svg width="112" height="112" viewBox="0 0 112 112" style={{transform:"rotate(-90deg)"}}>
+                  <defs>
+                    <linearGradient id={rc.id} x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor={rc.g0}/>
+                      <stop offset="100%" stopColor={rc.g1}/>
+                    </linearGradient>
+                  </defs>
+                  <circle cx="56" cy="56" r="46" fill="none" stroke="rgba(148,163,184,.2)" strokeWidth="9"/>
+                  {rc.max&&<circle cx="56" cy="56" r="46" fill="none" stroke={`url(#${rc.id})`} strokeWidth="9" strokeLinecap="round"
+                    style={{strokeDasharray:`${pct*289} 289`,transition:"stroke-dasharray .7s cubic-bezier(.4,0,.2,1)"}}/>}
+                </svg>
+                <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
+                  <div style={{fontSize:22,fontWeight:900,color:rc.color,lineHeight:1}}>{rc.consumed}</div>
+                  <div style={{fontSize:8,color:C.muted,letterSpacing:.5,marginTop:1}}>{T.consumed}</div>
+                </div>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:C.muted,marginBottom:11}}>{rc.label}</div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {rc.remaining!==null&&(
+                    <div style={{display:"flex",justifyContent:"space-between"}}>
+                      <span style={{fontSize:12,color:"#475569"}}>{T.left}</span>
+                      <span style={{fontSize:14,fontWeight:700,color:rc.color}}>{rc.remaining} <span style={{fontSize:10,fontWeight:400,color:C.muted}}>{rc.unit}</span></span>
+                    </div>
+                  )}
+                  {rc.max&&(
+                    <div style={{display:"flex",justifyContent:"space-between"}}>
+                      <span style={{fontSize:12,color:"#475569"}}>{T.target}</span>
+                      <span style={{fontSize:14,fontWeight:700,color:C.text}}>{rc.max} <span style={{fontSize:10,fontWeight:400,color:C.muted}}>{rc.unit}</span></span>
+                    </div>
+                  )}
+                  {!rc.max&&(
+                    <div style={{display:"flex",justifyContent:"space-between"}}>
+                      <span style={{fontSize:12,color:"#475569"}}>{T.noLimit}</span>
+                    </div>
+                  )}
+                  <div style={{height:1,background:"rgba(148,163,184,.2)"}}></div>
+                  {activeRing==='kcal'?(
+                    <label style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"text"}}>
+                      <span style={{fontSize:12,color:"#475569",flexShrink:0}}>🩸 {T.sugar}{sugarFlash&&<span style={{marginRight:4,fontSize:10,color:C.accent}}> ✓</span>}</span>
+                      <input type="number" value={bloodSugar} onChange={e=>setBloodSugar(e.target.value)}
+                        onBlur={e=>saveBloodSugar(e.target.value)}
+                        placeholder="— mg/dL" style={{flex:1,minWidth:0,background:"transparent",border:"none",textAlign:"right",fontSize:13,fontWeight:700,color:sugarColor(bloodSugar),fontFamily:"inherit",paddingRight:2}}/>
+                    </label>
+                  ):(
+                    <button onClick={()=>setActiveRing('kcal')} style={{background:"none",border:"none",fontSize:10,color:C.muted,cursor:"pointer",textAlign:"start",padding:0,opacity:.75}}>↩ {T.calories}</button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:C.muted,marginBottom:11}}>{T.calories}</div>
-            <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              <div style={{display:"flex",justifyContent:"space-between"}}>
-                <span style={{fontSize:12,color:"#475569"}}>{T.consumed}</span>
-                <span style={{fontSize:14,fontWeight:700,color:C.text}}>{Math.round(totals.kcal)} <span style={{fontSize:10,fontWeight:400,color:C.muted}}>{T.kcal}</span></span>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between"}}>
-                <span style={{fontSize:12,color:"#475569"}}>{T.target}</span>
-                <span style={{fontSize:14,fontWeight:700,color:C.text}}>{MAX_KCAL} <span style={{fontSize:10,fontWeight:400,color:C.muted}}>{T.kcal}</span></span>
-              </div>
-              <div style={{height:1,background:"rgba(148,163,184,.2)"}}></div>
-              <label style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"text"}}>
-                <span style={{fontSize:12,color:"#475569",flexShrink:0}}>🩸 {T.sugar}{sugarFlash&&<span style={{marginRight:4,fontSize:10,color:C.accent}}> ✓</span>}</span>
-                <input type="number" value={bloodSugar} onChange={e=>setBloodSugar(e.target.value)}
-                  onBlur={e=>saveBloodSugar(e.target.value)}
-                  placeholder="— mg/dL" style={{flex:1,minWidth:0,background:"transparent",border:"none",textAlign:"right",fontSize:13,fontWeight:700,color:sugarColor(bloodSugar),fontFamily:"inherit",paddingRight:2}}/>
-              </label>
-            </div>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* ── MACRO CARDS ── */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,margin:"10px 16px 0"}}>
-        {[
+      {(()=>{
+        const allMacros=[
           {lk:"carbs",val:totals.carbs.toFixed(1),max:MAX_CARBS,color:C.warn,grad:"linear-gradient(90deg,#ea580c,#fb923c)"},
           {lk:"protein",val:totals.protein.toFixed(1),max:maxProtein,color:C.blue,grad:"linear-gradient(90deg,#2563eb,#60a5fa)"},
           {lk:"fat",val:(totals.fat||0).toFixed(1),max:null,color:C.accent,grad:"linear-gradient(90deg,#0d9488,#14b8a6)"},
-        ].map(({lk,val,max,color,grad})=>(
-          <div key={lk} className="card" style={{padding:"13px 12px",borderRadius:16}}>
-            <div style={{fontSize:9,letterSpacing:1.2,textTransform:"uppercase",color:C.muted}}>{T[lk]}</div>
-            <div style={{fontSize:20,fontWeight:900,color,marginTop:5,lineHeight:1}}>{val}<span style={{fontSize:10,fontWeight:500,color:C.muted}}>g</span></div>
-            <div style={{height:4,borderRadius:3,background:"rgba(148,163,184,.2)",overflow:"hidden",marginTop:7}}>
-              {max&&<div style={{height:"100%",borderRadius:3,background:grad,width:`${Math.min(100,parseFloat(val)/max*100)}%`}}></div>}
-            </div>
-            <div style={{fontSize:9,color:C.muted,marginTop:5}}>{max?`${T.goal} ${max}g`:T.noLimit}</div>
+        ];
+        const cards=allMacros.map(m=>m.lk===activeRing?{lk:"kcal_mini"}:m);
+        return (
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,margin:"10px 16px 0"}}>
+            {cards.map(card=>{
+              if(card.lk==="kcal_mini"){
+                return (
+                  <div key="kcal_mini" className="card" style={{padding:"13px 12px",borderRadius:16,cursor:"pointer",border:`1.5px solid rgba(20,184,166,.3)`}} onClick={()=>setActiveRing('kcal')}>
+                    <div style={{fontSize:9,letterSpacing:1.2,textTransform:"uppercase",color:C.muted}}>{T.calories}</div>
+                    <div style={{fontSize:20,fontWeight:900,color:C.accent,marginTop:5,lineHeight:1}}>{Math.round(totals.kcal)}<span style={{fontSize:9,fontWeight:500,color:C.muted}}>{T.kcal}</span></div>
+                    <div style={{height:4,borderRadius:3,background:"rgba(148,163,184,.2)",overflow:"hidden",marginTop:7}}>
+                      <div style={{height:"100%",borderRadius:3,background:"linear-gradient(90deg,#22c55e,#4ade80)",width:`${Math.min(100,totals.kcal/MAX_KCAL*100)}%`}}></div>
+                    </div>
+                    <div style={{fontSize:9,color:C.muted,marginTop:5}}>{T.goal} {MAX_KCAL}</div>
+                  </div>
+                );
+              }
+              const {lk,val,max,color,grad}=card;
+              return (
+                <div key={lk} className="card" style={{padding:"13px 12px",borderRadius:16,cursor:"pointer"}} onClick={()=>setActiveRing(lk)}>
+                  <div style={{fontSize:9,letterSpacing:1.2,textTransform:"uppercase",color:C.muted}}>{T[lk]}</div>
+                  <div style={{fontSize:20,fontWeight:900,color,marginTop:5,lineHeight:1}}>{val}<span style={{fontSize:10,fontWeight:500,color:C.muted}}>g</span></div>
+                  <div style={{height:4,borderRadius:3,background:"rgba(148,163,184,.2)",overflow:"hidden",marginTop:7}}>
+                    {max&&<div style={{height:"100%",borderRadius:3,background:grad,width:`${Math.min(100,parseFloat(val)/max*100)}%`}}></div>}
+                  </div>
+                  <div style={{fontSize:9,color:C.muted,marginTop:5}}>{max?`${T.goal} ${max}g`:T.noLimit}</div>
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
+        );
+      })()}
 
       {/* ── QUICK ADD HEADER ── */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 20px 10px"}}>
