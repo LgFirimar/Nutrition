@@ -987,6 +987,9 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
   const [qtyUnit,setQtyUnit]=useState("יח׳");
   const [mealWeight,setMealWeight]=useState("");
   const [totalUnits,setTotalUnits]=useState(0);
+  const [savedToDb,setSavedToDb]=useState(false);
+  const [showDbInput,setShowDbInput]=useState(false);
+  const [dbName,setDbName]=useState("");
   const fileRef=useRef(null);
 
   useEffect(()=>{
@@ -1116,6 +1119,39 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
     onClose();
   };
 
+  const openDbSave=()=>{
+    if(!preview)return;
+    setDbName(preview.label||"ארוחה");
+    setShowDbInput(true);
+  };
+
+  const saveToDb=()=>{
+    if(!preview)return;
+    const name=(dbName.trim()||preview.label||"ארוחה");
+    const tg=parseFloat(mealWeight)||preview.totalGrams||0;
+    const p100g=preview.per100g||(tg>=20?{
+      kcal:Math.round(preview.kcal/tg*100),
+      carbs:parseFloat(((preview.carbs||0)/tg*100).toFixed(1)),
+      protein:parseFloat(((preview.protein||0)/tg*100).toFixed(1)),
+      fat:parseFloat(((preview.fat||0)/tg*100).toFixed(1))
+    }:null);
+    const entry=p100g?{
+      names:[name.toLowerCase()],label:`📷 ${name}`,
+      kcal:p100g.kcal,carbs:p100g.carbs,protein:p100g.protein,fat:p100g.fat,
+      defaultAmt:tg||100,unit:"g"
+    }:{
+      names:[name.toLowerCase()],label:`📷 ${name}`,
+      kcal:Math.round(preview.kcal),carbs:parseFloat((preview.carbs||0).toFixed(1)),
+      protein:parseFloat((preview.protein||0).toFixed(1)),fat:parseFloat((preview.fat||0).toFixed(1)),
+      defaultAmt:1,unit:"מנה",serving_size:1
+    };
+    const pid=window._activePid||"default";
+    const db=loadCustomDB(pid);
+    saveCustomDB([...db.filter(f=>f.label!==entry.label),entry],pid);
+    setShowDbInput(false);setSavedToDb(true);
+    setTimeout(()=>setSavedToDb(false),2000);
+  };
+
   return (
     <div className="panel fade">
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif" onChange={handleFile} style={{display:"none"}}/>
@@ -1185,7 +1221,22 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
               <option value="כוס">כוס (240מ״ל)</option>
             </select>
           </div>
-          <button onClick={addToDay} style={{width:"100%",background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ הוסף ליום</button>
+          <div style={{display:"flex",gap:6}}>
+            <button onClick={addToDay} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ הוסף ליום</button>
+            <button onClick={openDbSave} style={{flex:1,background:savedToDb?"rgba(13,148,136,.1)":"transparent",border:`1px solid ${savedToDb?C.accent:C.border}`,borderRadius:8,padding:"10px",fontSize:13,fontWeight:600,color:savedToDb?C.accent:C.muted,cursor:"pointer"}}>
+              {savedToDb?"✓ נשמר":"💾"}
+            </button>
+          </div>
+          {showDbInput&&(
+            <div className="fade" style={{marginTop:8,display:"flex",gap:6}}>
+              <input value={dbName} onChange={e=>setDbName(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&saveToDb()}
+                className="inp" style={{flex:1,fontSize:12}} autoFocus
+                placeholder="שם לשמירה במאגר"/>
+              <button onClick={saveToDb} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 12px",cursor:"pointer",fontSize:12,fontWeight:700}}>שמור</button>
+              <button onClick={()=>setShowDbInput(false)} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,padding:"0 10px",cursor:"pointer",fontSize:12}}>✕</button>
+            </div>
+          )}
         </div>
       )}
       <button onClick={onClose} className="btn-muted" style={{marginTop:4}}>ביטול</button>
@@ -2036,6 +2087,7 @@ function ExportImportModal({pid, onClose}){
   const [importText,setImportText]=useState("");
   const [msg,setMsg]=useState(null);
   const [filename,setFilename]=useState(`nutrition-backup-${pid}-${new Date().toISOString().slice(0,10)}`);
+  const fileInputRef=useRef(null);
 
   const exportData=()=>{
     const data={
@@ -2147,9 +2199,12 @@ function ExportImportModal({pid, onClose}){
             </button>
           ) : (
             <div className="fade">
-              <input type="file" accept=".json" onChange={importFromFile}
-                style={{width:"100%",marginBottom:8,fontSize:12}}/>
-              {importText && (
+              <input ref={fileInputRef} type="file" accept=".json" onChange={importFromFile} style={{display:"none"}}/>
+              {!importText ? (
+                <button onClick={()=>fileInputRef.current?.click()} style={{width:"100%",background:"#f5f5f7",border:`2px dashed ${C.border}`,borderRadius:10,padding:"18px 12px",fontSize:15,fontWeight:700,cursor:"pointer",color:C.text,marginBottom:8,display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontFamily:"inherit"}}>
+                  <span style={{fontSize:22}}>📁</span> בחר קובץ
+                </button>
+              ) : (
                 <>
                   <div style={{fontSize:11,color:C.accent,marginBottom:8}}>✓ קובץ נטען — לחצי ייבא</div>
                   <div style={{display:"flex",gap:8}}>
@@ -2547,6 +2602,7 @@ const FRIDGE_CATS=[
   {key:"protein", he:"חלבון",        en:"Protein"},
   {key:"carbs",   he:"פחמימה",       en:"Carbs"},
   {key:"nuts",    he:"פיצוחים",      en:"Nuts & Seeds"},
+  {key:"spices",  he:"תבלינים",      en:"Spices"},
   {key:"other",   he:"אחר",          en:"Other"},
 ];
 const loadFridge=()=>{try{return JSON.parse(localStorage.getItem("nutrition_fridge")||"{}");}catch{return {};}};

@@ -43,15 +43,15 @@ export default {
         model = 'claude-sonnet-4-6';
         max_tokens = 1024;
         system = 'You are a precise nutrition calculator with expert knowledge of food composition databases.';
-        const analysisPrompt = `Analyze this food photo. For each visible item:
-1. Identify the food
-2. Estimate its weight/portion from visual cues (plate size, standard portions, density, etc.)
-3. Calculate its nutritional contribution
+        const analysisPrompt = `Analyze this food photo carefully.
 
-Be specific with estimates (e.g. "chicken breast ~160g", "rice ~90g cooked", "olive oil drizzle ~10ml").
+Step 1 — identify each food item visible.
+Step 2 — estimate each item's weight in grams using visual cues: plate/bowl diameter, food thickness, density, standard portion sizes (e.g. a whole chicken breast ≈ 160-200g, a cup of cooked rice ≈ 180g, a medium apple ≈ 180g, a slice of bread ≈ 30g).
+Step 3 — sum the weights to get totalGrams (solid food only; exclude water/plain tea/coffee unless they ARE the main item).
+Step 4 — calculate total nutrition, then divide by totalGrams×0.01 to get per100g values.
 
 Output ONLY this JSON on the very last line (no markdown):
-{"label":"Hebrew meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT,"totalGrams":TOTAL_WEIGHT_INT,"per100g":{"kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT},"portions":"brief Hebrew description of each item with estimated weight, e.g: עוף ~160g, אורז ~90g, שמן ~10ml"}`;
+{"label":"Hebrew meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT,"totalGrams":ESTIMATED_TOTAL_GRAMS_INT,"per100g":{"kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT},"portions":"Hebrew list: item ~Xg, e.g: עוף ~160g, אורז ~90g, שמן ~10ml"}`;
         messages = [{role:'user', content:[
           {type:'image', source:{type:'base64', media_type:imageMediaType||'image/jpeg', data:imageData}},
           {type:'text', text:analysisPrompt}
