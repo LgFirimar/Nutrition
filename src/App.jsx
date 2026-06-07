@@ -2145,7 +2145,7 @@ function PantryModal({onClose,lang,syncTick}){
   const isHe=(lang||'he')!=='en';
   const [pantry,setPantry]=useState(loadPantry);
   const [inputs,setInputs]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,{name:"",qty:""}])));
-  const [open,setOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,false])));
+  const [open,setOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,true])));
   const [imgLoading,setImgLoading]=useState({});
   const imgRefs=useRef({});
 
@@ -3773,15 +3773,20 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
       catch{decoded=JSON.parse(decodeURIComponent(atob(rawCode).split('').map(c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join('')));}
     }catch{setError(isHe?'קוד הצטרפות לא תקין':'Invalid join code');return;}
     setLoading(true);setError('');
-    const newCfg={...decoded,memberName:memberName.trim()};
-    const ok=await _fbInit(newCfg);
-    if(!ok){setError(isHe?'שגיאה בחיבור':'Connection error');setLoading(false);return;}
-    await registerMember(newCfg.householdId,memberName.trim());
-    ls.set('nutrition_household',newCfg);
-    autoSuccessCfgRef.current=newCfg;
-    const sc=btoa(unescape(encodeURIComponent(JSON.stringify({firebaseConfig:decoded.firebaseConfig,householdId:decoded.householdId,householdName:decoded.householdName}))));
-    onWelcome?.({householdName:decoded.householdName||memberName.trim(),sharingCode:sc,cfg:newCfg});
-    setLoading(false);
+    try{
+      const newCfg={...decoded,memberName:memberName.trim()};
+      const ok=await _fbInit(newCfg);
+      if(!ok){setError(isHe?'שגיאה בחיבור':'Connection error');setLoading(false);return;}
+      await registerMember(newCfg.householdId,memberName.trim());
+      ls.set('nutrition_household',newCfg);
+      autoSuccessCfgRef.current=newCfg;
+      const sc=btoa(unescape(encodeURIComponent(JSON.stringify({firebaseConfig:decoded.firebaseConfig,householdId:decoded.householdId,householdName:decoded.householdName}))));
+      onWelcome?.({householdName:decoded.householdName||memberName.trim(),sharingCode:sc,cfg:newCfg});
+    }catch(e){
+      setError(isHe?'שגיאה בהצטרפות':'Join failed');
+    }finally{
+      setLoading(false);
+    }
   };
 
   const getSharingCode=()=>{
@@ -4272,7 +4277,7 @@ function App(){
   return (
     <div>
       {showSplash && <SplashScreen onDone={()=>setShowSplash(false)}/>}
-      {hhWelcome && <HouseholdWelcome householdName={hhWelcome.householdName} sharingCode={hhWelcome.sharingCode} cfg={hhWelcome.cfg} onDone={cfg=>{setHhWelcome(null);setHouseholdCfg(cfg);setShowHousehold(false);}} lang={lang}/>}
+      {hhWelcome && <HouseholdWelcome householdName={hhWelcome.householdName} sharingCode={hhWelcome.sharingCode} cfg={hhWelcome.cfg} onDone={cfg=>{setHhWelcome(null);setHouseholdCfg(cfg);setShowHousehold(false);setShowPantry(true);}} lang={lang}/>}
       {showInfo && <InfoModal onClose={()=>setShowInfo(false)} lang={lang}/>}
       {showPantry && <PantryModal onClose={()=>setShowPantry(false)} lang={lang} syncTick={syncTick}/>}
       {showShopping && <ShoppingListModal onClose={()=>setShowShopping(false)} lang={lang} pid={pid} syncTick={syncTick}/>}
