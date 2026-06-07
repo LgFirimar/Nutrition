@@ -2771,7 +2771,7 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
             <div style={{display:"flex",gap:8}}>
               {step>0&&<button onClick={()=>setStep(s=>s-1)} style={{flex:1,background:"none",border:`1px solid ${C.border}`,borderRadius:12,padding:"13px",fontSize:14,fontWeight:600,color:C.muted,cursor:"pointer",fontFamily:"inherit"}}>חזרה →</button>}
               <button onClick={handleNext} style={{flex:2,background:C.accent,border:"none",borderRadius:12,color:"#fff",padding:"13px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                {step===4?"← 🔍 קבלי המלצות מ-Claude":"← הבא"}
+                {step===4?"קבלי המלצות מ-Claude 🔍 ←":"הבא ←"}
               </button>
             </div>
             {step===4&&(
@@ -3207,7 +3207,7 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
   };
   const [fridge,setFridge]=useState(()=>syncFridgeFromPantry(loadFridge()));
   const [fridgeIn,setFridgeIn]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,""])));
-  const [fridgeOpen,setFridgeOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,true])));
+  const [fridgeOpen,setFridgeOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,false])));
   const [savedPrefs,setSavedPrefs]=useState(()=>{try{return JSON.parse(localStorage.getItem("nutrition_saved_prefs")||"[]");}catch{return [];}});
   const savePref=()=>{
     const v=prefs.trim();
@@ -3618,7 +3618,7 @@ function HouseholdWelcome({householdName,cfg,onDone,lang}){
       {/* bottom button */}
       <div style={{width:'100%',padding:'0 24px',paddingBottom:'calc(32px + env(safe-area-inset-bottom))',flexShrink:0}}>
         <button onClick={()=>onDone(cfg)} style={{width:'100%',background:'linear-gradient(135deg,#5a9e1e,#3d7a0a)',border:'none',borderRadius:16,color:'#fff',padding:'16px',fontSize:17,fontWeight:800,cursor:'pointer',fontFamily:'inherit',letterSpacing:0.3,boxShadow:'0 4px 20px rgba(30,74,6,.35)'}}>
-          {isHe?'מתחילים 🏪':'Let\'s go 🏪'}
+          {isHe?'מתחילים':'Let\'s go'}
         </button>
       </div>
     </div>
@@ -4583,7 +4583,7 @@ function App(){
       <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
         <button onClick={()=>{setShowMealPlanner(v=>!v);setShowMeal(false);setShowPhoto(false);setShowSmart(false);}}
           style={{background:"linear-gradient(135deg,#14b8a6,#0d9488)",border:"none",borderRadius:50,padding:"14px 32px",fontSize:14,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 6px 24px rgba(13,148,136,.35)",display:"flex",alignItems:"center",gap:8}}>
-          {T.whatEat}
+          <span>{T.whatEat.split(' ')[0]}</span><span>{T.whatEat.split(' ').slice(1).join(' ')}</span>
         </button>
       </div>
 
