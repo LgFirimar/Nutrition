@@ -3493,6 +3493,7 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
   const[autoProgress,setAutoProgress]=useState(null);
   const[autoError,setAutoError]=useState('');
   const[useManual,setUseManual]=useState(false);
+  const[autoSuccess,setAutoSuccess]=useState(null); // {householdName, sharingCode}
   const[loading,setLoading]=useState(false);
   const[error,setError]=useState('');
   const[copied,setCopied]=useState(false);
@@ -3592,8 +3593,9 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
       if(!ok)throw new Error(isHe?'שגיאה בחיבור ל-Firebase':'Firebase init failed');
       await registerMember(hid,memberName.trim());
       ls.set('nutrition_household',newCfg);
-      // Brief pause to show "הכל מוכן!" then auto-close
-      await new Promise(r=>setTimeout(r,1500));
+      // Show welcome screen instead of auto-closing
+      const sc=btoa(JSON.stringify({firebaseConfig:cfg,householdId:hid}));
+      setAutoSuccess({householdName:newCfg.householdName,sharingCode:sc});
       onConnect(newCfg);
     }catch(e){
       setAutoError(e.message||(isHe?'שגיאה בהגדרה האוטומטית':'Auto setup failed'));
@@ -3750,6 +3752,31 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
                     <button onClick={()=>{setAutoError('');setAutoProgress(null);}} style={{...backBtn,width:"100%",marginBottom:6}}>{isHe?"נסה שוב":"Try again"}</button>
                     <button onClick={()=>setUseManual(true)} style={{background:"none",border:"none",fontSize:11,color:C.muted,cursor:"pointer",textDecoration:"underline",width:"100%",textAlign:"center"}}>{isHe?"הגדרה ידנית במקום":"Switch to manual setup"}</button>
                   </>}
+
+                  {/* Welcome screen after successful setup */}
+                  {autoSuccess&&<div className="fade" style={{textAlign:"center",padding:"8px 0"}}>
+                    <div style={{fontSize:36,marginBottom:10}}>🏠</div>
+                    <div style={{fontSize:18,fontWeight:900,color:C.text,marginBottom:6}}>
+                      {isHe?`ברוכים הבאים לבית ${autoSuccess.householdName}!`:`Welcome to ${autoSuccess.householdName}!`}
+                    </div>
+                    <div style={{fontSize:12,color:C.muted,marginBottom:18}}>
+                      {isHe?"המשק הבית מוכן. שלחו קישור לבני הבית כדי שיצטרפו:":"Your household is ready. Share the link to invite others:"}
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+                      <button onClick={()=>{const msg=encodeURIComponent((isHe?"הצטרפו למשק הבית שלנו באפליקציית Nutrition! קוד ההצטרפות: ":"Join our household on Nutrition app! Join code: ")+autoSuccess.sharingCode);window.open(`https://wa.me/?text=${msg}`,'_blank');}}
+                        style={{background:"rgba(37,211,102,.1)",border:"1px solid rgba(37,211,102,.3)",borderRadius:10,padding:"10px 6px",fontSize:12,fontWeight:700,color:"#128c7e",cursor:"pointer",fontFamily:"inherit"}}>
+                        💬 WhatsApp
+                      </button>
+                      <button onClick={()=>{const sub=encodeURIComponent(isHe?"הצטרפו למשק הבית שלנו":"Join our Nutrition household");const body=encodeURIComponent((isHe?"קוד ההצטרפות:\n\n":"Join code:\n\n")+autoSuccess.sharingCode);window.open(`mailto:?subject=${sub}&body=${body}`,'_blank');}}
+                        style={{background:"rgba(59,130,246,.08)",border:"1px solid rgba(59,130,246,.2)",borderRadius:10,padding:"10px 6px",fontSize:12,fontWeight:700,color:"#2563eb",cursor:"pointer",fontFamily:"inherit"}}>
+                        ✉️ {isHe?"מייל":"Email"}
+                      </button>
+                    </div>
+                    <button onClick={onClose}
+                      style={{width:"100%",background:"linear-gradient(135deg,#14b8a6,#059669)",border:"none",borderRadius:10,color:"#fff",padding:"12px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                      {isHe?"→ למסך הראשי":"→ Go to main screen"}
+                    </button>
+                  </div>}
 
                   {/* Manual fallback */}
                   {useManual&&<>
