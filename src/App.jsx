@@ -3494,6 +3494,7 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
   const[autoError,setAutoError]=useState('');
   const[useManual,setUseManual]=useState(false);
   const[autoSuccess,setAutoSuccess]=useState(null); // {householdName, sharingCode}
+  const autoSuccessCfgRef=useRef(null);
   const[loading,setLoading]=useState(false);
   const[error,setError]=useState('');
   const[copied,setCopied]=useState(false);
@@ -3593,10 +3594,11 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
       if(!ok)throw new Error(isHe?'שגיאה בחיבור ל-Firebase':'Firebase init failed');
       await registerMember(hid,memberName.trim());
       ls.set('nutrition_household',newCfg);
-      // Show welcome screen instead of auto-closing
+      // Store config and show welcome screen — onConnect called only when user taps button
+      autoSuccessCfgRef.current=newCfg;
       const sc=btoa(JSON.stringify({firebaseConfig:cfg,householdId:hid}));
+      setAutoProgress(null);
       setAutoSuccess({householdName:newCfg.householdName,sharingCode:sc});
-      onConnect(newCfg);
     }catch(e){
       setAutoError(e.message||(isHe?'שגיאה בהגדרה האוטומטית':'Auto setup failed'));
       setAutoProgress(null);
@@ -3772,7 +3774,7 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
                         ✉️ {isHe?"מייל":"Email"}
                       </button>
                     </div>
-                    <button onClick={onClose}
+                    <button onClick={()=>onConnect(autoSuccessCfgRef.current)}
                       style={{width:"100%",background:"linear-gradient(135deg,#14b8a6,#059669)",border:"none",borderRadius:10,color:"#fff",padding:"12px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                       {isHe?"→ למסך הראשי":"→ Go to main screen"}
                     </button>
