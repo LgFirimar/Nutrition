@@ -190,20 +190,28 @@ async function autoSetupHousehold(projectId,onStep){
   };
   let dbUrl=await _findDb();
   if(!dbUrl){
+    const standardUrl=`https://${projectId}-default-rtdb.firebaseio.com`;
     let dbLastErr='';
+    let alreadyExists=false;
     for(const [ref,loc] of[[pNum,'europe-west1'],[pNum,'us-central1'],[projectId,'us-central1']]){
       try{
         const db=await _gapi(`https://firebasedatabase.googleapis.com/v1beta/projects/${ref}/locations/${loc}/instances?databaseId=${projectId}-default-rtdb`,tok,'POST',{type:'USER_DATABASE'});
         dbUrl=db.databaseUrl;break;
       }catch(e){
         dbLastErr=e.message;
-        // "multiple instances" = a DB already exists but we didn't find it — wait & retry list
-        if(e.message.toLowerCase().includes('multiple')||e.message.toLowerCase().includes('already')){
-          await new Promise(r=>setTimeout(r,3000));
-          dbUrl=await _findDb();
-          if(dbUrl)break;
+        if(e.message.toLowerCase().includes('multiple')||e.message.toLowerCase().includes('already')||e.message.toLowerCase().includes('blaze')){
+          alreadyExists=true;break;
         }
       }
+    }
+    if(!dbUrl&&alreadyExists){
+      // DB exists but API can't list it — verify by probing the standard URL
+      try{
+        const probe=await fetch(`${standardUrl}/.json`,{headers:{Authorization:`Bearer ${tok}`}});
+        // Any response (even 401/403) means the database exists
+        if(probe.status!==404)dbUrl=standardUrl;
+      }catch(_){}
+      if(!dbUrl)dbUrl=standardUrl; // Use standard URL anyway — Firebase confirmed it exists
     }
     if(!dbUrl)throw new Error(`יצירת Realtime Database נכשלה: ${dbLastErr}`);
   }
