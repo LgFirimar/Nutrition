@@ -392,7 +392,11 @@ const MILK={kcal:0.5,carbs:0.047,protein:0.034,fat:0.02};
 // ── CalcLoader ────────────────────────────────────────────────────────────────
 function CalcLoader({size=32}){
   const [v]=useState(()=>Math.ceil(Math.random()*3));
-  return <video src={`/Nutrition/loader${v}.mp4`} autoPlay loop muted playsInline style={{width:size,height:size,objectFit:'cover',borderRadius:'50%',display:'inline-block',verticalAlign:'middle'}}/>;
+  return(
+    <div style={{width:size,height:size,borderRadius:'50%',overflow:'hidden',display:'inline-block',verticalAlign:'middle',flexShrink:0,WebkitMaskImage:'-webkit-radial-gradient(circle, white 100%, black 100%)'}}>
+      <video src={`/Nutrition/loader${v}.mp4`} autoPlay loop muted playsInline style={{width:'100%',height:'100%',objectFit:'cover',display:'block',transform:'translateZ(0)',willChange:'transform'}}/>
+    </div>
+  );
 }
 
 // ── StatBar ────────────────────────────────────────────────────────────────────
@@ -3688,7 +3692,7 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
 
       {/* Welcome animation — direct child of .overlay (which is inset:0) so position:fixed covers full viewport */}
       {autoSuccess&&welcomePhase==='animate'&&(
-        <div onClick={()=>setWelcomePhase('share')} style={{position:'fixed',top:0,right:0,bottom:0,left:0,zIndex:9999,background:'linear-gradient(150deg,#0d9488 0%,#059669 55%,#0f766e 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:'pointer'}}>
+        <div onClick={()=>setWelcomePhase('share')} style={{position:'absolute',top:0,right:0,bottom:0,left:0,zIndex:9999,background:'linear-gradient(150deg,#0d9488 0%,#059669 55%,#0f766e 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:'pointer'}}>
           <div style={{position:'absolute',top:16,right:16,color:'rgba(255,255,255,0.5)',fontSize:11,letterSpacing:.5}}>{isHe?'לחצו לדילוג':'tap to skip'}</div>
           {[0,0.6,1.2].map((d,i)=>(
             <div key={i} style={{position:'absolute',width:180,height:180,borderRadius:'50%',border:'2px solid rgba(255,255,255,0.18)',animation:`ringOut 2.4s ${d}s ease-out infinite`,pointerEvents:'none'}}/>
