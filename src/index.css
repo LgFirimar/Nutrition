@@ -2,7 +2,7 @@
 body{font-family:'Heebo',sans-serif;
      background:linear-gradient(155deg,#c8e8e2 0%,#cfe5f5 45%,#ddd6f3 100%);
      background-attachment:fixed;
-     color:#0f172a;min-height:100vh;
+     color:#0f172a;min-height:100svh;
      padding-bottom:60px;padding-bottom:calc(60px + env(safe-area-inset-bottom))}
 input,select,textarea,button{font-family:'Heebo',sans-serif}
 input:focus,select:focus,textarea:focus{outline:none;border-color:#0d9488!important}
