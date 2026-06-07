@@ -3677,7 +3677,6 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
     if(!ok){setError(isHe?'שגיאה בחיבור ל-Firebase':'Firebase connection error');setLoading(false);return;}
     await registerMember(hid,memberName.trim());
     ls.set('nutrition_household',newCfg);
-    onHouseholdReady?.(newCfg);
     const sc=btoa(JSON.stringify({firebaseConfig:cfg,householdId:hid,householdName:newCfg.householdName}));
     onWelcome?.({householdName:newCfg.householdName,sharingCode:sc,cfg:newCfg});
     setLoading(false);
@@ -3705,8 +3704,6 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
       const hid=genId();
       const newCfg={firebaseConfig:cfg,householdId:hid,memberName:memberName.trim(),householdName:householdName.trim()||memberName.trim()};
       ls.set('nutrition_household',newCfg);
-      // Update App state + show welcome screen immediately — don't block on Firebase SDK load
-      onHouseholdReady?.(newCfg);
       autoSuccessCfgRef.current=newCfg;
       const sc=btoa(JSON.stringify({firebaseConfig:cfg,householdId:hid,householdName:newCfg.householdName}));
       setAutoProgress(null);
@@ -3730,8 +3727,6 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
     if(!ok){setError(isHe?'שגיאה בחיבור':'Connection error');setLoading(false);return;}
     await registerMember(newCfg.householdId,memberName.trim());
     ls.set('nutrition_household',newCfg);
-    onHouseholdReady?.(newCfg);
-    // Show welcome animation for joining member too
     autoSuccessCfgRef.current=newCfg;
     const sc=btoa(JSON.stringify({firebaseConfig:decoded.firebaseConfig,householdId:decoded.householdId,householdName:decoded.householdName}));
     onWelcome?.({householdName:decoded.householdName||memberName.trim(),sharingCode:sc,cfg:newCfg});
@@ -4230,7 +4225,7 @@ function App(){
       {showInfo && <InfoModal onClose={()=>setShowInfo(false)} lang={lang}/>}
       {showPantry && <PantryModal onClose={()=>setShowPantry(false)} lang={lang} syncTick={syncTick}/>}
       {showShopping && <ShoppingListModal onClose={()=>setShowShopping(false)} lang={lang} pid={pid} syncTick={syncTick}/>}
-      {showHousehold && <HouseholdModal householdCfg={householdCfg} onConnect={cfg=>{setHouseholdCfg(cfg);setShowHousehold(false);}} onHouseholdReady={cfg=>setHouseholdCfg(cfg)} onLeave={()=>{setHouseholdCfg(null);setHhSynced(false);setShowHousehold(false);}} onClose={()=>setShowHousehold(false)} onWelcome={data=>{setHhWelcome(data);setShowHousehold(false);}} lang={lang}/>}
+      {showHousehold && <HouseholdModal householdCfg={householdCfg} onConnect={cfg=>{setHouseholdCfg(cfg);setShowHousehold(false);}} onHouseholdReady={cfg=>setHouseholdCfg(cfg)} onLeave={()=>{setHouseholdCfg(null);setHhSynced(false);setShowHousehold(false);}} onClose={()=>setShowHousehold(false)} onWelcome={data=>{setHouseholdCfg(data.cfg);setHhWelcome(data);setShowHousehold(false);}} lang={lang}/>}
       {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang}/>}
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}} lang={lang}/>}
       {showWizard && <ProfileSetupWizard profile={wizardProfile} onSave={p=>{const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===p.id?p:x));setActiveProfile(p.id===pid?p:activeProfile);setProfiles(loadProfiles());setWizardProfile(null);setShowWizard(false);}} onSkip={()=>{setWizardProfile(null);setShowWizard(false);}}/>}
