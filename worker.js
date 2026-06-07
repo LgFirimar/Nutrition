@@ -79,13 +79,15 @@ After your calculation, output ONLY this JSON on the very last line (no markdown
 {"recipe":{"name":"שם בעברית","ingredients":[{"item":"שם חומר","amount":"כמות"}],"steps":["שלב הכנה"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`;
         } else {
           model = 'claude-sonnet-4-6';
-          max_tokens = 600;
+          max_tokens = 900;
           system = 'אתה שף ותזונאי ישראלי. כתוב בעברית תקנית ונכונה. הפלט הוא JSON בלבד — ללא הסבר, ללא markdown, ללא טקסט לפני או אחרי.';
           const refineText = refine ? `\nהערות: ${refine}` : '';
           prompt = `הצע 3 ארוחות ל-${people} אנשים. העדפות: ${preferences || 'ללא הגבלות'}${refineText}
-מרכיבי בסיס שלא נחשבים חסרים: שמן, מלח, סוכר, פלפל, צ'ילי, אבקת אפייה, סודה לשתייה, חמאה, שום, בצל.
-עבור כל ארוחה, רשום ב-missingIngredients רק מרכיבים עיקריים שאינם בתכולת המקרר/מזווה ואינם מרכיבי בסיס.
-{"options":[{"name":"שם ארוחה","description":"תיאור קצר בעברית","kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"missingIngredients":["מרכיב חסר"]}]}`;
+חובה: עבור כל ארוחה ציין ב-missingIngredients את רשימת המרכיבים הספציפיים הדרושים שאינם ברשימת "מה במקרר" לעיל.
+אל תכלול: שמן, מלח, סוכר, פלפל, צ'ילי, אבקת אפייה, סודה לשתייה, חמאה, שום, בצל, מים.
+אם אין רשימת מקרר — ציין את כל המרכיבים העיקריים שצריך לקנות.
+החזר בדיוק בפורמט הזה:
+{"options":[{"name":"שם ארוחה","description":"תיאור קצר","kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"missingIngredients":["מרכיב1","מרכיב2"]}]}`;
         }
       } else if (shoppingList) {
         model = 'claude-haiku-4-5-20251001';
