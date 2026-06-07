@@ -3479,9 +3479,22 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
                   </div>
                 ))}
               </div>
-              {missing.length>0
-                ?<div style={{fontSize:11,color:'#991b1b',marginBottom:8,lineHeight:1.5}}>מה חסר: {missing.join(', ')}</div>
-                :<div style={{marginBottom:8}}/>}
+              {(opt.ingredients||[]).length>0&&(
+                <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}}>
+                  {(opt.ingredients||[]).map(ing=>{
+                    const m=isMissing(ing);
+                    return(
+                      <span key={ing} style={{fontSize:11,padding:"3px 8px",borderRadius:12,
+                        background:m?"rgba(153,27,27,.08)":"rgba(13,148,136,.08)",
+                        color:m?"#991b1b":C.accent,
+                        border:`1px solid ${m?"rgba(153,27,27,.25)":"rgba(13,148,136,.25)"}`,
+                        fontWeight:m?700:400}}>
+                        {m?"✗ ":"✓ "}{ing}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
               <button onClick={()=>fetchRecipe(opt.name)} disabled={loading}
                 style={{width:"100%",background:C.accent,border:"none",borderRadius:10,color:"#fff",padding:"9px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                 {loading&&selected===opt.name?(isHe?"טוען...":"Loading..."):(isHe?"בחר":"Select")}
