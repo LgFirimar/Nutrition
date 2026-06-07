@@ -83,11 +83,8 @@ After your calculation, output ONLY this JSON on the very last line (no markdown
           system = 'אתה שף ותזונאי ישראלי. כתוב בעברית תקנית ונכונה. הפלט הוא JSON בלבד — ללא הסבר, ללא markdown, ללא טקסט לפני או אחרי.';
           const refineText = refine ? `\nהערות: ${refine}` : '';
           prompt = `הצע 3 ארוחות ל-${people} אנשים. העדפות: ${preferences || 'ללא הגבלות'}${refineText}
-חובה: עבור כל ארוחה ציין ב-missingIngredients את רשימת המרכיבים הספציפיים הדרושים שאינם ברשימת "מה במקרר" לעיל.
-אל תכלול: שמן, מלח, סוכר, פלפל, צ'ילי, אבקת אפייה, סודה לשתייה, חמאה, שום, בצל, מים.
-אם אין רשימת מקרר — ציין את כל המרכיבים העיקריים שצריך לקנות.
-החזר בדיוק בפורמט הזה:
-{"options":[{"name":"שם ארוחה","description":"תיאור קצר","kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"missingIngredients":["מרכיב1","מרכיב2"]}]}`;
+החזר בדיוק בפורמט הזה ללא שום טקסט נוסף:
+{"options":[{"name":"שם ארוחה","description":"תיאור קצר","kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"ingredients":["מרכיב1","מרכיב2","מרכיב3"]}]}`;
         }
       } else if (shoppingList) {
         model = 'claude-haiku-4-5-20251001';

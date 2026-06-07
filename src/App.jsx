@@ -3228,13 +3228,14 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
     .map(c=>`${isHe?c.he:c.en}: ${fridge[c.key].join(", ")}`)
     .join(" | ");
 
-  const BASE_INGS=['שמן','מלח','סוכר','פלפל','צ\'ילי','אבקת אפייה','סודה לשתייה','חמאה','שום','בצל','מים','חומץ'];
+  const BASE_INGS=['שמן','מלח','סוכר','פלפל','צ\'ילי','אבקת אפייה','סודה לשתייה','חמאה','שום','בצל','מים','חומץ','ביצה','ביצים'];
   const fridgeFlat=FRIDGE_CATS.flatMap(c=>(fridge[c.key]||[]).map(s=>s.toLowerCase()));
   const isMissing=name=>{
     const n=name.toLowerCase();
     if(BASE_INGS.some(b=>n.includes(b)))return false;
     return!fridgeFlat.some(f=>f.includes(n)||n.includes(f));
   };
+  const getMissing=opt=>(opt.ingredients||[]).filter(isMissing);
   const addMissingToCart=missing=>{
     if(!missing||!missing.length)return;
     const current=loadShopping();
@@ -3338,28 +3339,43 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
         </div>
 
         {/* Step 1 */}
-        {step===1&&<>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-            <div style={{fontSize:11,color:C.muted}}>{isHe?"העדפות תזונה (רשות)":"Dietary preferences (optional)"}</div>
-            {profile&&(profile.dietPrefs?.length||profile.dietText||profile.conditions?.length)&&(
-              <button onClick={()=>{
-                const parts=[];
-                if(profile.conditions?.length) parts.push(...profile.conditions.map(c=>({t2d:"סוכרת סוג 2",t1d:"סוכרת סוג 1",prediab:"טרום סכרת",menopause:"גיל המעבר",hyper:"יתר לחץ דם",chol:"כולסטרול גבוה",meta:"תסמונת מטבולית",kidney:"מחלת כליות",heart:"מחלת לב"}[c]||c)));
-                if(profile.dietPrefs?.length) parts.push(...profile.dietPrefs.map(d=>({veg:"צמחוני",vegan:"טבעוני",gf:"ללא גלוטן",lf:"ללא לקטוז",kosher:"כשר",lowsodium:"דל נתרן",keto:"קטוגני"}[d]||d)));
-                if(profile.dietText) parts.push(profile.dietText);
-                setPrefs(parts.join(", "));
-              }} style={{background:"none",border:`1px solid ${C.accent}`,borderRadius:8,color:C.accent,fontSize:11,fontWeight:600,padding:"3px 10px",cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
-                👤 {isHe?"מהפרופיל":"From profile"}
-              </button>
-            )}
-          </div>
-          <div style={{display:"flex",gap:6,marginBottom:6}}>
+        {step===1&&(()=>{
+          const COND_MAP={t2d:"סוכרת סוג 2",t1d:"סוכרת סוג 1",prediab:"טרום סכרת",menopause:"גיל המעבר",hyper:"יתר לחץ דם",chol:"כולסטרול גבוה",meta:"תסמונת מטבולית",kidney:"מחלת כליות",heart:"מחלת לב"};
+          const DIET_MAP={veg:"צמחוני",vegan:"טבעוני",gf:"ללא גלוטן",lf:"ללא לקטוז",kosher:"כשר",lowsodium:"דל נתרן",keto:"קטוגני"};
+          const profileChips=[
+            ...(profile?.conditions||[]).map(c=>COND_MAP[c]||c),
+            ...(profile?.dietPrefs||[]).map(d=>DIET_MAP[d]||d),
+            ...(profile?.dietText?[profile.dietText]:[]),
+          ];
+          const toggleChip=chip=>{
+            const current=prefs.split(',').map(s=>s.trim()).filter(Boolean);
+            const idx=current.indexOf(chip);
+            if(idx>=0) setPrefs(current.filter((_,i)=>i!==idx).join(', '));
+            else setPrefs([...current,chip].join(', '));
+          };
+          const activePrefs=prefs.split(',').map(s=>s.trim()).filter(Boolean);
+          return(<>
+          <div style={{fontSize:11,color:C.muted,marginBottom:4}}>{isHe?"העדפות תזונה (רשות)":"Dietary preferences (optional)"}</div>
+          <div style={{display:"flex",gap:6,marginBottom:profileChips.length?6:12}}>
             <textarea value={prefs} onChange={e=>setPrefs(e.target.value)}
               placeholder={isHe?"ללא גלוטן, טבעוני, דל פחמימות...":"gluten-free, vegan, low carb..."}
               rows={1} className="inp" style={{flex:1,resize:"none"}}/>
             <button onClick={savePref} title={isHe?"שמור העדפה":"Save preference"}
               style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 10px",cursor:"pointer",fontSize:14,flexShrink:0}}>💾</button>
           </div>
+          {profileChips.length>0&&(
+            <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:10}}>
+              {profileChips.map(chip=>{
+                const active=activePrefs.includes(chip);
+                return(
+                  <button key={chip} onClick={()=>toggleChip(chip)}
+                    style={{background:active?"rgba(13,148,136,.18)":"rgba(148,163,184,.1)",border:`1px solid ${active?"rgba(13,148,136,.45)":"rgba(148,163,184,.3)"}`,borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:600,color:active?C.accent:C.muted,cursor:"pointer",fontFamily:"inherit",transition:"all .15s"}}>
+                    {active?"✓ ":""}{chip}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {savedPrefs.length>0&&(
             <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:12}}>
               {savedPrefs.map(p=>(
@@ -3420,13 +3436,13 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
           <button onClick={()=>fetchOptions()} disabled={loading} className="btn-accent" style={{borderRadius:12}}>
             {loading?(isHe?"מחפש...":"Searching..."):(isHe?"✨ קבל הצעות":"✨ Get suggestions")}
           </button>
-        </>}
+        </>);})()}
 
         {/* Step 2 — Options */}
         {step===2&&<>
           {error&&<div style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:8,padding:"8px 12px",fontSize:12,color:C.danger,marginBottom:10}}>{error}</div>}
           {options.map((opt,i)=>{
-            const missing=opt.missingIngredients||[];
+            const missing=getMissing(opt);
             return(
             <div key={i} style={{background:"rgba(255,255,255,.7)",border:`1px solid rgba(148,163,184,.25)`,borderRadius:16,padding:14,marginBottom:10,position:'relative'}}>
               {/* Cart icon — top-left, always visible */}
@@ -3564,51 +3580,47 @@ function HouseholdWelcome({householdName,sharingCode,cfg,onDone,lang}){
     return()=>clearTimeout(t);
   },[]);
   const CORNERS=[
-    {top:0,left:0,borderWidth:'2px 0 0 2px'},
-    {top:0,right:0,borderWidth:'2px 2px 0 0'},
-    {bottom:0,left:0,borderWidth:'0 0 2px 2px'},
-    {bottom:0,right:0,borderWidth:'0 2px 2px 0'},
+    {top:0,left:0,bw:'2px 0 0 2px'},{top:0,right:0,bw:'2px 2px 0 0'},
+    {bottom:0,left:0,bw:'0 0 2px 2px'},{bottom:0,right:0,bw:'0 2px 2px 0'},
   ];
   if(phase==='animate') return(
     <div onClick={()=>setPhase('share')} style={{position:'fixed',top:0,right:0,bottom:0,left:0,zIndex:9999,background:'linear-gradient(150deg,#040e08 0%,#071812 50%,#040c07 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:'pointer'}}>
-      {/* Skip */}
-      <div style={{position:'absolute',top:18,right:18,color:'rgba(74,222,128,0.35)',fontSize:10,letterSpacing:1.5,fontFamily:'monospace'}}>{isHe?'לחצו לדילוג':'TAP TO SKIP'}</div>
-      {/* Dot grid */}
-      <div style={{position:'absolute',top:0,right:0,bottom:0,left:0,backgroundImage:'radial-gradient(circle,rgba(74,222,128,0.07) 1px,transparent 1px)',backgroundSize:'26px 26px',pointerEvents:'none'}}/>
-      {/* Scan line */}
-      <div style={{position:'absolute',left:0,right:0,height:1,background:'linear-gradient(90deg,transparent,rgba(74,222,128,0.6),transparent)',animation:'techScan 4s linear 0.5s infinite',pointerEvents:'none'}}/>
-      {/* Corner brackets */}
+      <div style={{position:'absolute',top:18,right:18,color:'rgba(74,222,128,0.32)',fontSize:10,letterSpacing:1.5,fontFamily:'monospace'}}>{isHe?'לחצו לדילוג':'TAP TO SKIP'}</div>
+      <div style={{position:'absolute',top:0,right:0,bottom:0,left:0,backgroundImage:'radial-gradient(circle,rgba(74,222,128,0.06) 1px,transparent 1px)',backgroundSize:'26px 26px',pointerEvents:'none'}}/>
+      <div style={{position:'absolute',left:0,right:0,height:1,background:'linear-gradient(90deg,transparent,rgba(74,222,128,0.55),transparent)',animation:'techScan 4s linear 0.5s infinite',pointerEvents:'none'}}/>
       {CORNERS.map((c,i)=>(
-        <div key={i} style={{position:'absolute',top:c.top,right:c.right,bottom:c.bottom,left:c.left,width:28,height:28,borderColor:'rgba(74,222,128,0.4)',borderStyle:'solid',borderWidth:c.borderWidth,pointerEvents:'none'}}/>
+        <div key={i} style={{position:'absolute',top:c.top,right:c.right,bottom:c.bottom,left:c.left,width:28,height:28,borderColor:'rgba(74,222,128,0.35)',borderStyle:'solid',borderWidth:c.bw,pointerEvents:'none'}}/>
       ))}
-      {/* Avocado + orbits */}
-      <div style={{position:'relative',width:200,height:200,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:22}}>
-        {/* Glow */}
-        <div style={{position:'absolute',width:110,height:110,borderRadius:'50%',background:'radial-gradient(circle,rgba(74,222,128,0.25) 0%,transparent 65%)',animation:'glowPulse 2.2s ease-in-out infinite',pointerEvents:'none'}}/>
-        {/* Outer ring */}
-        <div style={{position:'absolute',width:172,height:172,borderRadius:'50%',border:'1px solid rgba(74,222,128,0.2)',animation:'orbitCW 10s linear infinite',pointerEvents:'none'}}>
-          <div style={{position:'absolute',top:-5,left:'50%',marginLeft:-5,width:10,height:10,borderRadius:'50%',background:'#4ade80',boxShadow:'0 0 12px #4ade80'}}/>
-          <div style={{position:'absolute',bottom:-3,right:'22%',width:6,height:6,borderRadius:'50%',background:'rgba(74,222,128,0.6)',boxShadow:'0 0 6px rgba(74,222,128,0.5)'}}/>
+      {/* Avocado + orbit system */}
+      <div style={{position:'relative',width:280,height:280,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:18,flexShrink:0}}>
+        {/* Glow behind video */}
+        <div style={{position:'absolute',width:175,height:175,borderRadius:'50%',background:'radial-gradient(circle,rgba(74,222,128,0.22) 0%,transparent 65%)',animation:'glowPulse 2.5s ease-in-out infinite',pointerEvents:'none'}}/>
+        {/* Outer orbit CW */}
+        <div style={{position:'absolute',width:256,height:256,borderRadius:'50%',border:'1px solid rgba(74,222,128,0.18)',animation:'orbitCW 12s linear infinite',pointerEvents:'none'}}>
+          <div style={{position:'absolute',top:-6,left:'50%',marginLeft:-6,width:12,height:12,borderRadius:'50%',background:'#4ade80',boxShadow:'0 0 14px #4ade80,0 0 28px rgba(74,222,128,0.4)'}}/>
+          <div style={{position:'absolute',bottom:-4,right:'18%',width:7,height:7,borderRadius:'50%',background:'rgba(74,222,128,0.5)',boxShadow:'0 0 8px rgba(74,222,128,0.6)'}}/>
+          <div style={{position:'absolute',top:'30%',left:-4,width:7,height:7,borderRadius:'50%',background:'rgba(74,222,128,0.3)',boxShadow:'0 0 6px rgba(74,222,128,0.4)'}}/>
         </div>
-        {/* Inner ring */}
-        <div style={{position:'absolute',width:128,height:128,borderRadius:'50%',border:'1px solid rgba(74,222,128,0.13)',animation:'orbitCCW 6s linear infinite',pointerEvents:'none'}}>
-          <div style={{position:'absolute',bottom:-4,left:'28%',width:7,height:7,borderRadius:'50%',background:'#86efac',boxShadow:'0 0 8px #86efac'}}/>
+        {/* Inner orbit CCW */}
+        <div style={{position:'absolute',width:196,height:196,borderRadius:'50%',border:'1px solid rgba(74,222,128,0.12)',animation:'orbitCCW 7s linear infinite',pointerEvents:'none'}}>
+          <div style={{position:'absolute',bottom:-4,left:'35%',width:8,height:8,borderRadius:'50%',background:'#86efac',boxShadow:'0 0 10px #86efac'}}/>
+          <div style={{position:'absolute',top:'15%',right:-4,width:5,height:5,borderRadius:'50%',background:'rgba(134,239,172,0.6)',boxShadow:'0 0 6px rgba(134,239,172,0.5)'}}/>
         </div>
-        {/* Avocado — two nested divs: outer=bounce, inner=bob */}
+        {/* Avocado video — bounce in */}
         <div style={{animation:'avoBounceIn 1s cubic-bezier(0.34,1.56,0.64,1) both',position:'relative',zIndex:2}}>
-          <div style={{fontSize:86,lineHeight:1,animation:'avoBob 3.4s ease-in-out 1.2s infinite',filter:'drop-shadow(0 0 22px rgba(74,222,128,0.85)) drop-shadow(0 6px 20px rgba(0,0,0,0.6))'}}>🥑</div>
+          <div style={{animation:'avoBob 3.6s ease-in-out 1.2s infinite',filter:'drop-shadow(0 0 28px rgba(74,222,128,0.7))'}}>
+            <CalcLoader size={148}/>
+          </div>
         </div>
       </div>
-      {/* Text */}
-      <div style={{color:'rgba(74,222,128,0.65)',fontSize:10,fontWeight:700,animation:'welcomeUp 0.5s ease 0.9s both',letterSpacing:3,fontFamily:'monospace',marginBottom:8}}>{isHe?'ברוכים הבאים ל':'WELCOME TO'}</div>
-      <div style={{color:'#fff',fontSize:30,fontWeight:900,animation:'welcomeUp 0.6s ease 1.2s both',textAlign:'center',padding:'0 28px',letterSpacing:'-0.5px',textShadow:'0 0 24px rgba(74,222,128,0.5)',marginBottom:14}}>{isHe?`בית ${householdName}`:`${householdName}`}</div>
-      <div style={{color:'rgba(74,222,128,0.75)',fontSize:12,animation:'welcomeUp 0.5s ease 1.6s both',display:'flex',alignItems:'center',gap:8,fontFamily:'monospace'}}>
+      <div style={{color:'rgba(74,222,128,0.6)',fontSize:10,fontWeight:700,animation:'welcomeUp 0.5s ease 0.9s both',letterSpacing:3,fontFamily:'monospace',marginBottom:8}}>{isHe?'ברוכים הבאים ל':'WELCOME TO'}</div>
+      <div style={{color:'#fff',fontSize:30,fontWeight:900,animation:'welcomeUp 0.6s ease 1.2s both',textAlign:'center',padding:'0 24px',letterSpacing:'-0.5px',textShadow:'0 0 24px rgba(74,222,128,0.5)',marginBottom:12}}>{isHe?`בית ${householdName}`:`${householdName}`}</div>
+      <div style={{color:'rgba(74,222,128,0.7)',fontSize:12,animation:'welcomeUp 0.5s ease 1.6s both',display:'flex',alignItems:'center',gap:8,fontFamily:'monospace'}}>
         <span style={{width:7,height:7,borderRadius:'50%',background:'#4ade80',display:'inline-block',boxShadow:'0 0 10px #4ade80',animation:'glowPulse 1.2s ease-in-out infinite'}}/>
         {isHe?'המשק בית שלכם מוכן':'HOUSEHOLD READY'}
       </div>
-      {/* Particles */}
       {[0,1,2,3,4,5,6].map(i=>(
-        <div key={i} style={{position:'absolute',width:3,height:3,borderRadius:'50%',background:'rgba(74,222,128,0.6)',left:`${8+i*13}%`,top:'92%',boxShadow:'0 0 5px rgba(74,222,128,0.5)',animation:`techDotFloat ${2.2+i*0.45}s ease-out ${i*0.5}s infinite`,pointerEvents:'none'}}/>
+        <div key={i} style={{position:'absolute',width:3,height:3,borderRadius:'50%',background:'rgba(74,222,128,0.55)',left:`${8+i*13}%`,top:'94%',boxShadow:'0 0 5px rgba(74,222,128,0.5)',animation:`techDotFloat ${2.2+i*0.45}s ease-out ${i*0.5}s infinite`,pointerEvents:'none'}}/>
       ))}
     </div>
   );
