@@ -3160,6 +3160,7 @@ const FRIDGE_CATS=[
   {key:"cheeses", he:"גבינות",       en:"Cheeses"},
   {key:"veggies", he:"ירקות ופירות", en:"Vegetables & Fruits"},
   {key:"protein", he:"חלבון",        en:"Protein"},
+  {key:"legumes", he:"קטניות",       en:"Legumes"},
   {key:"carbs",   he:"פחמימה",       en:"Carbs"},
   {key:"nuts",    he:"פיצוחים",      en:"Nuts & Seeds"},
   {key:"spices",  he:"תבלינים",      en:"Spices"},
@@ -3181,7 +3182,18 @@ function MealPlannerModal({onAdd,onClose,lang}){
   const [showRefine,setShowRefine]=useState(false);
   const [refineText,setRefineText]=useState("");
   const [error,setError]=useState("");
-  const [fridge,setFridge]=useState(loadFridge);
+  const syncFridgeFromPantry=(base)=>{
+    const p=loadPantry();
+    const merged={...base};
+    FRIDGE_CATS.forEach(c=>{
+      const pNames=(p[c.key]||[]).map(i=>i.name);
+      const existing=base[c.key]||[];
+      const combined=[...existing,...pNames.filter(n=>!existing.includes(n))];
+      if(combined.length) merged[c.key]=combined;
+    });
+    return merged;
+  };
+  const [fridge,setFridge]=useState(()=>syncFridgeFromPantry(loadFridge()));
   const [fridgeIn,setFridgeIn]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,""])));
   const [fridgeOpen,setFridgeOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,true])));
   const [savedPrefs,setSavedPrefs]=useState(()=>{try{return JSON.parse(localStorage.getItem("nutrition_saved_prefs")||"[]");}catch{return [];}});
@@ -3199,6 +3211,7 @@ function MealPlannerModal({onAdd,onClose,lang}){
   };
 
   const updateFridge=f=>{setFridge(f);saveFridgeLS(f);};
+  const resyncFromPantry=()=>{const synced=syncFridgeFromPantry(fridge);setFridge(synced);saveFridgeLS(synced);};
   const addFridgeItem=(cat,val)=>{
     const items=val.split(/[,،]/).map(s=>s.trim()).filter(Boolean);
     if(!items.length)return;
@@ -3214,6 +3227,20 @@ function MealPlannerModal({onAdd,onClose,lang}){
     .map(c=>`${isHe?c.he:c.en}: ${fridge[c.key].join(", ")}`)
     .join(" | ");
 
+  const BASE_INGS=['שמן','מלח','סוכר','פלפל','צ\'ילי','אבקת אפייה','סודה לשתייה','חמאה','שום','בצל','מים','חומץ'];
+  const fridgeFlat=FRIDGE_CATS.flatMap(c=>(fridge[c.key]||[]).map(s=>s.toLowerCase()));
+  const isMissing=name=>{
+    const n=name.toLowerCase();
+    if(BASE_INGS.some(b=>n.includes(b)))return false;
+    return!fridgeFlat.some(f=>f.includes(n)||n.includes(f));
+  };
+  const addMissingToCart=missing=>{
+    if(!missing||!missing.length)return;
+    const current=loadShopping();
+    const toAdd=missing.filter(m=>!current.some(c=>c.name.toLowerCase()===m.toLowerCase()));
+    if(!toAdd.length)return;
+    saveShopping([...current,...toAdd.map(m=>({id:Date.now()+Math.random(),name:m,qty:'',checked:false,auto:false,addedBy:''}))]);
+  };
   const fetchOptions=async(refine)=>{
     setLoading(true);setError("");
     const fridgeStr=buildFridgeStr();
@@ -3333,7 +3360,10 @@ function MealPlannerModal({onAdd,onClose,lang}){
           )}
 
           {/* Fridge section */}
-          <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>🥗 {isHe?"מה במקרר?":"What's in the fridge?"}</div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+            <div style={{fontSize:13,fontWeight:700,color:C.text}}>🥗 {isHe?"מה במקרר?":"What's in the fridge?"}</div>
+            <button onClick={resyncFromPantry} style={{background:'none',border:`1px solid ${C.accent}`,borderRadius:8,color:C.accent,fontSize:11,fontWeight:600,padding:'4px 10px',cursor:'pointer',fontFamily:'inherit'}}>🔄 {isHe?'עדכן ממזווה':'Sync pantry'}</button>
+          </div>
           {FRIDGE_CATS.map(cat=>(
             <div key={cat.key} style={{marginBottom:8}}>
               <button onClick={()=>setFridgeOpen(o=>({...o,[cat.key]:!o[cat.key]}))}
@@ -3372,6 +3402,7 @@ function MealPlannerModal({onAdd,onClose,lang}){
             <button onClick={()=>setPeople(v=>v+1)} style={{width:28,height:28,border:`1px solid ${C.border}`,borderRadius:6,background:"rgba(255,255,255,.7)",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
           </div>
           {error&&<div style={{color:C.danger,fontSize:12,marginBottom:8}}>{error}</div>}
+          {loading&&<div style={{textAlign:'center',marginBottom:8}}><CalcLoader size={64}/></div>}
           <button onClick={()=>fetchOptions()} disabled={loading} className="btn-accent" style={{borderRadius:12}}>
             {loading?(isHe?"מחפש...":"Searching..."):(isHe?"✨ קבל הצעות":"✨ Get suggestions")}
           </button>
@@ -3380,11 +3411,14 @@ function MealPlannerModal({onAdd,onClose,lang}){
         {/* Step 2 — Options */}
         {step===2&&<>
           {error&&<div style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:8,padding:"8px 12px",fontSize:12,color:C.danger,marginBottom:10}}>{error}</div>}
-          {options.map((opt,i)=>(
-            <div key={i} style={{background:"rgba(255,255,255,.7)",border:`1px solid rgba(148,163,184,.25)`,borderRadius:16,padding:14,marginBottom:10}}>
-              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>{opt.name}</div>
+          {options.map((opt,i)=>{
+            const missing=(opt.missingIngredients||[]).filter(isMissing);
+            return(
+            <div key={i} style={{background:"rgba(255,255,255,.7)",border:`1px solid rgba(148,163,184,.25)`,borderRadius:16,padding:14,marginBottom:10,position:'relative'}}>
+              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4,paddingLeft:28}}>{opt.name}</div>
+              {missing.length>0&&<button onClick={()=>addMissingToCart(missing)} title={isHe?'הוסף חסרים לעגלה':'Add missing to cart'} style={{position:'absolute',top:12,left:12,background:'none',border:'none',fontSize:18,cursor:'pointer',padding:0,lineHeight:1}}>🛒</button>}
               <div style={{fontSize:12,color:C.muted,marginBottom:10}}>{opt.description}</div>
-              <div style={{display:"flex",gap:8,marginBottom:10}}>
+              <div style={{display:"flex",gap:8,marginBottom:missing.length?6:10}}>
                 {[{l:isHe?"קק״ל":"kcal",v:opt.kcalPerPerson,c:C.accent},
                   {l:isHe?"פחמ׳":"carbs",v:opt.carbsPerPerson,c:C.warn},
                   {l:isHe?"חלבון":"prot",v:opt.proteinPerPerson,c:C.blue}].map(({l,v,c})=>(
@@ -3394,12 +3428,14 @@ function MealPlannerModal({onAdd,onClose,lang}){
                   </div>
                 ))}
               </div>
+              {missing.length>0&&<div style={{fontSize:11,color:'#991b1b',marginBottom:8,lineHeight:1.4}}>מה חסר: {missing.join(', ')}</div>}
               <button onClick={()=>fetchRecipe(opt.name)} disabled={loading}
                 style={{width:"100%",background:C.accent,border:"none",borderRadius:10,color:"#fff",padding:"9px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                 {loading&&selected===opt.name?(isHe?"טוען...":"Loading..."):(isHe?"בחר":"Select")}
               </button>
             </div>
-          ))}
+            );
+          })}
           {/* Refine */}
           <button onClick={()=>setShowRefine(v=>!v)} style={{width:"100%",background:"none",border:`1px solid ${C.border}`,borderRadius:10,padding:"8px",fontSize:12,color:C.muted,cursor:"pointer",marginBottom:showRefine?8:0}}>
             {isHe?"לא מדויק? דייקי":"Not accurate? Refine"} ↕
@@ -3408,6 +3444,7 @@ function MealPlannerModal({onAdd,onClose,lang}){
             <textarea value={refineText} onChange={e=>setRefineText(e.target.value)}
               placeholder={isHe?"מה לשנות? למשל: משהו קל יותר, ללא בשר...":"What to change? e.g. something lighter, no meat..."}
               rows={2} className="inp" style={{marginBottom:8,resize:"none"}}/>
+            {loading&&<div style={{textAlign:'center',marginBottom:8}}><CalcLoader size={64}/></div>}
             <button onClick={()=>fetchOptions(refineText)} disabled={loading} className="btn-accent" style={{borderRadius:10}}>
               {loading?(isHe?"מחפש...":"Searching..."):(isHe?"✨ עדכן הצעות":"✨ Update")}
             </button>
@@ -3418,7 +3455,10 @@ function MealPlannerModal({onAdd,onClose,lang}){
         {/* Step 3 — Recipe */}
         {step===3&&recipe&&<>
           {!showIngEdit ? <>
-            <div style={{fontSize:14,fontWeight:900,color:C.text,marginBottom:3}}>{recipe.name}</div>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
+              <div style={{fontSize:14,fontWeight:900,color:C.text,flex:1}}>{recipe.name}</div>
+              {(()=>{const m=(recipe.ingredients||[]).filter(ing=>isMissing(ing.item)).map(ing=>ing.item);return m.length>0&&<button onClick={()=>addMissingToCart(m)} title={isHe?'הוסף חסרים לעגלה':'Add missing to cart'} style={{background:'none',border:'none',fontSize:20,cursor:'pointer',padding:'0 4px',flexShrink:0,lineHeight:1}}>🛒</button>})()}
+            </div>
             <div style={{fontSize:10,color:C.muted,marginBottom:10}}>{isHe?"לאדם":"per person"}: {Math.round(recipe.kcalPerPerson||0)} {isHe?"קק״ל":"kcal"} · {Math.round(recipe.carbsPerPerson||0)}g {isHe?"פחמ׳":"carbs"} · {Math.round(recipe.proteinPerPerson||0)}g {isHe?"חלבון":"prot"}</div>
             <div style={{fontSize:10,fontWeight:700,color:C.muted,letterSpacing:1.2,marginBottom:6}}>{isHe?"רכיבים (ל-":"Ingredients (for "}{people}{isHe?" אנשים)":")"}</div>
             <div style={{background:"rgba(148,163,184,.08)",borderRadius:10,padding:"8px 12px",marginBottom:10}}>
@@ -4499,7 +4539,7 @@ function App(){
       <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
         <button onClick={()=>{setShowMealPlanner(v=>!v);setShowMeal(false);setShowPhoto(false);setShowSmart(false);}}
           style={{background:"linear-gradient(135deg,#14b8a6,#0d9488)",border:"none",borderRadius:50,padding:"14px 32px",fontSize:14,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 6px 24px rgba(13,148,136,.35)",display:"flex",alignItems:"center",gap:8}}>
-          🍳 {T.whatEat}
+          {T.whatEat}
         </button>
       </div>
 
