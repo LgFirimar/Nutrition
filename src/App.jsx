@@ -2330,7 +2330,7 @@ function ShoppingListModal({onClose,lang,pid,syncTick}){
 }
 
 // ── ExportImportModal ──────────────────────────────────────────────────────────
-function ExportImportModal({pid, onClose, lang}){
+function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBloodSugar, todayTotals}){
   const isHe=(lang||'he')!=='en';
   const [importing,setImporting]=useState(false);
   const [importText,setImportText]=useState("");
@@ -2339,13 +2339,22 @@ function ExportImportModal({pid, onClose, lang}){
   const fileInputRef=useRef(null);
 
   const exportData=()=>{
+    // Merge today's live state into journal before export (handles unsaved state)
+    const journal=loadJournal(pid);
+    if(todayEntries?.length||todayBloodSugar){
+      journal[todayDate||getTodayKey()]={
+        entries:(todayEntries||[]).map(e=>({label:e.label,kcal:e.kcal,carbs:e.carbs,protein:e.protein,fat:e.fat||0})),
+        totals:todayTotals||{kcal:0,carbs:0,protein:0},
+        ...(todayBloodSugar?{bloodSugar:parseFloat(todayBloodSugar)}:{}),
+      };
+    }
     const data={
       version:4,
       exportDate:new Date().toISOString(),
       pid,
       profiles:loadProfiles(),
       activeProfileId:loadActiveProfileId(),
-      journal:loadJournal(pid),
+      journal,
       customBtns:loadCustomBtns(pid),
       customDB:loadCustomDB(pid),
       fridge:loadFridge(),
@@ -2357,14 +2366,7 @@ function ExportImportModal({pid, onClose, lang}){
     const json=JSON.stringify(data,null,2);
     const fname=(filename.trim()||`nutrition-backup-${pid}`).replace(/\.json$/,"")+".json";
     const blob=new Blob([json],{type:"application/json"});
-    if(navigator.share && navigator.canShare) {
-      const file=new File([blob],fname,{type:"application/json"});
-      if(navigator.canShare({files:[file]})){
-        navigator.share({files:[file],title:"Nutrition Backup"});
-        setMsg({type:"success",text:isHe?"✓ שתף/שמור את הקובץ":"✓ Share or save the file"});
-        return;
-      }
-    }
+    // Always use direct download — navigator.share on iOS can cause app reload
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
     a.href=url; a.download=fname;
@@ -2381,7 +2383,11 @@ function ExportImportModal({pid, onClose, lang}){
       const targetPid=pid;
       if(data.profiles) saveProfiles(data.profiles);
       if(data.activeProfileId) saveActiveProfileId(data.activeProfileId);
-      if(data.journal) saveJournal(data.journal,targetPid);
+      // Merge journal: keep existing days not in backup, restore backup days
+      if(data.journal){
+        const existing=loadJournal(targetPid);
+        saveJournal({...existing,...data.journal},targetPid);
+      }
       if(data.customBtns) saveCustomBtns(data.customBtns,targetPid);
       if(data.customDB) saveCustomDB(data.customDB,targetPid);
       if(data.fridge) saveFridgeLS(data.fridge);
@@ -4128,7 +4134,7 @@ function App(){
       {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang}/>}
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}} lang={lang}/>}
       {showWizard && <ProfileSetupWizard profile={wizardProfile} onSave={p=>{const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===p.id?p:x));setActiveProfile(p.id===pid?p:activeProfile);setProfiles(loadProfiles());setWizardProfile(null);setShowWizard(false);}} onSkip={()=>{setWizardProfile(null);setShowWizard(false);}}/>}
-      {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)} lang={lang}/>}
+      {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)} lang={lang} todayEntries={entries} todayDate={activeDate} todayBloodSugar={bloodSugar} todayTotals={totals}/>}
       {showJournal && <JournalView pid={pid} lang={lang} onClose={()=>setShowJournal(false)} onLoadDay={saved=>{setEntries(saved.map(e=>({...e,uid:Date.now()+Math.random()})));setShowJournal(false);}}/>}
       {showNewBtn && <NewButtonModal onClose={()=>setShowNewBtn(false)} onSave={saveNewBtn}/>}
       {showDB && <DBManagerModal pid={pid} lang={lang} onClose={()=>setShowDB(false)}/>}
