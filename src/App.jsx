@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 const imgUtilsReady = import('./imgUtils.js');
 
 
@@ -3688,7 +3689,7 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
             {top:'45%',left:'5%','--sx':'-50px','--sy':'0px',delay:'0.6s',e:'💫'},
             {top:'40%',right:'6%','--sx':'45px','--sy':'-10px',delay:'0.2s',e:'⭐'},
           ];
-          return welcomePhase==='animate'?(
+          if(welcomePhase==='animate') return createPortal(
             <div onClick={()=>setWelcomePhase('share')} style={{position:'fixed',inset:0,zIndex:9999,background:'linear-gradient(150deg,#0d9488 0%,#059669 55%,#0f766e 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:'pointer'}}>
               <div style={{position:'absolute',top:16,right:16,color:'rgba(255,255,255,0.5)',fontSize:11,letterSpacing:.5}}>{isHe?'לחצו לדילוג':'tap to skip'}</div>
               {[0,0.6,1.2].map((d,i)=>(
@@ -3701,8 +3702,10 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
               <div style={{color:'rgba(255,255,255,0.8)',fontSize:15,fontWeight:400,animation:'welcomeUp 0.5s ease 0.45s both',letterSpacing:0.8,marginBottom:8}}>{isHe?'ברוכים הבאים ל':'Welcome to'}</div>
               <div style={{color:'#fff',fontSize:30,fontWeight:900,animation:'welcomeUp 0.6s ease 0.75s both',textAlign:'center',padding:'0 24px',letterSpacing:'-0.5px',textShadow:'0 2px 12px rgba(0,0,0,0.2)'}}>{isHe?`בית ${autoSuccess.householdName}`:`${autoSuccess.householdName} Household`}</div>
               <div style={{color:'rgba(255,255,255,0.65)',fontSize:13,animation:'welcomeUp 0.5s ease 1.1s both',marginTop:14}}>🎉 {isHe?'המשק בית שלכם מוכן!':'Your household is ready!'}</div>
-            </div>
-          ):(
+            </div>,
+            document.body
+          );
+          return(
             <div className="fade" style={{textAlign:'center',padding:'4px 0'}}>
               <div style={{fontSize:40,marginBottom:8}}>🏠</div>
               <div style={{fontSize:19,fontWeight:900,color:C.text,marginBottom:4}}>{isHe?`בית ${autoSuccess.householdName}`:`${autoSuccess.householdName} Household`}</div>
