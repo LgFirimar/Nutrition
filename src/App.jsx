@@ -154,25 +154,49 @@ async function autoSetupHousehold(projectId,onStep){
   await _loadGIS();
   onStep('auth');
   const tok=await _getGToken();
+
   onStep('project');
-  const proj=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}`,tok);
+  // Get project info — also ensures Firebase is activated on this Cloud project
+  let proj;
+  try{
+    proj=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}`,tok);
+  }catch(e){
+    // If not yet a Firebase project, try to add Firebase to the Cloud project
+    try{
+      const op=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}:addFirebase`,tok,'POST',{});
+      // Poll until done
+      let addOp=op;
+      for(let i=0;i<15&&!addOp.done;i++){
+        await new Promise(r=>setTimeout(r,2000));
+        addOp=await _gapi(`https://firebase.googleapis.com/v1beta1/${addOp.name}`,tok);
+      }
+      proj=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}`,tok);
+    }catch(e2){throw new Error(`פרויקט לא נמצא: ${e2.message}`);}
+  }
   const pNum=proj.projectNumber;
-  if(!pNum)throw new Error('פרויקט לא נמצא — בדקו את ה-Project ID');
+  if(!pNum)throw new Error('לא הצלחנו לאמת את הפרויקט — בדקי את ה-Project ID');
+
   onStep('database');
   let dbUrl=null;
-  try{
-    const ls2=await _gapi(`https://firebasedatabase.googleapis.com/v1beta/projects/${pNum}/locations/-/instances`,tok);
-    if(ls2.instances?.length)dbUrl=ls2.instances[0].databaseUrl;
-  }catch(_){}
+  let dbLastErr='';
+  // Try to find existing database first (with both project number and id)
+  for(const ref of[pNum,projectId]){
+    try{
+      const ls2=await _gapi(`https://firebasedatabase.googleapis.com/v1beta/projects/${ref}/locations/-/instances`,tok);
+      if(ls2.instances?.length){dbUrl=ls2.instances[0].databaseUrl;break;}
+    }catch(e){dbLastErr=e.message;}
+  }
+  // Create if not found
   if(!dbUrl){
-    for(const loc of['europe-west1','us-central1']){
+    for(const [ref,loc] of[[pNum,'europe-west1'],[pNum,'us-central1'],[projectId,'us-central1']]){
       try{
-        const db=await _gapi(`https://firebasedatabase.googleapis.com/v1beta/projects/${pNum}/locations/${loc}/instances?databaseId=${projectId}-default-rtdb`,tok,'POST',{type:'USER_DATABASE'});
+        const db=await _gapi(`https://firebasedatabase.googleapis.com/v1beta/projects/${ref}/locations/${loc}/instances?databaseId=${projectId}-default-rtdb`,tok,'POST',{type:'USER_DATABASE'});
         dbUrl=db.databaseUrl;break;
-      }catch(_){}
+      }catch(e){dbLastErr=e.message;}
     }
   }
-  if(!dbUrl)throw new Error('יצירת Realtime Database נכשלה');
+  if(!dbUrl)throw new Error(`יצירת Realtime Database נכשלה: ${dbLastErr}`);
+
   onStep('webapp');
   let appId=null;
   try{
@@ -185,6 +209,7 @@ async function autoSetupHousehold(projectId,onStep){
     if(!op.done)throw new Error('יצירת Web App לקחה יותר מדי זמן');
     appId=op.response?.appId;
   }
+
   onStep('config');
   const cfg=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps/${appId}/config`,tok);
   if(!cfg.databaseURL)cfg.databaseURL=dbUrl;
