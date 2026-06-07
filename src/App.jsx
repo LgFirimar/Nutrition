@@ -3593,20 +3593,17 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
         completed.push(step==='auth'?null:AUTO_STEPS[AUTO_STEPS.findIndex(s=>s.key===step)-1]?.key);
         setAutoProgress({current:step,completed:[...completed].filter(Boolean)});
       });
-      setAutoProgress({current:null,completed:AUTO_STEPS.map(s=>s.key)});
       const hid=genId();
       const newCfg={firebaseConfig:cfg,householdId:hid,memberName:memberName.trim(),householdName:householdName.trim()||memberName.trim()};
-      const ok=await _fbInit(newCfg);
-      if(!ok)throw new Error(isHe?'שגיאה בחיבור ל-Firebase':'Firebase init failed');
-      await registerMember(hid,memberName.trim());
       ls.set('nutrition_household',newCfg);
-      // Update App state immediately (so household is active even before modal closes)
+      // Update App state + show welcome screen immediately — don't block on Firebase SDK load
       onHouseholdReady?.(newCfg);
-      // Store config and show welcome screen — onConnect (closes modal) called when user taps button
       autoSuccessCfgRef.current=newCfg;
       const sc=btoa(JSON.stringify({firebaseConfig:cfg,householdId:hid}));
       setAutoProgress(null);
       setAutoSuccess({householdName:newCfg.householdName,sharingCode:sc});
+      // Init Firebase + register member in background (non-blocking)
+      _fbInit(newCfg).then(ok=>{if(ok)registerMember(hid,memberName.trim());}).catch(()=>{});
     }catch(e){
       setAutoError(e.message||(isHe?'שגיאה בהגדרה האוטומטית':'Auto setup failed'));
       setAutoProgress(null);
