@@ -124,6 +124,77 @@ if(ls.get('nutrition_household')){
   Promise.all([import('firebase/app'),import('firebase/database')]).catch(()=>{});
 }
 
+// ── Google OAuth + Firebase Management API (auto household setup) ─────────────
+const GOOG_CLIENT_ID='265332769587-rdfch8osb3k8f5tn7mf1ra1ods3kte38.apps.googleusercontent.com';
+
+const _loadGIS=()=>new Promise((ok,fail)=>{
+  if(window.google?.accounts?.oauth2){ok();return;}
+  const s=document.createElement('script');
+  s.src='https://accounts.google.com/gsi/client';
+  s.onload=ok;s.onerror=fail;document.head.appendChild(s);
+});
+
+const _getGToken=()=>new Promise((ok,fail)=>{
+  window.google.accounts.oauth2.initTokenClient({
+    client_id:GOOG_CLIENT_ID,
+    scope:'https://www.googleapis.com/auth/firebase https://www.googleapis.com/auth/cloud-platform',
+    callback:r=>r.error?fail(new Error(r.error_description||r.error)):ok(r.access_token),
+    error_callback:e=>fail(new Error(e?.type||'auth error')),
+  }).requestAccessToken({prompt:''});
+});
+
+const _gapi=async(url,tok,method='GET',body=null)=>{
+  const r=await fetch(url,{method,headers:{Authorization:`Bearer ${tok}`,'Content-Type':'application/json'},...(body!=null?{body:JSON.stringify(body)}:{})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error?.message||`שגיאה ${r.status}`);
+  return d;
+};
+
+async function autoSetupHousehold(projectId,onStep){
+  await _loadGIS();
+  onStep('auth');
+  const tok=await _getGToken();
+  onStep('project');
+  const proj=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}`,tok);
+  const pNum=proj.projectNumber;
+  if(!pNum)throw new Error('פרויקט לא נמצא — בדקו את ה-Project ID');
+  onStep('database');
+  let dbUrl=null;
+  try{
+    const ls2=await _gapi(`https://firebasedatabase.googleapis.com/v1beta/projects/${pNum}/locations/-/instances`,tok);
+    if(ls2.instances?.length)dbUrl=ls2.instances[0].databaseUrl;
+  }catch(_){}
+  if(!dbUrl){
+    for(const loc of['europe-west1','us-central1']){
+      try{
+        const db=await _gapi(`https://firebasedatabase.googleapis.com/v1beta/projects/${pNum}/locations/${loc}/instances?databaseId=${projectId}-default-rtdb`,tok,'POST',{type:'USER_DATABASE'});
+        dbUrl=db.databaseUrl;break;
+      }catch(_){}
+    }
+  }
+  if(!dbUrl)throw new Error('יצירת Realtime Database נכשלה');
+  onStep('webapp');
+  let appId=null;
+  try{
+    const al=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps`,tok);
+    if(al.apps?.length)appId=al.apps[0].appId;
+  }catch(_){}
+  if(!appId){
+    let op=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps`,tok,'POST',{displayName:'Nutrition'});
+    for(let i=0;i<20&&!op.done;i++){await new Promise(r=>setTimeout(r,1500));op=await _gapi(`https://firebase.googleapis.com/v1beta1/${op.name}`,tok);}
+    if(!op.done)throw new Error('יצירת Web App לקחה יותר מדי זמן');
+    appId=op.response?.appId;
+  }
+  onStep('config');
+  const cfg=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps/${appId}/config`,tok);
+  if(!cfg.databaseURL)cfg.databaseURL=dbUrl;
+  // Set test-mode rules (best effort)
+  try{
+    await fetch(`${cfg.databaseURL}/.settings/rules.json`,{method:'PUT',headers:{Authorization:`Bearer ${tok}`,'Content-Type':'application/json'},body:JSON.stringify({rules:{'.read':true,'.write':true}})});
+  }catch(_){}
+  return cfg;
+}
+
 async function _fbInit(cfg){
   if(_fbDb&&_householdId===cfg.householdId)return true;
   try{
@@ -3386,6 +3457,10 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
   const[joinCode,setJoinCode]=useState('');
   const[createStep,setCreateStep]=useState(1);
   const[showScreenshot,setShowScreenshot]=useState(null);
+  const[projectIdInput,setProjectIdInput]=useState('');
+  const[autoProgress,setAutoProgress]=useState(null);
+  const[autoError,setAutoError]=useState('');
+  const[useManual,setUseManual]=useState(false);
   const[loading,setLoading]=useState(false);
   const[error,setError]=useState('');
   const[copied,setCopied]=useState(false);
@@ -3457,6 +3532,39 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
     ls.set('nutrition_household',newCfg);
     onConnect(newCfg);
     setLoading(false);
+  };
+
+  const AUTO_STEPS=[
+    {key:'auth',   he:'מתחבר לחשבון Google',      en:'Signing into Google'},
+    {key:'project',he:'מאמת פרויקט Firebase',      en:'Verifying Firebase project'},
+    {key:'database',he:'יוצר Realtime Database',   en:'Creating Realtime Database'},
+    {key:'webapp', he:'יוצר Web App',              en:'Creating Web App'},
+    {key:'config', he:'מקבל הגדרות Firebase',      en:'Getting Firebase config'},
+  ];
+
+  const handleAutoSetup=async()=>{
+    if(!memberName.trim()){setError(isHe?'נא להזין שם':'Enter your name');return;}
+    if(!projectIdInput.trim()){setError(isHe?'נא להזין Project ID':'Enter Project ID');return;}
+    setError('');setAutoError('');
+    const completed=[];
+    setAutoProgress({current:'auth',completed});
+    try{
+      const cfg=await autoSetupHousehold(projectIdInput.trim(),(step)=>{
+        completed.push(step==='auth'?null:AUTO_STEPS[AUTO_STEPS.findIndex(s=>s.key===step)-1]?.key);
+        setAutoProgress({current:step,completed:[...completed].filter(Boolean)});
+      });
+      setAutoProgress({current:null,completed:AUTO_STEPS.map(s=>s.key)});
+      const hid=genId();
+      const newCfg={firebaseConfig:cfg,householdId:hid,memberName:memberName.trim(),householdName:householdName.trim()||memberName.trim()};
+      const ok=await _fbInit(newCfg);
+      if(!ok)throw new Error(isHe?'שגיאה בחיבור ל-Firebase':'Firebase init failed');
+      await registerMember(hid,memberName.trim());
+      ls.set('nutrition_household',newCfg);
+      onConnect(newCfg);
+    }catch(e){
+      setAutoError(e.message||(isHe?'שגיאה בהגדרה האוטומטית':'Auto setup failed'));
+      setAutoProgress(null);
+    }
   };
 
   const handleJoin=async()=>{
@@ -3535,7 +3643,7 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
               return(<>
                 {/* Progress bar */}
                 <div style={{display:"flex",gap:4,marginBottom:14}}>
-                  {[1,2,3].map(s=><div key={s} style={{flex:1,height:3,borderRadius:2,background:createStep>=s?"#0d9488":"rgba(148,163,184,.2)"}}/>)}
+                  {[1,2].map(s=><div key={s} style={{flex:1,height:3,borderRadius:2,background:createStep>=s?"#0d9488":"rgba(148,163,184,.2)"}}/>)}
                 </div>
 
                 {/* Step 1: Create project */}
@@ -3554,69 +3662,82 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
                   </button>
                 </div>}
 
-                {/* Step 2: Realtime Database */}
+                {/* Step 2: Auto Setup */}
                 {createStep===2&&<div className="fade">
-                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>{isHe?"שלב 2 — Realtime Database":"Step 2 — Realtime Database"}</div>
-                  <button onClick={()=>window.open('https://console.firebase.google.com','_blank')} style={linkBtn}>
-                    🔗 {isHe?"חזרו ל-Firebase Console":"Back to Firebase Console"}
-                  </button>
-                  <div style={{fontSize:12,color:"#475569",lineHeight:1.5,margin:"4px 0 14px",display:"flex",flexDirection:"column",gap:10}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8}}>
-                      <span style={{background:"#0d9488",color:"#fff",borderRadius:"50%",width:20,height:20,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>1</span>
-                      <span style={{flex:1}}>{isHe?"בחרו בפרויקט שיצרתם":"Select your project"}</span>
-                      <button onClick={()=>setShowScreenshot('step1')} style={infoBtn}>ℹ</button>
-                    </div>
-                    <div style={{display:"flex",alignItems:"center",gap:8}}>
-                      <span style={{background:"#0d9488",color:"#fff",borderRadius:"50%",width:20,height:20,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>2</span>
-                      <span style={{flex:1}}>{isHe?"בתפריט: Build → Realtime Database":"In menu: Build → Realtime Database"}</span>
-                      <button onClick={()=>setShowScreenshot('step2')} style={infoBtn}>ℹ</button>
-                    </div>
-                    <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
-                      <span style={{background:"#0d9488",color:"#fff",borderRadius:"50%",width:20,height:20,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>3</span>
-                      <span>{isHe?"Create Database → Next → בחרו Test mode → Enable":"Create Database → Next → choose Test mode → Enable"}</span>
-                    </div>
+                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>
+                    {isHe?"שלב 2 — הגדרה אוטומטית":"Step 2 — Auto Setup"}
                   </div>
-                  <div style={{display:"flex",gap:8}}>
-                    <button onClick={()=>setCreateStep(1)} style={backBtn}>←</button>
-                    <button onClick={()=>setCreateStep(3)} style={nextBtn}>{isHe?"✓ יצרתי Database →":"✓ Created Database →"}</button>
-                  </div>
-                </div>}
 
-                {/* Step 3: Add web app & config */}
-                {createStep===3&&<div className="fade">
-                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>{isHe?"שלב 3 — הוסיפו אפליקציה ועתיקו קוד":"Step 3 — Add App & Copy Config"}</div>
-                  <button onClick={()=>window.open('https://console.firebase.google.com','_blank')} style={linkBtn}>
-                    🔗 {isHe?"כנסו לפרויקט שלכם":"Enter your Firebase project"}
-                  </button>
-                  <div style={{fontSize:12,color:"#475569",lineHeight:1.8,marginBottom:10}}>
-                    {isHe?"לחצו ":"Click "}<b>+ Add app</b>{isHe?" ואז על the icon ":" then "}<span style={{fontFamily:"monospace",fontWeight:700,background:"#f1f5f9",borderRadius:4,padding:"1px 6px"}}>&lt;/&gt;</span>
-                  </div>
-                  <input value={memberName} onChange={e=>setMemberName(e.target.value)}
-                    placeholder={isHe?"השם שלך (יוצג בעגלה)":"Your name (shown in cart)"}
-                    style={inputStyle}/>
-                  <input value={householdName} onChange={e=>setHouseholdName(e.target.value)}
-                    placeholder={isHe?"שם משק הבית (למשל: משפחת לוי)":"Household name (e.g. The Levy Family)"}
-                    style={{...inputStyle,marginBottom:6}}/>
-                  {/* Config paste with fixed frame */}
-                  <div style={{fontFamily:"monospace",fontSize:11,color:"#64748b",background:"#f5f5f7",borderRadius:"8px 8px 0 0",padding:"6px 10px",border:"1px solid rgba(148,163,184,.25)",borderBottom:"none"}}>
-                    const firebaseConfig = {'{'}
-                  </div>
-                  <textarea value={configText} onChange={e=>setConfigText(e.target.value)}
-                    placeholder={"  apiKey: \"AIza...\",\n  authDomain: \"...\",\n  databaseURL: \"https://...\",\n  projectId: \"...\",\n  storageBucket: \"...\",\n  messagingSenderId: \"...\",\n  appId: \"...\""}
-                    style={{...inputStyle,height:100,resize:"vertical",fontFamily:"monospace",fontSize:11,borderRadius:0,borderTop:"none",borderBottom:"none",marginBottom:0}}/>
-                  <div style={{fontFamily:"monospace",fontSize:11,color:"#64748b",background:"#f5f5f7",borderRadius:"0 0 8px 8px",padding:"6px 10px",border:"1px solid rgba(148,163,184,.25)",borderTop:"none",marginBottom:4}}>
-                    {'};'}
-                  </div>
-                  <div style={{fontSize:10,color:C.muted,marginBottom:8}}>
-                    {isHe?"העתיקו רק את השורות שבפנים — ללא הסוגריים { }":"Copy only the inner lines — without the curly braces { }"}
-                  </div>
-                  {error&&<div style={{color:"#dc2626",fontSize:11,marginBottom:8}}>{error}</div>}
-                  <div style={{display:"flex",gap:8}}>
-                    <button onClick={()=>setCreateStep(2)} style={backBtn}>←</button>
-                    <button onClick={handleCreate} disabled={loading} style={nextBtn}>
-                      {loading?(isHe?"מתחבר...":"Connecting..."):(isHe?"צור משק בית":"Create Household")}
+                  {!autoProgress&&!useManual&&<>
+                    <input value={memberName} onChange={e=>setMemberName(e.target.value)}
+                      placeholder={isHe?"השם שלך (יוצג בעגלה)":"Your name (shown in cart)"} style={inputStyle}/>
+                    <input value={householdName} onChange={e=>setHouseholdName(e.target.value)}
+                      placeholder={isHe?"שם משק הבית (למשל: משפחת לוי)":"Household name"} style={inputStyle}/>
+                    <div style={{fontSize:11,color:"#64748b",marginBottom:4}}>
+                      {isHe?"Project ID של הפרויקט שיצרתם:":"Project ID of your Firebase project:"}
+                    </div>
+                    <input value={projectIdInput} onChange={e=>setProjectIdInput(e.target.value)}
+                      placeholder="my-project-abc123"
+                      style={{...inputStyle,fontFamily:"monospace",direction:"ltr",textAlign:"left"}}/>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:10}}>
+                      {isHe?"נמצא ב-Firebase Console ← שם הפרויקט ← Project settings":"Found in Firebase Console → your project → Project settings"}
+                    </div>
+                    {error&&<div style={{color:"#dc2626",fontSize:11,marginBottom:8}}>{error}</div>}
+                    <div style={{display:"flex",gap:8,marginBottom:8}}>
+                      <button onClick={()=>setCreateStep(1)} style={backBtn}>←</button>
+                      <button onClick={handleAutoSetup} style={{...nextBtn,background:"linear-gradient(135deg,#4f46e5,#0d9488)"}}>
+                        🚀 {isHe?"Sign in with Google & הגדר":"Sign in with Google & Setup"}
+                      </button>
+                    </div>
+                    <button onClick={()=>setUseManual(true)} style={{background:"none",border:"none",fontSize:11,color:C.muted,cursor:"pointer",textDecoration:"underline",width:"100%",textAlign:"center"}}>
+                      {isHe?"הגדרה ידנית במקום":"Manual setup instead"}
                     </button>
-                  </div>
+                  </>}
+
+                  {/* Auto progress display */}
+                  {autoProgress&&<div style={{display:"flex",flexDirection:"column",gap:10,padding:"8px 0"}}>
+                    {AUTO_STEPS.map(({key,he,en})=>{
+                      const done=autoProgress.completed?.includes(key);
+                      const active=autoProgress.current===key;
+                      return(
+                        <div key={key} style={{display:"flex",alignItems:"center",gap:10,opacity:(!done&&!active)?.4:1}}>
+                          <span style={{width:22,height:22,borderRadius:"50%",background:done?"#0d9488":active?"rgba(13,148,136,.15)":"rgba(148,163,184,.15)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,flexShrink:0}}>
+                            {done?"✓":active?<span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>⟳</span>:"○"}
+                          </span>
+                          <span style={{fontSize:12,color:done?C.accent:active?C.text:C.muted,fontWeight:done||active?600:400}}>{isHe?he:en}</span>
+                        </div>
+                      );
+                    })}
+                    {autoProgress.current===null&&<div style={{marginTop:6,fontSize:13,fontWeight:700,color:C.accent}}>✅ {isHe?"הכל מוכן!":"All done!"}</div>}
+                  </div>}
+
+                  {autoError&&<>
+                    <div style={{color:"#dc2626",fontSize:11,background:"rgba(220,38,38,.06)",borderRadius:8,padding:"8px 10px",marginBottom:10}}>{autoError}</div>
+                    <button onClick={()=>{setAutoError('');setAutoProgress(null);}} style={{...backBtn,width:"100%",marginBottom:6}}>{isHe?"נסה שוב":"Try again"}</button>
+                    <button onClick={()=>setUseManual(true)} style={{background:"none",border:"none",fontSize:11,color:C.muted,cursor:"pointer",textDecoration:"underline",width:"100%",textAlign:"center"}}>{isHe?"הגדרה ידנית במקום":"Switch to manual setup"}</button>
+                  </>}
+
+                  {/* Manual fallback */}
+                  {useManual&&<>
+                    <div style={{fontSize:11,color:C.muted,marginBottom:8,background:"rgba(13,148,136,.04)",borderRadius:8,padding:"8px 10px"}}>
+                      {isHe?"הגדרה ידנית: עקבו אחרי השלבים ב-Firebase Console והדביקו את הconfig למטה":"Manual setup: follow the steps in Firebase Console and paste the config below"}
+                    </div>
+                    <input value={memberName} onChange={e=>setMemberName(e.target.value)} placeholder={isHe?"השם שלך":"Your name"} style={inputStyle}/>
+                    <input value={householdName} onChange={e=>setHouseholdName(e.target.value)} placeholder={isHe?"שם משק הבית":"Household name"} style={inputStyle}/>
+                    <div style={{fontFamily:"monospace",fontSize:11,color:"#64748b",background:"#f5f5f7",borderRadius:"8px 8px 0 0",padding:"6px 10px",border:"1px solid rgba(148,163,184,.25)",borderBottom:"none"}}>const firebaseConfig = {'{'}</div>
+                    <textarea value={configText} onChange={e=>setConfigText(e.target.value)}
+                      placeholder={"  apiKey: \"AIza...\",\n  authDomain: \"...\",\n  databaseURL: \"https://...\",\n  projectId: \"...\",\n  storageBucket: \"...\",\n  messagingSenderId: \"...\",\n  appId: \"...\""}
+                      style={{...inputStyle,height:100,resize:"vertical",fontFamily:"monospace",fontSize:11,borderRadius:0,borderTop:"none",borderBottom:"none",marginBottom:0}}/>
+                    <div style={{fontFamily:"monospace",fontSize:11,color:"#64748b",background:"#f5f5f7",borderRadius:"0 0 8px 8px",padding:"6px 10px",border:"1px solid rgba(148,163,184,.25)",borderTop:"none",marginBottom:4}}>{'};'}</div>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:8}}>{isHe?"העתיקו רק את השורות שבפנים — ללא { }":"Copy only inner lines — without { }"}</div>
+                    {error&&<div style={{color:"#dc2626",fontSize:11,marginBottom:8}}>{error}</div>}
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={()=>setUseManual(false)} style={backBtn}>←</button>
+                      <button onClick={handleCreate} disabled={loading} style={nextBtn}>
+                        {loading?(isHe?"מתחבר...":"Connecting..."):(isHe?"צור משק בית":"Create Household")}
+                      </button>
+                    </div>
+                  </>}
                 </div>}
 
                 {/* Screenshot overlay */}
