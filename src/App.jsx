@@ -389,6 +389,12 @@ const getFoodLabel = food => {
 };
 const MILK={kcal:0.5,carbs:0.047,protein:0.034,fat:0.02};
 
+// ── CalcLoader ────────────────────────────────────────────────────────────────
+function CalcLoader({size=32}){
+  const [v]=useState(()=>Math.ceil(Math.random()*3));
+  return <video src={`/Nutrition/loader${v}.mp4`} autoPlay loop muted playsInline style={{width:size,height:size,objectFit:'cover',borderRadius:'50%',display:'inline-block',verticalAlign:'middle'}}/>;
+}
+
 // ── StatBar ────────────────────────────────────────────────────────────────────
 function StatBar({value,max,color}){
   const pct=Math.min(value/max*100,100);
@@ -945,7 +951,7 @@ function DBManagerModal({onClose,pid,lang}){
               <button onClick={()=>setAddQty(v=>v+1)} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#fff",cursor:"pointer",fontSize:13}}>+</button>
               <button onClick={()=>askClaudeAdd({type:'text',val:addText})} disabled={!addText.trim()||addLoading}
                 style={{flex:1,background:addText.trim()&&!addLoading?C.accent:"#ddd",border:"none",borderRadius:8,color:addText.trim()&&!addLoading?"#fff":"#aaa",padding:"6px 8px",fontSize:12,fontWeight:700,cursor:addText.trim()&&!addLoading?"pointer":"default"}}>
-                {addLoading?<span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>⟳</span>:`✨ ${isHe?"חשב":"Calculate"}`}
+                {addLoading?<CalcLoader/>:`✨ ${isHe?"חשב":"Calculate"}`}
               </button>
             </div>
             {addError&&<div style={{fontSize:11,color:C.danger,background:"rgba(220,38,38,.06)",borderRadius:6,padding:"5px 8px"}}>{addError}</div>}
@@ -1021,7 +1027,7 @@ function DBManagerModal({onClose,pid,lang}){
                           <button onClick={()=>setEditQty(v=>v+1)} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>+</button>
                           <button onClick={askClaudeText} disabled={!editClaudeText.trim()||editLoading}
                             style={{flex:1,background:editClaudeText.trim()&&!editLoading?C.accent:"#ddd",border:"none",borderRadius:8,color:editClaudeText.trim()&&!editLoading?"#fff":"#aaa",padding:"6px 8px",fontSize:12,fontWeight:700,cursor:editClaudeText.trim()&&!editLoading?"pointer":"default"}}>
-                            {editLoading?<span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>⟳</span>:"✨ חשב מחדש"}
+                            {editLoading?<CalcLoader/>:"✨ חשב מחדש"}
                           </button>
                         </div>
                         <div style={{display:"flex",gap:8}}>
@@ -1164,7 +1170,7 @@ function AskClaude({foodName, amount, unit, onAddToDay, onSaved}){
     <div style={{marginTop:8}}>
       {!preview&&(
         <button onClick={ask} disabled={loading} style={{width:"100%",background:"linear-gradient(135deg,#5a9e1e,#7bc42e)",border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:loading?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,opacity:loading?0.85:1}}>
-          {loading?<span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>⟳</span>:"✨"}
+          {loading?<CalcLoader/>:"✨"}
           {loading?"מחפש ערכים...":"שאל את Claude"}
         </button>
       )}
@@ -1408,7 +1414,7 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
           <div style={{fontSize:12,color:C.muted}}>בחרי תמונה</div>
         </button>
       ))}
-      {loading&&<div style={{textAlign:"center",padding:"14px 0",color:C.muted,fontSize:13}}><span style={{display:"inline-block",animation:"spin 1s linear infinite",fontSize:22}}>⟳</span><div style={{marginTop:6}}>מנתח תמונה...</div></div>}
+      {loading&&<div style={{textAlign:"center",padding:"14px 0",color:C.muted,fontSize:13}}><CalcLoader size={44}/><div style={{marginTop:6}}>מנתח תמונה...</div></div>}
       {error&&<div style={{background:"#fff0f0",border:`1px solid ${C.danger}`,borderRadius:8,padding:"8px 12px",fontSize:11,color:C.danger,marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <span>⚠ {error}</span>
         <button onClick={()=>fileRef.current.click()} style={{background:C.danger,border:"none",borderRadius:6,color:"#fff",padding:"2px 8px",fontSize:11,fontWeight:700,cursor:"pointer"}}>נסי שוב</button>
@@ -1565,7 +1571,7 @@ function MealPanel({onAdd,onClose}){
       {!preview&&(
         <button onClick={ask} disabled={!text.trim()||loading}
           style={{width:"100%",background:text.trim()?"linear-gradient(135deg,#5a9e1e,#7bc42e)":"#ddd",border:"none",borderRadius:8,color:text.trim()?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:text.trim()?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:8}}>
-          {loading?<span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>⟳</span>:"✨"}
+          {loading?<CalcLoader/>:"✨"}
           {loading?"מנתח ארוחה...":"שאל את Claude"}
         </button>
       )}
@@ -2202,7 +2208,7 @@ function PantryModal({onClose,lang,syncTick}){
                   placeholder={isHe?"כמות":"Qty"} className="inp" style={{flex:1,fontSize:12,padding:"6px 8px"}}/>
                 <button onClick={()=>imgRefs.current[cat.key]&&imgRefs.current[cat.key].click()} disabled={imgLoading[cat.key]}
                   style={{background:"#f5f5f7",border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,padding:"0 8px",cursor:"pointer",fontSize:16,minWidth:36}}>
-                  {imgLoading[cat.key]?<span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>⟳</span>:"📷"}
+                  {imgLoading[cat.key]?<CalcLoader/>:"📷"}
                 </button>
                 <button onClick={()=>addItem(cat.key)} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 10px",cursor:"pointer",fontSize:16}}>+</button>
               </div>
@@ -2278,7 +2284,7 @@ function ShoppingListModal({onClose,lang,pid,syncTick}){
 
         {/* Generate button */}
         <button onClick={generate} disabled={loading} style={{width:"100%",background:"linear-gradient(135deg,#14b8a6,#059669)",border:"none",borderRadius:10,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-          {loading?<span style={{animation:"spin 1s linear infinite",display:"inline-block"}}>⟳</span>:"✨"}
+          {loading?<CalcLoader/>:"✨"}
           {loading?(isHe?"מנתח...":"Analyzing..."):(isHe?"הצע רשימת קניות לפי המזווה והרגלים":"Suggest based on pantry & habits")}
         </button>
         {error&&<div style={{color:C.danger,fontSize:12,marginBottom:8}}>{error}</div>}
@@ -2448,26 +2454,18 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
           <div style={{fontSize:11,color:C.muted,marginBottom:10,lineHeight:1.6}}>
             {isHe?"טעינת נתונים מקובץ גיבוי קודם. ⚠️ ידרוס את הנתונים הקיימים בפרופיל הנוכחי.":"Load data from a previous backup. ⚠️ Will overwrite current profile data."}
           </div>
-          {!importing ? (
-            <button onClick={()=>setImporting(true)} style={{width:"100%",background:"#f5f5f7",border:`1px solid ${C.border}`,borderRadius:10,color:C.muted,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+          <input ref={fileInputRef} type="file" accept=".json" onChange={importFromFile} style={{display:"none"}}/>
+          {!importText ? (
+            <button onClick={()=>fileInputRef.current?.click()} style={{width:"100%",background:"#f5f5f7",border:`1px solid ${C.border}`,borderRadius:10,color:C.muted,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
               {isHe?"📂 ייבא מקובץ":"📂 Import from File"}
             </button>
           ) : (
             <div className="fade">
-              <input ref={fileInputRef} type="file" accept=".json" onChange={importFromFile} style={{display:"none"}}/>
-              {!importText ? (
-                <button onClick={()=>fileInputRef.current?.click()} style={{width:"100%",background:"#f5f5f7",border:`2px dashed ${C.border}`,borderRadius:10,padding:"18px 12px",fontSize:15,fontWeight:700,cursor:"pointer",color:C.text,marginBottom:8,display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontFamily:"inherit"}}>
-                  <span style={{fontSize:22}}>📁</span> {isHe?"בחר קובץ":"Choose File"}
-                </button>
-              ) : (
-                <>
-                  <div style={{fontSize:11,color:C.accent,marginBottom:8}}>{isHe?"✓ קובץ נטען — לחצי ייבא":"✓ File loaded — tap Import"}</div>
-                  <div style={{display:"flex",gap:8}}>
-                    <button onClick={()=>{setImporting(false);setImportText("");}} className="btn-muted" style={{flex:1}}>{isHe?"ביטול":"Cancel"}</button>
-                    <button onClick={importData} style={{flex:2,background:C.warn,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{isHe?"ייבא עכשיו":"Import Now"}</button>
-                  </div>
-                </>
-              )}
+              <div style={{fontSize:11,color:C.accent,marginBottom:8}}>{isHe?"✓ קובץ נטען — לחצי ייבא":"✓ File loaded — tap Import"}</div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setImportText("")} className="btn-muted" style={{flex:1}}>{isHe?"ביטול":"Cancel"}</button>
+                <button onClick={importData} style={{flex:2,background:C.warn,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{isHe?"ייבא עכשיו":"Import Now"}</button>
+              </div>
             </div>
           )}
         </div>
@@ -2537,6 +2535,7 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
     {id:"veg",he:"צמחוני"},{id:"vegan",he:"טבעוני"},
     {id:"gf",he:"ללא גלוטן"},{id:"lf",he:"ללא לקטוז"},
     {id:"kosher",he:"כשר"},{id:"lowsodium",he:"דל נתרן"},
+    {id:"keto",he:"קטוגני"},
   ];
   const ACTIVITIES=[
     {id:"sedentary",he:"יושבני",sub:"ללא פעילות גופנית"},
@@ -2700,7 +2699,7 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
         )}
         {step===5&&(
           <div className="fade" style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:280,gap:12}}>
-            <div style={{fontSize:52,animation:"spin 2s linear infinite",display:"inline-block"}}>⟳</div>
+            <CalcLoader size={80}/>
             <div style={{fontSize:15,fontWeight:700,color:C.text}}>Claude מנתח את הפרופיל שלך</div>
             <div style={{fontSize:12,color:C.muted,textAlign:"center",lineHeight:1.7}}>
               בודק המלצות האיגודים הרפואיים...<br/>מחשב יעדים מותאמים אישית...
@@ -2748,9 +2747,9 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
           ):(
             <>
             <div style={{display:"flex",gap:8}}>
-              {step>0&&<button onClick={()=>setStep(s=>s-1)} style={{flex:1,background:"none",border:`1px solid ${C.border}`,borderRadius:12,padding:"13px",fontSize:14,fontWeight:600,color:C.muted,cursor:"pointer",fontFamily:"inherit"}}>← חזרה</button>}
+              {step>0&&<button onClick={()=>setStep(s=>s-1)} style={{flex:1,background:"none",border:`1px solid ${C.border}`,borderRadius:12,padding:"13px",fontSize:14,fontWeight:600,color:C.muted,cursor:"pointer",fontFamily:"inherit"}}>חזרה →</button>}
               <button onClick={handleNext} style={{flex:2,background:C.accent,border:"none",borderRadius:12,color:"#fff",padding:"13px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
-                {step===4?"🔍 קבלי המלצות מ-Claude →":"הבא →"}
+                {step===4?"← 🔍 קבלי המלצות מ-Claude":"← הבא"}
               </button>
             </div>
             {step===4&&(
@@ -2967,7 +2966,7 @@ function EditQuickFoodModal({food,onSave,onClose}){
           className="inp" style={{marginBottom:8,resize:"none",lineHeight:1.5,fontSize:13}}/>
         <button onClick={ask} disabled={loading}
           style={{width:"100%",background:"linear-gradient(135deg,#5a9e1e,#7bc42e)",border:"none",borderRadius:8,color:"#fff",padding:"9px",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-          {loading?<span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>⟳</span>:"✨"}
+          {loading?<CalcLoader/>:"✨"}
           {loading?"מחשב...":"חשב עם Claude"}
         </button>
         {error&&<div style={{fontSize:11,color:C.danger,marginBottom:8,textAlign:"center"}}>⚠ {error}</div>}
@@ -3680,7 +3679,46 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#94a3b8"}}>×</button>
         </div>
 
-        {!connected?(
+        {autoSuccess&&(()=>{
+          const SPARKS=[
+            {top:'18%',left:'12%','--sx':'-40px','--sy':'-60px',delay:'0s',e:'✨'},
+            {top:'22%',right:'10%','--sx':'35px','--sy':'-55px',delay:'0.3s',e:'⭐'},
+            {top:'72%',left:'8%','--sx':'-30px','--sy':'50px',delay:'0.15s',e:'🌟'},
+            {top:'68%',right:'12%','--sx':'40px','--sy':'45px',delay:'0.45s',e:'✨'},
+            {top:'45%',left:'5%','--sx':'-50px','--sy':'0px',delay:'0.6s',e:'💫'},
+            {top:'40%',right:'6%','--sx':'45px','--sy':'-10px',delay:'0.2s',e:'⭐'},
+          ];
+          return welcomePhase==='animate'?(
+            <div onClick={()=>setWelcomePhase('share')} style={{position:'fixed',inset:0,zIndex:9999,background:'linear-gradient(150deg,#0d9488 0%,#059669 55%,#0f766e 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:'pointer'}}>
+              <div style={{position:'absolute',top:16,right:16,color:'rgba(255,255,255,0.5)',fontSize:11,letterSpacing:.5}}>{isHe?'לחצו לדילוג':'tap to skip'}</div>
+              {[0,0.6,1.2].map((d,i)=>(
+                <div key={i} style={{position:'absolute',width:180,height:180,borderRadius:'50%',border:'2px solid rgba(255,255,255,0.18)',animation:`ringOut 2.4s ${d}s ease-out infinite`,pointerEvents:'none'}}/>
+              ))}
+              {SPARKS.map((s,i)=>(
+                <div key={i} style={{position:'absolute',top:s.top,left:s.left,right:s.right,fontSize:18,'--sx':s['--sx'],'--sy':s['--sy'],animation:`sparkFloat 1.8s ${s.delay} ease-out infinite`,pointerEvents:'none'}}>{s.e}</div>
+              ))}
+              <div style={{fontSize:88,animation:'houseIn 0.7s cubic-bezier(0.34,1.56,0.64,1) both',marginBottom:18,filter:'drop-shadow(0 8px 24px rgba(0,0,0,0.25))'}}>🏠</div>
+              <div style={{color:'rgba(255,255,255,0.8)',fontSize:15,fontWeight:400,animation:'welcomeUp 0.5s ease 0.45s both',letterSpacing:0.8,marginBottom:8}}>{isHe?'ברוכים הבאים ל':'Welcome to'}</div>
+              <div style={{color:'#fff',fontSize:30,fontWeight:900,animation:'welcomeUp 0.6s ease 0.75s both',textAlign:'center',padding:'0 24px',letterSpacing:'-0.5px',textShadow:'0 2px 12px rgba(0,0,0,0.2)'}}>{isHe?`בית ${autoSuccess.householdName}`:`${autoSuccess.householdName} Household`}</div>
+              <div style={{color:'rgba(255,255,255,0.65)',fontSize:13,animation:'welcomeUp 0.5s ease 1.1s both',marginTop:14}}>🎉 {isHe?'המשק בית שלכם מוכן!':'Your household is ready!'}</div>
+            </div>
+          ):(
+            <div className="fade" style={{textAlign:'center',padding:'4px 0'}}>
+              <div style={{fontSize:40,marginBottom:8}}>🏠</div>
+              <div style={{fontSize:19,fontWeight:900,color:C.text,marginBottom:4}}>{isHe?`בית ${autoSuccess.householdName}`:`${autoSuccess.householdName} Household`}</div>
+              <div style={{fontSize:12,color:C.muted,marginBottom:16}}>{isHe?'שלחו קישור לבני הבית כדי שיצטרפו:':'Share a link to invite household members:'}</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+                <button onClick={()=>{const msg=encodeURIComponent((isHe?'הצטרפו למשק הבית שלנו באפליקציית Nutrition! קוד: ':'Join our Nutrition household! Code: ')+autoSuccess.sharingCode);window.open(`https://wa.me/?text=${msg}`,'_blank');}} style={{background:'rgba(37,211,102,.1)',border:'1px solid rgba(37,211,102,.3)',borderRadius:10,padding:'10px 6px',fontSize:12,fontWeight:700,color:'#128c7e',cursor:'pointer',fontFamily:'inherit'}}>💬 WhatsApp</button>
+                <button onClick={()=>{const sub=encodeURIComponent(isHe?'הצטרפו למשק הבית':'Join our household');const body=encodeURIComponent((isHe?'קוד ההצטרפות:\n\n':'Join code:\n\n')+autoSuccess.sharingCode);window.open(`mailto:?subject=${sub}&body=${body}`,'_blank');}} style={{background:'rgba(59,130,246,.08)',border:'1px solid rgba(59,130,246,.2)',borderRadius:10,padding:'10px 6px',fontSize:12,fontWeight:700,color:'#2563eb',cursor:'pointer',fontFamily:'inherit'}}>✉️ {isHe?'מייל':'Email'}</button>
+                <button onClick={()=>{navigator.clipboard.writeText(autoSuccess.sharingCode).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);}).catch(()=>{});}} style={{gridColumn:'1/-1',background:copied?'rgba(13,148,136,.12)':'rgba(148,163,184,.08)',border:`1px solid ${copied?'rgba(13,148,136,.3)':'rgba(148,163,184,.25)'}`,borderRadius:10,padding:'9px',fontSize:12,fontWeight:700,color:copied?'#0d9488':'#64748b',cursor:'pointer',fontFamily:'inherit',transition:'all .2s'}}>{copied?(isHe?'✓ הקוד הועתק!':'✓ Copied!'):(isHe?'📋 העתק קוד הצטרפות':'📋 Copy join code')}</button>
+              </div>
+              <div style={{height:1,background:'rgba(148,163,184,.2)',marginBottom:12}}/>
+              <button onClick={()=>onConnect(autoSuccessCfgRef.current)} style={{width:'100%',background:'linear-gradient(135deg,#14b8a6,#059669)',border:'none',borderRadius:12,color:'#fff',padding:'14px',fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'inherit',letterSpacing:0.3,boxShadow:'0 4px 16px rgba(13,148,136,.35)'}}>{isHe?'→ חזרה לעמוד הראשי':'→ Go to Main Screen'}</button>
+            </div>
+          );
+        })()}
+
+        {!autoSuccess&&!connected?(
           <>
             {/* Tabs */}
             <div style={{display:"flex",gap:6,marginBottom:16,background:"rgba(148,163,184,.1)",borderRadius:10,padding:4}}>
@@ -3709,11 +3747,14 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
                   <button onClick={()=>window.open('https://console.firebase.google.com','_blank')} style={linkBtn}>
                     🔗 {isHe?"פתחו את Firebase Console":"Open Firebase Console"}
                   </button>
-                  <ol style={{fontSize:12,color:"#475569",lineHeight:2.2,margin:"4px 0 14px",paddingRight:18,paddingLeft:0}}>
+                  <ol style={{fontSize:12,color:"#475569",lineHeight:2.2,margin:"4px 0 10px",paddingRight:18,paddingLeft:0}}>
                     <li>{isHe?'לחצו "Add project"':'Click "Add project"'}</li>
                     <li>{isHe?"תנו שם כלשהו לפרויקט":"Give your project any name"}</li>
                     <li>{isHe?"לחצו Continue עד הסוף":"Click Continue until done"}</li>
                   </ol>
+                  <div style={{background:"rgba(13,148,136,.06)",border:"1px solid rgba(13,148,136,.2)",borderRadius:8,padding:"8px 12px",fontSize:11,color:"#0d9488",marginBottom:14}}>
+                    📝 {isHe?"זכרו את ה-Project ID (למשל: my-project-abc123) — תצטרכו אותו בשלב הבא":"Remember your Project ID (e.g. my-project-abc123) — you'll need it in the next step"}
+                  </div>
                   <button onClick={()=>setCreateStep(2)} style={{...nextBtn,flex:"unset",width:"100%",padding:"10px"}}>
                     {isHe?"✓ יצרתי פרויקט →":"✓ I created a project →"}
                   </button>
@@ -3775,70 +3816,6 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
                   </>}
 
                   {/* Welcome screen after successful setup */}
-                  {autoSuccess&&(()=>{
-                    const SPARKS=[
-                      {top:'18%',left:'12%','--sx':'-40px','--sy':'-60px',delay:'0s',e:'✨'},
-                      {top:'22%',right:'10%','--sx':'35px','--sy':'-55px',delay:'0.3s',e:'⭐'},
-                      {top:'72%',left:'8%','--sx':'-30px','--sy':'50px',delay:'0.15s',e:'🌟'},
-                      {top:'68%',right:'12%','--sx':'40px','--sy':'45px',delay:'0.45s',e:'✨'},
-                      {top:'45%',left:'5%','--sx':'-50px','--sy':'0px',delay:'0.6s',e:'💫'},
-                      {top:'40%',right:'6%','--sx':'45px','--sy':'-10px',delay:'0.2s',e:'⭐'},
-                    ];
-                    return welcomePhase==='animate'?(
-                      <div onClick={()=>setWelcomePhase('share')} style={{position:'fixed',inset:0,zIndex:9999,background:'linear-gradient(150deg,#0d9488 0%,#059669 55%,#0f766e 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:'pointer'}}>
-                        <div style={{position:'absolute',top:16,right:16,color:'rgba(255,255,255,0.5)',fontSize:11,letterSpacing:.5}}>{isHe?'לחצו לדילוג':'tap to skip'}</div>
-                        {/* Pulsing rings */}
-                        {[0,0.6,1.2].map((d,i)=>(
-                          <div key={i} style={{position:'absolute',width:180,height:180,borderRadius:'50%',border:'2px solid rgba(255,255,255,0.18)',animation:`ringOut 2.4s ${d}s ease-out infinite`,pointerEvents:'none'}}/>
-                        ))}
-                        {/* Sparkles */}
-                        {SPARKS.map((s,i)=>(
-                          <div key={i} style={{position:'absolute',top:s.top,left:s.left,right:s.right,fontSize:18,'--sx':s['--sx'],'--sy':s['--sy'],animation:`sparkFloat 1.8s ${s.delay} ease-out infinite`,pointerEvents:'none'}}>{s.e}</div>
-                        ))}
-                        {/* House */}
-                        <div style={{fontSize:88,animation:'houseIn 0.7s cubic-bezier(0.34,1.56,0.64,1) both',marginBottom:18,filter:'drop-shadow(0 8px 24px rgba(0,0,0,0.25))'}}>🏠</div>
-                        {/* Text */}
-                        <div style={{color:'rgba(255,255,255,0.8)',fontSize:15,fontWeight:400,animation:'welcomeUp 0.5s ease 0.45s both',letterSpacing:0.8,marginBottom:8}}>
-                          {isHe?'ברוכים הבאים ל':'Welcome to'}
-                        </div>
-                        <div style={{color:'#fff',fontSize:30,fontWeight:900,animation:'welcomeUp 0.6s ease 0.75s both',textAlign:'center',padding:'0 24px',letterSpacing:'-0.5px',textShadow:'0 2px 12px rgba(0,0,0,0.2)'}}>
-                          {isHe?`בית ${autoSuccess.householdName}`:`${autoSuccess.householdName} Household`}
-                        </div>
-                        <div style={{color:'rgba(255,255,255,0.65)',fontSize:13,animation:'welcomeUp 0.5s ease 1.1s both',marginTop:14}}>
-                          🎉 {isHe?'המשק בית שלכם מוכן!':'Your household is ready!'}
-                        </div>
-                      </div>
-                    ):(
-                      <div className="fade" style={{textAlign:'center',padding:'4px 0'}}>
-                        <div style={{fontSize:40,marginBottom:8}}>🏠</div>
-                        <div style={{fontSize:19,fontWeight:900,color:C.text,marginBottom:4}}>
-                          {isHe?`בית ${autoSuccess.householdName}`:`${autoSuccess.householdName} Household`}
-                        </div>
-                        <div style={{fontSize:12,color:C.muted,marginBottom:16}}>
-                          {isHe?'שלחו קישור לבני הבית כדי שיצטרפו:':'Share a link to invite household members:'}
-                        </div>
-                        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
-                          <button onClick={()=>{const msg=encodeURIComponent((isHe?'הצטרפו למשק הבית שלנו באפליקציית Nutrition! קוד: ':'Join our Nutrition household! Code: ')+autoSuccess.sharingCode);window.open(`https://wa.me/?text=${msg}`,'_blank');}}
-                            style={{background:'rgba(37,211,102,.1)',border:'1px solid rgba(37,211,102,.3)',borderRadius:10,padding:'10px 6px',fontSize:12,fontWeight:700,color:'#128c7e',cursor:'pointer',fontFamily:'inherit'}}>
-                            💬 WhatsApp
-                          </button>
-                          <button onClick={()=>{const sub=encodeURIComponent(isHe?'הצטרפו למשק הבית':'Join our household');const body=encodeURIComponent((isHe?'קוד ההצטרפות:\n\n':'Join code:\n\n')+autoSuccess.sharingCode);window.open(`mailto:?subject=${sub}&body=${body}`,'_blank');}}
-                            style={{background:'rgba(59,130,246,.08)',border:'1px solid rgba(59,130,246,.2)',borderRadius:10,padding:'10px 6px',fontSize:12,fontWeight:700,color:'#2563eb',cursor:'pointer',fontFamily:'inherit'}}>
-                            ✉️ {isHe?'מייל':'Email'}
-                          </button>
-                          <button onClick={()=>{navigator.clipboard.writeText(autoSuccess.sharingCode).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);}).catch(()=>{});}}
-                            style={{gridColumn:'1/-1',background:copied?'rgba(13,148,136,.12)':'rgba(148,163,184,.08)',border:`1px solid ${copied?'rgba(13,148,136,.3)':'rgba(148,163,184,.25)'}`,borderRadius:10,padding:'9px',fontSize:12,fontWeight:700,color:copied?'#0d9488':'#64748b',cursor:'pointer',fontFamily:'inherit',transition:'all .2s'}}>
-                            {copied?(isHe?'✓ הקוד הועתק!':'✓ Copied!'):(isHe?'📋 העתק קוד הצטרפות':'📋 Copy join code')}
-                          </button>
-                        </div>
-                        <div style={{height:1,background:'rgba(148,163,184,.2)',marginBottom:12}}/>
-                        <button onClick={()=>onConnect(autoSuccessCfgRef.current)}
-                          style={{width:'100%',background:'linear-gradient(135deg,#14b8a6,#059669)',border:'none',borderRadius:12,color:'#fff',padding:'14px',fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'inherit',letterSpacing:0.3,boxShadow:'0 4px 16px rgba(13,148,136,.35)'}}>
-                          {isHe?'→ חזרה לעמוד הראשי':'→ Go to Main Screen'}
-                        </button>
-                      </div>
-                    );
-                  })()}
 
                   {/* Manual fallback */}
                   {useManual&&<>
