@@ -177,25 +177,36 @@ async function autoSetupHousehold(projectId,onStep){
   if(!pNum)throw new Error('לא הצלחנו לאמת את הפרויקט — בדקי את ה-Project ID');
 
   onStep('database');
-  let dbUrl=null;
-  let dbLastErr='';
-  // Try to find existing database first (with both project number and id)
-  for(const ref of[pNum,projectId]){
-    try{
-      const ls2=await _gapi(`https://firebasedatabase.googleapis.com/v1beta/projects/${ref}/locations/-/instances`,tok);
-      if(ls2.instances?.length){dbUrl=ls2.instances[0].databaseUrl;break;}
-    }catch(e){dbLastErr=e.message;}
-  }
-  // Create if not found
+  const _findDb=async()=>{
+    for(const ref of[pNum,projectId]){
+      for(const loc of['-','us-central1','europe-west1','asia-southeast1']){
+        try{
+          const r=await _gapi(`https://firebasedatabase.googleapis.com/v1beta/projects/${ref}/locations/${loc}/instances`,tok);
+          if(r.instances?.length)return r.instances[0].databaseUrl;
+        }catch(_){}
+      }
+    }
+    return null;
+  };
+  let dbUrl=await _findDb();
   if(!dbUrl){
+    let dbLastErr='';
     for(const [ref,loc] of[[pNum,'europe-west1'],[pNum,'us-central1'],[projectId,'us-central1']]){
       try{
         const db=await _gapi(`https://firebasedatabase.googleapis.com/v1beta/projects/${ref}/locations/${loc}/instances?databaseId=${projectId}-default-rtdb`,tok,'POST',{type:'USER_DATABASE'});
         dbUrl=db.databaseUrl;break;
-      }catch(e){dbLastErr=e.message;}
+      }catch(e){
+        dbLastErr=e.message;
+        // "multiple instances" = a DB already exists but we didn't find it — wait & retry list
+        if(e.message.toLowerCase().includes('multiple')||e.message.toLowerCase().includes('already')){
+          await new Promise(r=>setTimeout(r,3000));
+          dbUrl=await _findDb();
+          if(dbUrl)break;
+        }
+      }
     }
+    if(!dbUrl)throw new Error(`יצירת Realtime Database נכשלה: ${dbLastErr}`);
   }
-  if(!dbUrl)throw new Error(`יצירת Realtime Database נכשלה: ${dbLastErr}`);
 
   onStep('webapp');
   let appId=null;
