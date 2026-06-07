@@ -3015,7 +3015,8 @@ function EditQuickFoodModal({food,onSave,onClose}){
 }
 
 // ── SplashScreen ───────────────────────────────────────────────────────────────
-function SplashScreen({onDone}){
+function SplashScreen({onDone,lang}){
+  const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en';
   const wrapRef=useRef(null);
   useEffect(()=>{
     imgUtilsReady.then(()=>{ if(window._loadSplashImages) window._loadSplashImages(); });
@@ -3049,7 +3050,9 @@ function SplashScreen({onDone}){
       <div style={{position:'absolute',bottom:-80,left:-80,width:280,height:280,borderRadius:'50%',
         background:'rgba(255,255,255,.13)',pointerEvents:'none'}}/>
       {/* Speech bubble */}
-      <canvas id="sp-bubble"/>
+      {isHe
+        ? <canvas id="sp-bubble"/>
+        : <img src="/Nutrition/bubble-en.png" id="sp-bubble" alt="Nourish your life"/>}
       {/* Hub */}
       <div style={{position:'relative',width:R*2+80,height:R*2+80,flexShrink:0}}>
         {/* Orbit track */}
@@ -3069,10 +3072,10 @@ function SplashScreen({onDone}){
         </div>
       </div>
       {/* Title */}
-      <div style={{fontSize:26,fontWeight:900,color:'#1e4a06',marginTop:16,letterSpacing:-0.5,
-        textShadow:'0 2px 10px rgba(255,255,255,.6)',animation:'splashFadeUp .5s ease .65s both'}}>מעקב תזונה</div>
-      <div style={{fontSize:12,color:'#4a7a10',letterSpacing:2.5,marginTop:6,
-        animation:'splashFadeUp .5s ease .85s both'}}>חכם · מהיר · מדויק</div>
+      {isHe&&<div style={{fontSize:26,fontWeight:900,color:'#1e4a06',marginTop:16,letterSpacing:-0.5,
+        textShadow:'0 2px 10px rgba(255,255,255,.6)',animation:'splashFadeUp .5s ease .65s both'}}>מעקב תזונה</div>}
+      <div style={{fontSize:12,color:'#4a7a10',letterSpacing:2.5,marginTop:isHe?6:20,
+        animation:'splashFadeUp .5s ease .85s both'}}>{isHe?'חכם · מהיר · מדויק':'Smart · Fast · Accurate'}</div>
       {/* Dots */}
       <div style={{display:'flex',gap:7,marginTop:20}}>
         {[0.25,0.43,0.61].map(d=>(
@@ -4264,7 +4267,7 @@ function App(){
 
   return (
     <div>
-      {showSplash && <SplashScreen onDone={()=>setShowSplash(false)}/>}
+      {showSplash && <SplashScreen lang={lang} onDone={()=>setShowSplash(false)}/>}
       {hhWelcome && <HouseholdWelcome householdName={hhWelcome.householdName} cfg={hhWelcome.cfg} onDone={cfg=>{setHhWelcome(null);setHouseholdCfg(cfg);setShowHousehold(false);setShowPantry(true);}} lang={lang}/>}
       {showInfo && <InfoModal onClose={()=>setShowInfo(false)} lang={lang}/>}
       {showPantry && <PantryModal onClose={()=>setShowPantry(false)} lang={lang} syncTick={syncTick}/>}
