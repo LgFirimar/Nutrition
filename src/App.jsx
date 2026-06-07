@@ -3630,7 +3630,11 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
     if(!ok){setError(isHe?'שגיאה בחיבור':'Connection error');setLoading(false);return;}
     await registerMember(newCfg.householdId,memberName.trim());
     ls.set('nutrition_household',newCfg);
-    onConnect(newCfg);
+    onHouseholdReady?.(newCfg);
+    // Show welcome animation for joining member too
+    autoSuccessCfgRef.current=newCfg;
+    const sc=btoa(JSON.stringify({firebaseConfig:decoded.firebaseConfig,householdId:decoded.householdId,householdName:decoded.householdName}));
+    setAutoSuccess({householdName:decoded.householdName||memberName.trim(),sharingCode:sc});
     setLoading(false);
   };
 
@@ -3780,7 +3784,8 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
                       {top:'40%',right:'6%','--sx':'45px','--sy':'-10px',delay:'0.2s',e:'⭐'},
                     ];
                     return welcomePhase==='animate'?(
-                      <div style={{position:'fixed',inset:0,zIndex:9999,background:'linear-gradient(150deg,#0d9488 0%,#059669 55%,#0f766e 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+                      <div onClick={()=>setWelcomePhase('share')} style={{position:'fixed',inset:0,zIndex:9999,background:'linear-gradient(150deg,#0d9488 0%,#059669 55%,#0f766e 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:'pointer'}}>
+                        <div style={{position:'absolute',top:16,right:16,color:'rgba(255,255,255,0.5)',fontSize:11,letterSpacing:.5}}>{isHe?'לחצו לדילוג':'tap to skip'}</div>
                         {/* Pulsing rings */}
                         {[0,0.6,1.2].map((d,i)=>(
                           <div key={i} style={{position:'absolute',width:180,height:180,borderRadius:'50%',border:'2px solid rgba(255,255,255,0.18)',animation:`ringOut 2.4s ${d}s ease-out infinite`,pointerEvents:'none'}}/>
@@ -3819,6 +3824,10 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
                           <button onClick={()=>{const sub=encodeURIComponent(isHe?'הצטרפו למשק הבית':'Join our household');const body=encodeURIComponent((isHe?'קוד ההצטרפות:\n\n':'Join code:\n\n')+autoSuccess.sharingCode);window.open(`mailto:?subject=${sub}&body=${body}`,'_blank');}}
                             style={{background:'rgba(59,130,246,.08)',border:'1px solid rgba(59,130,246,.2)',borderRadius:10,padding:'10px 6px',fontSize:12,fontWeight:700,color:'#2563eb',cursor:'pointer',fontFamily:'inherit'}}>
                             ✉️ {isHe?'מייל':'Email'}
+                          </button>
+                          <button onClick={()=>{navigator.clipboard.writeText(autoSuccess.sharingCode).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);}).catch(()=>{});}}
+                            style={{gridColumn:'1/-1',background:copied?'rgba(13,148,136,.12)':'rgba(148,163,184,.08)',border:`1px solid ${copied?'rgba(13,148,136,.3)':'rgba(148,163,184,.25)'}`,borderRadius:10,padding:'9px',fontSize:12,fontWeight:700,color:copied?'#0d9488':'#64748b',cursor:'pointer',fontFamily:'inherit',transition:'all .2s'}}>
+                            {copied?(isHe?'✓ הקוד הועתק!':'✓ Copied!'):(isHe?'📋 העתק קוד הצטרפות':'📋 Copy join code')}
                           </button>
                         </div>
                         <div style={{height:1,background:'rgba(148,163,184,.2)',marginBottom:12}}/>
