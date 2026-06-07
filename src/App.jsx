@@ -3415,10 +3415,14 @@ function MealPlannerModal({onAdd,onClose,lang}){
             const missing=(opt.missingIngredients||[]).filter(isMissing);
             return(
             <div key={i} style={{background:"rgba(255,255,255,.7)",border:`1px solid rgba(148,163,184,.25)`,borderRadius:16,padding:14,marginBottom:10,position:'relative'}}>
-              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4,paddingLeft:28}}>{opt.name}</div>
-              {missing.length>0&&<button onClick={()=>addMissingToCart(missing)} title={isHe?'הוסף חסרים לעגלה':'Add missing to cart'} style={{position:'absolute',top:12,left:12,background:'none',border:'none',fontSize:18,cursor:'pointer',padding:0,lineHeight:1}}>🛒</button>}
-              <div style={{fontSize:12,color:C.muted,marginBottom:10}}>{opt.description}</div>
-              <div style={{display:"flex",gap:8,marginBottom:missing.length?6:10}}>
+              {/* Cart icon — top-left, always visible */}
+              <button onClick={()=>addMissingToCart(missing)} title={isHe?'הוסף חסרים לעגלה':'Add missing to cart'}
+                style={{position:'absolute',top:10,left:10,background:'none',border:'none',cursor:'pointer',padding:0,lineHeight:1,opacity:missing.length?1:0.35}}>
+                <img src="/Nutrition/shopping-cart.png" style={{width:20,height:20,objectFit:'contain'}} alt=""/>
+              </button>
+              <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4,paddingRight:4,paddingLeft:30}}>{opt.name}</div>
+              <div style={{fontSize:12,color:C.muted,marginBottom:8}}>{opt.description}</div>
+              <div style={{display:"flex",gap:8,marginBottom:6}}>
                 {[{l:isHe?"קק״ל":"kcal",v:opt.kcalPerPerson,c:C.accent},
                   {l:isHe?"פחמ׳":"carbs",v:opt.carbsPerPerson,c:C.warn},
                   {l:isHe?"חלבון":"prot",v:opt.proteinPerPerson,c:C.blue}].map(({l,v,c})=>(
@@ -3428,7 +3432,9 @@ function MealPlannerModal({onAdd,onClose,lang}){
                   </div>
                 ))}
               </div>
-              {missing.length>0&&<div style={{fontSize:11,color:'#991b1b',marginBottom:8,lineHeight:1.4}}>מה חסר: {missing.join(', ')}</div>}
+              {missing.length>0
+                ?<div style={{fontSize:11,color:'#991b1b',marginBottom:8,lineHeight:1.5}}>מה חסר: {missing.join(', ')}</div>
+                :<div style={{marginBottom:8}}/>}
               <button onClick={()=>fetchRecipe(opt.name)} disabled={loading}
                 style={{width:"100%",background:C.accent,border:"none",borderRadius:10,color:"#fff",padding:"9px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                 {loading&&selected===opt.name?(isHe?"טוען...":"Loading..."):(isHe?"בחר":"Select")}
@@ -3457,7 +3463,7 @@ function MealPlannerModal({onAdd,onClose,lang}){
           {!showIngEdit ? <>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:3}}>
               <div style={{fontSize:14,fontWeight:900,color:C.text,flex:1}}>{recipe.name}</div>
-              {(()=>{const m=(recipe.ingredients||[]).filter(ing=>isMissing(ing.item)).map(ing=>ing.item);return m.length>0&&<button onClick={()=>addMissingToCart(m)} title={isHe?'הוסף חסרים לעגלה':'Add missing to cart'} style={{background:'none',border:'none',fontSize:20,cursor:'pointer',padding:'0 4px',flexShrink:0,lineHeight:1}}>🛒</button>})()}
+              {(()=>{const m=(recipe.ingredients||[]).filter(ing=>isMissing(ing.item)).map(ing=>ing.item);return<button onClick={()=>addMissingToCart(m)} title={isHe?'הוסף חסרים לעגלה':'Add missing to cart'} style={{background:'none',border:'none',cursor:'pointer',padding:'0 4px',flexShrink:0,lineHeight:1,opacity:m.length?1:0.35}}><img src="/Nutrition/shopping-cart.png" style={{width:22,height:22,objectFit:'contain'}} alt=""/></button>})()}
             </div>
             <div style={{fontSize:10,color:C.muted,marginBottom:10}}>{isHe?"לאדם":"per person"}: {Math.round(recipe.kcalPerPerson||0)} {isHe?"קק״ל":"kcal"} · {Math.round(recipe.carbsPerPerson||0)}g {isHe?"פחמ׳":"carbs"} · {Math.round(recipe.proteinPerPerson||0)}g {isHe?"חלבון":"prot"}</div>
             <div style={{fontSize:10,fontWeight:700,color:C.muted,letterSpacing:1.2,marginBottom:6}}>{isHe?"רכיבים (ל-":"Ingredients (for "}{people}{isHe?" אנשים)":")"}</div>
