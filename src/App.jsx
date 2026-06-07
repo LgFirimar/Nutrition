@@ -3241,11 +3241,12 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
     .map(c=>`${isHe?c.he:c.en}: ${fridge[c.key].join(", ")}`)
     .join(" | ");
 
-  const BASE_INGS=['שמן','מלח','סוכר','פלפל','צ\'ילי','אבקת אפייה','סודה לשתייה','חמאה','שום','בצל','מים','חומץ','ביצה','ביצים'];
+  const BASE_INGS=['שמן','מלח','פלפל שחור','סוכר','אבקת אפייה','סודה לשתייה','מים','חומץ'];
   const fridgeFlat=FRIDGE_CATS.flatMap(c=>(fridge[c.key]||[]).map(s=>s.toLowerCase()));
   const isMissing=name=>{
     const n=name.toLowerCase();
-    if(BASE_INGS.some(b=>n.includes(b)))return false;
+    // exact match or "base_ing word" prefix — prevents שמנת matching שמן, שומר matching שום
+    if(BASE_INGS.some(b=>n===b||n.startsWith(b+' ')))return false;
     return!fridgeFlat.some(f=>f.includes(n)||n.includes(f));
   };
   const getMissing=opt=>(opt.ingredients||[]).filter(isMissing);
