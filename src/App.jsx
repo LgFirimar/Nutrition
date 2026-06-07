@@ -3485,7 +3485,7 @@ function MealPlannerModal({onAdd,onClose,lang}){
 }
 
 // ── HouseholdModal ────────────────────────────────────────────────────────────
-function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
+function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose,lang}){
   const isHe=(lang||'he')!=='en';
   const connected=!!householdCfg;
   const[tab,setTab]=useState(connected?'connected':'create');
@@ -3600,7 +3600,9 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
       if(!ok)throw new Error(isHe?'שגיאה בחיבור ל-Firebase':'Firebase init failed');
       await registerMember(hid,memberName.trim());
       ls.set('nutrition_household',newCfg);
-      // Store config and show welcome screen — onConnect called only when user taps button
+      // Update App state immediately (so household is active even before modal closes)
+      onHouseholdReady?.(newCfg);
+      // Store config and show welcome screen — onConnect (closes modal) called when user taps button
       autoSuccessCfgRef.current=newCfg;
       const sc=btoa(JSON.stringify({firebaseConfig:cfg,householdId:hid}));
       setAutoProgress(null);
@@ -3712,7 +3714,7 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
                     {isHe?"שלב 2 — הגדרה אוטומטית":"Step 2 — Auto Setup"}
                   </div>
 
-                  {!autoProgress&&!useManual&&<>
+                  {!autoProgress&&!useManual&&!autoSuccess&&<>
                     <input value={memberName} onChange={e=>setMemberName(e.target.value)}
                       placeholder={isHe?"השם שלך (יוצג בעגלה)":"Your name (shown in cart)"} style={inputStyle}/>
                     <input value={householdName} onChange={e=>setHouseholdName(e.target.value)}
@@ -4130,7 +4132,7 @@ function App(){
       {showInfo && <InfoModal onClose={()=>setShowInfo(false)} lang={lang}/>}
       {showPantry && <PantryModal onClose={()=>setShowPantry(false)} lang={lang} syncTick={syncTick}/>}
       {showShopping && <ShoppingListModal onClose={()=>setShowShopping(false)} lang={lang} pid={pid} syncTick={syncTick}/>}
-      {showHousehold && <HouseholdModal householdCfg={householdCfg} onConnect={cfg=>{setHouseholdCfg(cfg);setShowHousehold(false);}} onLeave={()=>{setHouseholdCfg(null);setHhSynced(false);setShowHousehold(false);}} onClose={()=>setShowHousehold(false)} lang={lang}/>}
+      {showHousehold && <HouseholdModal householdCfg={householdCfg} onConnect={cfg=>{setHouseholdCfg(cfg);setShowHousehold(false);}} onHouseholdReady={cfg=>setHouseholdCfg(cfg)} onLeave={()=>{setHouseholdCfg(null);setHhSynced(false);setShowHousehold(false);}} onClose={()=>setShowHousehold(false)} lang={lang}/>}
       {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang}/>}
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}} lang={lang}/>}
       {showWizard && <ProfileSetupWizard profile={wizardProfile} onSave={p=>{const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===p.id?p:x));setActiveProfile(p.id===pid?p:activeProfile);setProfiles(loadProfiles());setWizardProfile(null);setShowWizard(false);}} onSkip={()=>{setWizardProfile(null);setShowWizard(false);}}/>}
