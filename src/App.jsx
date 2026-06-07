@@ -3138,7 +3138,8 @@ function InfoModal({onClose,lang}){
               <div style={{fontSize:11,color:C.muted,marginTop:2}}>{desc}</div></div>
           </div>
         ))}
-        <button onClick={onClose} className="btn-accent" style={{marginTop:16,borderRadius:12}}>{lang==='en'?"Got it":"הבנתי"}</button>
+        <div style={{fontSize:10,color:C.muted,textAlign:"center",marginTop:14,opacity:.5}}>v1.5.0</div>
+        <button onClick={onClose} className="btn-accent" style={{marginTop:8,borderRadius:12}}>{lang==='en'?"Got it":"הבנתי"}</button>
       </div>
     </div>
   );
