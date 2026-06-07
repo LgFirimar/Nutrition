@@ -3242,13 +3242,7 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
     if(BASE_INGS.some(b=>n.includes(b)))return false;
     return!fridgeFlat.some(f=>f.includes(n)||n.includes(f));
   };
-  const getMissing=opt=>{
-    const ings=opt.ingredients||[];
-    if(ings.length) return ings.filter(isMissing);
-    // fallback: extract Hebrew words from description as rough ingredient list
-    const words=(opt.description||'').match(/[א-ת]{3,}/g)||[];
-    return words.filter(w=>!['עם','של','על','את','זו','כל','כך','אחד','לפי','לפני','ורוד','לבן','אדום'].includes(w)).filter(isMissing);
-  };
+  const getMissing=opt=>(opt.ingredients||[]).filter(isMissing);
   const addMissingToCart=missing=>{
     if(!missing||!missing.length)return;
     const current=loadShopping();
