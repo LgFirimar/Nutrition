@@ -116,10 +116,11 @@ After your calculation, output ONLY this JSON on the very last line (no markdown
 גובה: ${height||'לא צוין'}ס"מ, משקל: ${weight||'לא צוין'}ק"ג${bmi?`, BMI: ${bmi}`:''}
 בעיות רפואיות: ${conditions.length?conditions.join(', '):'אין'}
 העדפות תזונה: ${dietPrefs.length?dietPrefs.join(', '):'אין'}
-רמת פעילות: ${actMap[activity]||activity}${activityText?`\nפירוט פעילות: ${activityText}`:''}
+רמת פעילות: ${actMap[activity]||activity}${activityText?`\nסוג פעילות ומשך: ${activityText}`:''}
 יעדים: ${goals.length?goals.join(', '):'בריאות כללית'}
 
 חשב BMR לפי Mifflin-St Jeor, הכפל במקדם פעילות מתאים, והתאם לפי היעדים.
+אם יש פירוט פעילות (סוג, משך, תדירות) — השתמש בו לחישוב מדויק יותר של TDEE: כמה קלוריות שורפים בפועל לפי סוג הפעילות והמשך שלה.
 בסס על: ADA/IDF (סוכרת), NAMS/EMAS (גיל המעבר), ESC/AHA (לב), WHO, ואיגוד התזונה הישראלי.
 ספק 3-5 מקורות עם קישורים אמיתיים.
 

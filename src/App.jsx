@@ -2148,7 +2148,7 @@ function JournalView({onClose,onLoadDay,pid,lang}){
 function PantryModal({onClose,lang,syncTick}){
   const isHe=(lang||'he')!=='en';
   const [pantry,setPantry]=useState(loadPantry);
-  const [inputs,setInputs]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,{name:"",qty:""}])));
+  const [inputs,setInputs]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,{name:"",qty:"",unit:""}])));
   const [open,setOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,true])));
   const [imgLoading,setImgLoading]=useState({});
   const imgRefs=useRef({});
@@ -2158,14 +2158,14 @@ function PantryModal({onClose,lang,syncTick}){
   const update=p=>{setPantry(p);savePantryLS(p);};
 
   const addItem=(cat)=>{
-    const {name,qty}=inputs[cat];
+    const {name,qty,unit}=inputs[cat];
     if(!name.trim())return;
     const items=[...(pantry[cat]||[])];
     const idx=items.findIndex(i=>i.name.toLowerCase()===name.trim().toLowerCase());
-    if(idx>=0) items[idx]={...items[idx],qty:qty.trim()||items[idx].qty};
-    else items.push({id:Date.now()+Math.random(),name:name.trim(),qty:qty.trim()});
+    if(idx>=0) items[idx]={...items[idx],qty:qty.trim()||items[idx].qty,unit:unit||items[idx].unit||""};
+    else items.push({id:Date.now()+Math.random(),name:name.trim(),qty:qty.trim(),unit:unit||""});
     update({...pantry,[cat]:items});
-    setInputs(i=>({...i,[cat]:{name:"",qty:""}}));
+    setInputs(i=>({...i,[cat]:{name:"",qty:"",unit:""}}));
   };
 
   const handlePantryImage=(e,cat)=>{
@@ -2189,6 +2189,7 @@ function PantryModal({onClose,lang,syncTick}){
 
   const removeItem=(cat,id)=>update({...pantry,[cat]:(pantry[cat]||[]).filter(i=>i.id!==id)});
   const updateQty=(cat,id,qty)=>update({...pantry,[cat]:(pantry[cat]||[]).map(i=>i.id===id?{...i,qty}:i)});
+  const updateUnit=(cat,id,unit)=>update({...pantry,[cat]:(pantry[cat]||[]).map(i=>i.id===id?{...i,unit}:i)});
 
   return(
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
@@ -2219,7 +2220,15 @@ function PantryModal({onClose,lang,syncTick}){
                   placeholder={isHe?"שם מוצר":"Product"} className="inp" style={{flex:2,fontSize:12,padding:"6px 8px"}}/>
                 <input value={inputs[cat.key].qty} onChange={e=>setInputs(i=>({...i,[cat.key]:{...i[cat.key],qty:e.target.value}}))}
                   onKeyDown={e=>e.key==="Enter"&&addItem(cat.key)}
-                  placeholder={isHe?"כמות":"Qty"} className="inp" style={{flex:1,fontSize:12,padding:"6px 8px"}}/>
+                  placeholder={isHe?"כמות":"Qty"} className="inp" style={{width:52,fontSize:12,padding:"6px 6px",flexShrink:0}}/>
+                <select value={inputs[cat.key].unit} onChange={e=>setInputs(i=>({...i,[cat.key]:{...i[cat.key],unit:e.target.value}}))}
+                  className="inp" style={{width:60,fontSize:11,padding:"6px 4px",flexShrink:0,cursor:"pointer"}}>
+                  <option value="">יח׳</option>
+                  <option value="מ״ל">מ״ל</option>
+                  <option value="מ״ג">מ״ג</option>
+                  <option value="ג׳">ג׳</option>
+                  <option value="ק״ג">ק״ג</option>
+                </select>
                 <button onClick={()=>imgRefs.current[cat.key]&&imgRefs.current[cat.key].click()} disabled={imgLoading[cat.key]}
                   style={{background:"#f5f5f7",border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,padding:"0 8px",cursor:"pointer",fontSize:16,minWidth:36}}>
                   {imgLoading[cat.key]?<CalcLoader/>:"📷"}
@@ -2230,7 +2239,15 @@ function PantryModal({onClose,lang,syncTick}){
                 <div key={item.id} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",borderBottom:`1px solid ${C.border}`}}>
                   <span style={{flex:1,fontSize:12,color:C.text}}>{item.name}</span>
                   <input value={item.qty} onChange={e=>updateQty(cat.key,item.id,e.target.value)}
-                    placeholder="כמות" style={{width:70,border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 6px",fontSize:11,textAlign:"center",fontFamily:"inherit"}}/>
+                    placeholder={isHe?"כמות":"Qty"} style={{width:48,border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 6px",fontSize:11,textAlign:"center",fontFamily:"inherit"}}/>
+                  <select value={item.unit||""} onChange={e=>updateUnit(cat.key,item.id,e.target.value)}
+                    style={{width:58,border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 4px",fontSize:11,fontFamily:"inherit",background:"#fff",cursor:"pointer"}}>
+                    <option value="">יח׳</option>
+                    <option value="מ״ל">מ״ל</option>
+                    <option value="מ״ג">מ״ג</option>
+                    <option value="ג׳">ג׳</option>
+                    <option value="ק״ג">ק״ג</option>
+                  </select>
                   <button onClick={()=>removeItem(cat.key,item.id)} style={{background:"none",border:"none",color:C.danger,fontSize:16,cursor:"pointer",padding:"0 3px"}}>×</button>
                 </div>
               ))}
@@ -2705,8 +2722,8 @@ function ProfileSetupWizard({profile,onSave,onSkip,lang}){
                 </button>
               ))}
             </div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:700,marginTop:14}}>{isHe?"פירוט פעילות (אופציונלי)":"Activity details (optional)"}</div>
-            <input value={activityText} onChange={e=>setActivityText(e.target.value)} className="inp" placeholder={isHe?"לדוגמה: ריצה 5 ק״מ 3×/שבוע, הליכה יומית, אימוני כוח":"e.g. 5km run 3×/week, daily walk, strength training"}/>
+            <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:700,marginTop:14}}>{isHe?"רוצה לספר לי על זה? (פירוט פעילות - אופציונלי)":"Want to tell me more? (activity details - optional)"}</div>
+            <input value={activityText} onChange={e=>setActivityText(e.target.value)} className="inp" placeholder={isHe?"סוג פעילות, משך ותדירות — לדוגמה: ריצה 40 דקות 3×/שבוע, אימוני כוח שעה 2×/שבוע":"type, duration & frequency — e.g. 40min run 3×/week, 1hr strength 2×/week"}/>
           </div>
         )}
         {step===4&&(
