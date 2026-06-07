@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 const imgUtilsReady = import('./imgUtils.js');
 
 
@@ -3675,8 +3674,35 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
   const btnStyle={flex:1,padding:"8px 0",fontSize:12,fontWeight:700,borderRadius:8,cursor:"pointer",border:"none",transition:"all .2s"};
   const inputStyle={width:"100%",boxSizing:"border-box",padding:"9px 10px",borderRadius:10,border:"1px solid rgba(148,163,184,.3)",fontSize:12,fontFamily:"inherit",background:"rgba(255,255,255,.8)",marginBottom:8};
 
+  const SPARKS=[
+    {top:'18%',left:'12%','--sx':'-40px','--sy':'-60px',delay:'0s',e:'✨'},
+    {top:'22%',right:'10%','--sx':'35px','--sy':'-55px',delay:'0.3s',e:'⭐'},
+    {top:'72%',left:'8%','--sx':'-30px','--sy':'50px',delay:'0.15s',e:'🌟'},
+    {top:'68%',right:'12%','--sx':'40px','--sy':'45px',delay:'0.45s',e:'✨'},
+    {top:'45%',left:'5%','--sx':'-50px','--sy':'0px',delay:'0.6s',e:'💫'},
+    {top:'40%',right:'6%','--sx':'45px','--sy':'-10px',delay:'0.2s',e:'⭐'},
+  ];
+
   return(
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+
+      {/* Welcome animation — direct child of .overlay (which is inset:0) so position:fixed covers full viewport */}
+      {autoSuccess&&welcomePhase==='animate'&&(
+        <div onClick={()=>setWelcomePhase('share')} style={{position:'fixed',top:0,right:0,bottom:0,left:0,zIndex:9999,background:'linear-gradient(150deg,#0d9488 0%,#059669 55%,#0f766e 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:'pointer'}}>
+          <div style={{position:'absolute',top:16,right:16,color:'rgba(255,255,255,0.5)',fontSize:11,letterSpacing:.5}}>{isHe?'לחצו לדילוג':'tap to skip'}</div>
+          {[0,0.6,1.2].map((d,i)=>(
+            <div key={i} style={{position:'absolute',width:180,height:180,borderRadius:'50%',border:'2px solid rgba(255,255,255,0.18)',animation:`ringOut 2.4s ${d}s ease-out infinite`,pointerEvents:'none'}}/>
+          ))}
+          {SPARKS.map((s,i)=>(
+            <div key={i} style={{position:'absolute',top:s.top,left:s.left,right:s.right,fontSize:18,'--sx':s['--sx'],'--sy':s['--sy'],animation:`sparkFloat 1.8s ${s.delay} ease-out infinite`,pointerEvents:'none'}}>{s.e}</div>
+          ))}
+          <div style={{fontSize:88,animation:'houseIn 0.7s cubic-bezier(0.34,1.56,0.64,1) both',marginBottom:18,filter:'drop-shadow(0 8px 24px rgba(0,0,0,0.25))'}}>🏠</div>
+          <div style={{color:'rgba(255,255,255,0.8)',fontSize:15,fontWeight:400,animation:'welcomeUp 0.5s ease 0.45s both',letterSpacing:0.8,marginBottom:8}}>{isHe?'ברוכים הבאים ל':'Welcome to'}</div>
+          <div style={{color:'#fff',fontSize:30,fontWeight:900,animation:'welcomeUp 0.6s ease 0.75s both',textAlign:'center',padding:'0 24px',letterSpacing:'-0.5px',textShadow:'0 2px 12px rgba(0,0,0,0.2)'}}>{isHe?`בית ${autoSuccess.householdName}`:`${autoSuccess.householdName} Household`}</div>
+          <div style={{color:'rgba(255,255,255,0.65)',fontSize:13,animation:'welcomeUp 0.5s ease 1.1s both',marginTop:14}}>🎉 {isHe?'המשק בית שלכם מוכן!':'Your household is ready!'}</div>
+        </div>
+      )}
+
       <div className="modal-sheet slide" style={{maxHeight:"90vh",overflowY:"auto"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
           <div style={{fontSize:15,fontWeight:700,display:"flex",alignItems:"center",gap:8}}>
@@ -3686,46 +3712,20 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"#94a3b8"}}>×</button>
         </div>
 
-        {autoSuccess&&(()=>{
-          const SPARKS=[
-            {top:'18%',left:'12%','--sx':'-40px','--sy':'-60px',delay:'0s',e:'✨'},
-            {top:'22%',right:'10%','--sx':'35px','--sy':'-55px',delay:'0.3s',e:'⭐'},
-            {top:'72%',left:'8%','--sx':'-30px','--sy':'50px',delay:'0.15s',e:'🌟'},
-            {top:'68%',right:'12%','--sx':'40px','--sy':'45px',delay:'0.45s',e:'✨'},
-            {top:'45%',left:'5%','--sx':'-50px','--sy':'0px',delay:'0.6s',e:'💫'},
-            {top:'40%',right:'6%','--sx':'45px','--sy':'-10px',delay:'0.2s',e:'⭐'},
-          ];
-          if(welcomePhase==='animate') return createPortal(
-            <div onClick={()=>setWelcomePhase('share')} style={{position:'fixed',inset:0,zIndex:9999,background:'linear-gradient(150deg,#0d9488 0%,#059669 55%,#0f766e 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:'pointer'}}>
-              <div style={{position:'absolute',top:16,right:16,color:'rgba(255,255,255,0.5)',fontSize:11,letterSpacing:.5}}>{isHe?'לחצו לדילוג':'tap to skip'}</div>
-              {[0,0.6,1.2].map((d,i)=>(
-                <div key={i} style={{position:'absolute',width:180,height:180,borderRadius:'50%',border:'2px solid rgba(255,255,255,0.18)',animation:`ringOut 2.4s ${d}s ease-out infinite`,pointerEvents:'none'}}/>
-              ))}
-              {SPARKS.map((s,i)=>(
-                <div key={i} style={{position:'absolute',top:s.top,left:s.left,right:s.right,fontSize:18,'--sx':s['--sx'],'--sy':s['--sy'],animation:`sparkFloat 1.8s ${s.delay} ease-out infinite`,pointerEvents:'none'}}>{s.e}</div>
-              ))}
-              <div style={{fontSize:88,animation:'houseIn 0.7s cubic-bezier(0.34,1.56,0.64,1) both',marginBottom:18,filter:'drop-shadow(0 8px 24px rgba(0,0,0,0.25))'}}>🏠</div>
-              <div style={{color:'rgba(255,255,255,0.8)',fontSize:15,fontWeight:400,animation:'welcomeUp 0.5s ease 0.45s both',letterSpacing:0.8,marginBottom:8}}>{isHe?'ברוכים הבאים ל':'Welcome to'}</div>
-              <div style={{color:'#fff',fontSize:30,fontWeight:900,animation:'welcomeUp 0.6s ease 0.75s both',textAlign:'center',padding:'0 24px',letterSpacing:'-0.5px',textShadow:'0 2px 12px rgba(0,0,0,0.2)'}}>{isHe?`בית ${autoSuccess.householdName}`:`${autoSuccess.householdName} Household`}</div>
-              <div style={{color:'rgba(255,255,255,0.65)',fontSize:13,animation:'welcomeUp 0.5s ease 1.1s both',marginTop:14}}>🎉 {isHe?'המשק בית שלכם מוכן!':'Your household is ready!'}</div>
-            </div>,
-            document.body
-          );
-          return(
-            <div className="fade" style={{textAlign:'center',padding:'4px 0'}}>
-              <div style={{fontSize:40,marginBottom:8}}>🏠</div>
-              <div style={{fontSize:19,fontWeight:900,color:C.text,marginBottom:4}}>{isHe?`בית ${autoSuccess.householdName}`:`${autoSuccess.householdName} Household`}</div>
-              <div style={{fontSize:12,color:C.muted,marginBottom:16}}>{isHe?'שלחו קישור לבני הבית כדי שיצטרפו:':'Share a link to invite household members:'}</div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
-                <button onClick={()=>{const msg=encodeURIComponent((isHe?'הצטרפו למשק הבית שלנו באפליקציית Nutrition! קוד: ':'Join our Nutrition household! Code: ')+autoSuccess.sharingCode);window.open(`https://wa.me/?text=${msg}`,'_blank');}} style={{background:'rgba(37,211,102,.1)',border:'1px solid rgba(37,211,102,.3)',borderRadius:10,padding:'10px 6px',fontSize:12,fontWeight:700,color:'#128c7e',cursor:'pointer',fontFamily:'inherit'}}>💬 WhatsApp</button>
-                <button onClick={()=>{const sub=encodeURIComponent(isHe?'הצטרפו למשק הבית':'Join our household');const body=encodeURIComponent((isHe?'קוד ההצטרפות:\n\n':'Join code:\n\n')+autoSuccess.sharingCode);window.open(`mailto:?subject=${sub}&body=${body}`,'_blank');}} style={{background:'rgba(59,130,246,.08)',border:'1px solid rgba(59,130,246,.2)',borderRadius:10,padding:'10px 6px',fontSize:12,fontWeight:700,color:'#2563eb',cursor:'pointer',fontFamily:'inherit'}}>✉️ {isHe?'מייל':'Email'}</button>
-                <button onClick={()=>{navigator.clipboard.writeText(autoSuccess.sharingCode).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);}).catch(()=>{});}} style={{gridColumn:'1/-1',background:copied?'rgba(13,148,136,.12)':'rgba(148,163,184,.08)',border:`1px solid ${copied?'rgba(13,148,136,.3)':'rgba(148,163,184,.25)'}`,borderRadius:10,padding:'9px',fontSize:12,fontWeight:700,color:copied?'#0d9488':'#64748b',cursor:'pointer',fontFamily:'inherit',transition:'all .2s'}}>{copied?(isHe?'✓ הקוד הועתק!':'✓ Copied!'):(isHe?'📋 העתק קוד הצטרפות':'📋 Copy join code')}</button>
-              </div>
-              <div style={{height:1,background:'rgba(148,163,184,.2)',marginBottom:12}}/>
-              <button onClick={()=>onConnect(autoSuccessCfgRef.current)} style={{width:'100%',background:'linear-gradient(135deg,#14b8a6,#059669)',border:'none',borderRadius:12,color:'#fff',padding:'14px',fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'inherit',letterSpacing:0.3,boxShadow:'0 4px 16px rgba(13,148,136,.35)'}}>{isHe?'→ חזרה לעמוד הראשי':'→ Go to Main Screen'}</button>
+        {autoSuccess&&welcomePhase==='share'&&(
+          <div className="fade" style={{textAlign:'center',padding:'4px 0'}}>
+            <div style={{fontSize:40,marginBottom:8}}>🏠</div>
+            <div style={{fontSize:19,fontWeight:900,color:C.text,marginBottom:4}}>{isHe?`בית ${autoSuccess.householdName}`:`${autoSuccess.householdName} Household`}</div>
+            <div style={{fontSize:12,color:C.muted,marginBottom:16}}>{isHe?'שלחו קישור לבני הבית כדי שיצטרפו:':'Share a link to invite household members:'}</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+              <button onClick={()=>{const msg=encodeURIComponent((isHe?'הצטרפו למשק הבית שלנו באפליקציית Nutrition! קוד: ':'Join our Nutrition household! Code: ')+autoSuccess.sharingCode);window.open(`https://wa.me/?text=${msg}`,'_blank');}} style={{background:'rgba(37,211,102,.1)',border:'1px solid rgba(37,211,102,.3)',borderRadius:10,padding:'10px 6px',fontSize:12,fontWeight:700,color:'#128c7e',cursor:'pointer',fontFamily:'inherit'}}>💬 WhatsApp</button>
+              <button onClick={()=>{const sub=encodeURIComponent(isHe?'הצטרפו למשק הבית':'Join our household');const body=encodeURIComponent((isHe?'קוד ההצטרפות:\n\n':'Join code:\n\n')+autoSuccess.sharingCode);window.open(`mailto:?subject=${sub}&body=${body}`,'_blank');}} style={{background:'rgba(59,130,246,.08)',border:'1px solid rgba(59,130,246,.2)',borderRadius:10,padding:'10px 6px',fontSize:12,fontWeight:700,color:'#2563eb',cursor:'pointer',fontFamily:'inherit'}}>✉️ {isHe?'מייל':'Email'}</button>
+              <button onClick={()=>{navigator.clipboard.writeText(autoSuccess.sharingCode).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);}).catch(()=>{});}} style={{gridColumn:'1/-1',background:copied?'rgba(13,148,136,.12)':'rgba(148,163,184,.08)',border:`1px solid ${copied?'rgba(13,148,136,.3)':'rgba(148,163,184,.25)'}`,borderRadius:10,padding:'9px',fontSize:12,fontWeight:700,color:copied?'#0d9488':'#64748b',cursor:'pointer',fontFamily:'inherit',transition:'all .2s'}}>{copied?(isHe?'✓ הקוד הועתק!':'✓ Copied!'):(isHe?'📋 העתק קוד הצטרפות':'📋 Copy join code')}</button>
             </div>
-          );
-        })()}
+            <div style={{height:1,background:'rgba(148,163,184,.2)',marginBottom:12}}/>
+            <button onClick={()=>onConnect(autoSuccessCfgRef.current)} style={{width:'100%',background:'linear-gradient(135deg,#14b8a6,#059669)',border:'none',borderRadius:12,color:'#fff',padding:'14px',fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'inherit',letterSpacing:0.3,boxShadow:'0 4px 16px rgba(13,148,136,.35)'}}>{isHe?'→ חזרה לעמוד הראשי':'→ Go to Main Screen'}</button>
+          </div>
+        )}
 
         {!autoSuccess&&!connected?(
           <>
