@@ -51,7 +51,8 @@ Step 3 — sum the weights to get totalGrams (solid food only; exclude water/pla
 Step 4 — calculate total nutrition, then divide by totalGrams×0.01 to get per100g values.
 
 Output ONLY this JSON on the very last line (no markdown):
-{"label":"Hebrew meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT,"totalGrams":ESTIMATED_TOTAL_GRAMS_INT,"per100g":{"kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT},"portions":"Hebrew list: item ~Xg, e.g: עוף ~160g, אורז ~90g, שמן ~10ml"}`;
+{"label":"Hebrew meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT,"totalGrams":ESTIMATED_TOTAL_GRAMS_INT,"per100g":{"kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT},"portions":"Hebrew list: item ~Xg, e.g: עוף ~160g, אורז ~90g, שמן ~10ml","suggestedAmt":NATURAL_AMOUNT_NUMBER,"suggestedUnit":"natural unit: יח׳ if countable items (e.g. 2 cookies), g if weighed, מנות if a full meal"}
+For suggestedAmt/suggestedUnit: prefer countable units when applicable (e.g. 2 ביצים → 2/יח׳, whole pizza slice → 1/יח׳, pasta bowl → totalGrams/g).`;
         messages = [{role:'user', content:[
           {type:'image', source:{type:'base64', media_type:imageMediaType||'image/jpeg', data:imageData}},
           {type:'text', text:analysisPrompt}

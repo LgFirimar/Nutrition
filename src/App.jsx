@@ -676,6 +676,7 @@ function LoadFoodToDB({foodName,amount,unit,onAddToDay,onSaved}){
 // ── DBManagerModal ─────────────────────────────────────────────────────────────
 function DBManagerModal({onClose,pid,lang}){
   const T=LANG[lang]||LANG.he;
+  const isHe=(lang||'he')!=='en';
   const activePid = window._activePid||pid||'default';
   const [db,setDb]=useState(()=>loadCustomDB(activePid));
   useEffect(()=>{ setDb(loadCustomDB(window._activePid||pid||'default')); },[pid]);
@@ -687,6 +688,45 @@ function DBManagerModal({onClose,pid,lang}){
   const [editLoading,setEditLoading]=useState(false);
   const [editPreview,setEditPreview]=useState(null);
   const editImgRef=useRef(null);
+  // Add new item via text
+  const [showAdd,setShowAdd]=useState(false);
+  const [addText,setAddText]=useState("");
+  const [addQty,setAddQty]=useState(1);
+  const [addLoading,setAddLoading]=useState(false);
+  const [addData,setAddData]=useState(null);
+  const addImgRef=useRef(null);
+
+  const askClaudeAdd=async(textOrImg)=>{
+    setAddLoading(true);setAddData(null);
+    try{
+      const body=textOrImg.type==='text'
+        ?{dbEditText:textOrImg.val}
+        :{dbEditImageData:textOrImg.b64,dbEditImageMediaType:textOrImg.mime};
+      const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      const d=await res.json();
+      if(!d.kcal)throw new Error();
+      const q=Math.max(1,addQty);
+      setAddData({label:d.label||"",kcal:String(Math.round((d.kcal||0)/q)),carbs:String(parseFloat(((d.carbs||0)/q).toFixed(1))),protein:String(parseFloat(((d.protein||0)/q).toFixed(1))),fat:String(parseFloat(((d.fat||0)/q).toFixed(1))),unit:"g"});
+    }catch{setAddData(d=>d||null);}
+    setAddLoading(false);
+  };
+
+  const handleAddImage=e=>{
+    const file=e.target.files[0];if(!file)return;e.target.value="";
+    const reader=new FileReader();
+    reader.onload=ev=>askClaudeAdd({type:'img',b64:ev.target.result.split(',')[1],mime:file.type||'image/jpeg'});
+    reader.readAsDataURL(file);
+  };
+
+  const saveNewItem=()=>{
+    if(!addData)return;
+    const label=addData.label||addText.trim()||"פריט חדש";
+    const entry={names:[label.toLowerCase().replace(/^[^\w]/,'')],label,kcal:parseFloat(addData.kcal)||0,carbs:parseFloat(addData.carbs)||0,protein:parseFloat(addData.protein)||0,fat:parseFloat(addData.fat)||0,unit:addData.unit||"g",defaultAmt:100};
+    const apid=window._activePid||pid||'default';
+    const updated=[...db.filter(f=>f.label!==label),entry];
+    saveCustomDB(updated,apid);setDb(updated);
+    setShowAdd(false);setAddText("");setAddData(null);setAddQty(1);
+  };
 
   const filtered=search.trim()?db.filter(f=>f.label.toLowerCase().includes(search.toLowerCase())||f.names.some(n=>n.toLowerCase().includes(search.toLowerCase()))):db;
   const apid=()=>window._activePid||pid||'default';
@@ -768,7 +808,54 @@ function DBManagerModal({onClose,pid,lang}){
           <div style={{fontSize:15,fontWeight:700}}>{T.dbTitle}</div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
         </div>
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={T.search} className="inp" style={{marginBottom:12}}/>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={T.search} className="inp" style={{marginBottom:8}}/>
+
+        {/* Add new item */}
+        <input ref={addImgRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif" onChange={handleAddImage} style={{display:"none"}}/>
+        <button onClick={()=>setShowAdd(v=>!v)} style={{width:"100%",background:"transparent",border:`1px dashed ${C.border}`,borderRadius:10,padding:"8px",fontSize:12,color:C.accent,cursor:"pointer",marginBottom:10,fontWeight:700}}>
+          {showAdd?(isHe?"✕ סגור":"✕ Close"):(isHe?"+ הוסף פריט חדש":"+ Add New Item")}
+        </button>
+        {showAdd&&(
+          <div className="fade" style={{background:"#f5f5f7",borderRadius:10,padding:12,marginBottom:12,display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{fontSize:11,color:C.muted,marginBottom:2}}>{isHe?"תאר את הפריט או צלם אותו":"Describe the item or take a photo"}</div>
+            <div style={{display:"flex",gap:6}}>
+              <textarea value={addText} onChange={e=>setAddText(e.target.value)}
+                placeholder={isHe?"למשל: 100g חזה עוף מבושל, כוס אורז מבושל...":"e.g. 100g cooked chicken breast, 1 cup cooked rice..."}
+                className="inp" rows={2} style={{flex:1,fontSize:12,resize:"none"}}/>
+              <button onClick={()=>addImgRef.current?.click()} style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:18}}>📷</button>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <span style={{fontSize:11,color:C.muted}}>{isHe?"מספר מנות:":"Servings:"}</span>
+              <button onClick={()=>setAddQty(v=>Math.max(1,v-1))} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#fff",cursor:"pointer",fontSize:13}}>−</button>
+              <input type="number" value={addQty} min="1" onChange={e=>setAddQty(Math.max(1,parseInt(e.target.value)||1))} style={{width:38,textAlign:"center",border:`1px solid ${C.border}`,borderRadius:6,padding:"3px",fontSize:13,fontFamily:"inherit"}}/>
+              <button onClick={()=>setAddQty(v=>v+1)} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#fff",cursor:"pointer",fontSize:13}}>+</button>
+              <button onClick={()=>askClaudeAdd({type:'text',val:addText})} disabled={!addText.trim()||addLoading}
+                style={{flex:1,background:addText.trim()&&!addLoading?C.accent:"#ddd",border:"none",borderRadius:8,color:addText.trim()&&!addLoading?"#fff":"#aaa",padding:"6px 8px",fontSize:12,fontWeight:700,cursor:addText.trim()&&!addLoading?"pointer":"default"}}>
+                {addLoading?<span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>⟳</span>:`✨ ${isHe?"חשב":"Calculate"}`}
+              </button>
+            </div>
+            {addData&&(
+              <div className="fade">
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:6}}>
+                  {[["label",isHe?"שם":"Name","#333"],["kcal",T.kcal,C.accent],["carbs",T.carbs+" g",C.warn],["protein",T.protein+" g",C.blue],["fat",T.fat+" g","#999"]].map(([k,l,c])=>(
+                    k==="label"
+                      ?<div key={k} style={{gridColumn:"1/-1"}}><input value={addData.label} onChange={e=>setAddData(d=>({...d,label:e.target.value}))} className="inp" style={{fontSize:12}} placeholder={l}/></div>
+                      :<div key={k} className="num-wrap">
+                        <input type="number" value={addData[k]} onChange={e=>setAddData(d=>({...d,[k]:e.target.value}))} style={{borderColor:c}} className="num-wrap"/>
+                        <div className="num-lbl" style={{color:c}}>{l}</div>
+                      </div>
+                  ))}
+                </div>
+                <div style={{display:"flex",gap:6}}>
+                  <select value={addData.unit} onChange={e=>setAddData(d=>({...d,unit:e.target.value}))} className="inp" style={{flex:1,fontSize:12}}>
+                    <option value="g">{isHe?"גר׳":"g"}</option><option value="ml">מ״ל</option><option value="יח׳">יח׳</option><option value="מנה">{isHe?"מנה":"serving"}</option>
+                  </select>
+                  <button onClick={saveNewItem} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"8px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{isHe?"💾 שמור פריט":"💾 Save Item"}</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         {filtered.length===0
           ? <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:"20px 0"}}>{db.length===0?T.dbEmpty:T.noResults}</div>
           : <div style={{display:"flex",flexDirection:"column",gap:6}}>
@@ -1116,9 +1203,9 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
       const parsedU=d.portions?parseInt((d.portions.match(/(\d+)\s*יח/)||[])[1]||"0"):0;
       const hasGrams=d.totalGrams>=20;
       const initW=hasGrams?String(d.totalGrams):"";
-      // Default to totalGrams in grams (works immediately without extra steps)
-      const initAmt=hasGrams?String(d.totalGrams):"1";
-      const initUnit=hasGrams?"g":"יח׳";
+      // Use Claude's suggested amount/unit if provided, otherwise fall back to grams
+      const initAmt=d.suggestedAmt?String(d.suggestedAmt):(hasGrams?String(d.totalGrams):"1");
+      const initUnit=d.suggestedUnit||(hasGrams?"g":"יח׳");
       setMealWeight(initW);setTotalUnits(parsedU);setLocalAmt(initAmt);setQtyUnit(initUnit);
       setPreview(d);
       setCalcVals(computeVals(d,1,initAmt,initUnit,initW,parsedU));
@@ -2127,7 +2214,8 @@ function ShoppingListModal({onClose,lang,pid,syncTick}){
 }
 
 // ── ExportImportModal ──────────────────────────────────────────────────────────
-function ExportImportModal({pid, onClose}){
+function ExportImportModal({pid, onClose, lang}){
+  const isHe=(lang||'he')!=='en';
   const [importing,setImporting]=useState(false);
   const [importText,setImportText]=useState("");
   const [msg,setMsg]=useState(null);
@@ -2157,7 +2245,7 @@ function ExportImportModal({pid, onClose}){
       const file=new File([blob],fname,{type:"application/json"});
       if(navigator.canShare({files:[file]})){
         navigator.share({files:[file],title:"Nutrition Backup"});
-        setMsg({type:"success",text:"✓ שתף/שמור את הקובץ"});
+        setMsg({type:"success",text:isHe?"✓ שתף/שמור את הקובץ":"✓ Share or save the file"});
         return;
       }
     }
@@ -2167,13 +2255,13 @@ function ExportImportModal({pid, onClose}){
     document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    setMsg({type:"success",text:"✓ הקובץ נשמר בהצלחה"});
+    setMsg({type:"success",text:isHe?"✓ הקובץ נשמר בהצלחה":"✓ File saved successfully"});
   };
 
   const importData=()=>{
     try{
       const data=JSON.parse(importText.trim());
-      if(!data.version||!data.journal) throw new Error("פורמט לא תקין");
+      if(!data.version||!data.journal) throw new Error(isHe?"פורמט לא תקין":"Invalid format");
       const targetPid=pid;
       if(data.profiles) saveProfiles(data.profiles);
       if(data.activeProfileId) saveActiveProfileId(data.activeProfileId);
@@ -2185,7 +2273,7 @@ function ExportImportModal({pid, onClose}){
       if(data.shopping) saveShopping(data.shopping);
       if(data.savedPrefs) localStorage.setItem("nutrition_saved_prefs",JSON.stringify(data.savedPrefs));
       if(data.quickFoods) saveQuickFoods(data.quickFoods,targetPid);
-      setMsg({type:"success",text:`✓ יובאו ${Object.keys(data.journal||{}).length} ימים בהצלחה! רענן את הדף.`});
+      setMsg({type:"success",text:isHe?`✓ יובאו ${Object.keys(data.journal||{}).length} ימים בהצלחה! רענן את הדף.`:`✓ Imported ${Object.keys(data.journal||{}).length} days. Please refresh.`});
       setImporting(false);
       setImportText("");
     }catch(e){
@@ -2205,7 +2293,7 @@ function ExportImportModal({pid, onClose}){
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <div className="modal-sheet slide">
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <div style={{fontSize:15,fontWeight:700}}>📤 ייצוא / ייבוא נתונים</div>
+          <div style={{fontSize:15,fontWeight:700}}>{isHe?"📤 ייצוא / ייבוא נתונים":"📤 Export / Import"}</div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
         </div>
 
@@ -2216,45 +2304,45 @@ function ExportImportModal({pid, onClose}){
         )}
 
         <div style={{marginBottom:16}}>
-          <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:6}}>ייצוא נתונים</div>
+          <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:6}}>{isHe?"ייצוא נתונים":"Export Data"}</div>
           <div style={{fontSize:11,color:C.muted,marginBottom:10,lineHeight:1.6}}>
-            שומר קובץ JSON עם כל היומן, הכפתורים, המאגר האישי והמזווה שלך.
+            {isHe?"שומר קובץ JSON עם כל היומן, הכפתורים, המאגר האישי והמזווה שלך.":"Saves a JSON file with your journal, buttons, personal database and pantry."}
           </div>
           <div style={{marginBottom:8}}>
             <input
               value={filename}
               onChange={e=>setFilename(e.target.value)}
               style={{width:"100%",boxSizing:"border-box",border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 10px",fontSize:12,fontFamily:"inherit",direction:"ltr",textAlign:"left"}}
-              placeholder="שם הקובץ"
+              placeholder={isHe?"שם הקובץ":"File name"}
             />
           </div>
           <button onClick={exportData} style={{width:"100%",background:C.accent,border:"none",borderRadius:10,color:"#fff",padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
-            💾 שמור קובץ גיבוי
+            {isHe?"💾 שמור קובץ גיבוי":"💾 Save Backup File"}
           </button>
         </div>
 
         <div style={{borderTop:`1px solid ${C.border}`,paddingTop:16}}>
-          <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:6}}>ייבוא נתונים</div>
+          <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:6}}>{isHe?"ייבוא נתונים":"Import Data"}</div>
           <div style={{fontSize:11,color:C.muted,marginBottom:10,lineHeight:1.6}}>
-            טעינת נתונים מקובץ גיבוי קודם. ⚠️ ידרוס את הנתונים הקיימים בפרופיל הנוכחי.
+            {isHe?"טעינת נתונים מקובץ גיבוי קודם. ⚠️ ידרוס את הנתונים הקיימים בפרופיל הנוכחי.":"Load data from a previous backup. ⚠️ Will overwrite current profile data."}
           </div>
           {!importing ? (
             <button onClick={()=>setImporting(true)} style={{width:"100%",background:"#f5f5f7",border:`1px solid ${C.border}`,borderRadius:10,color:C.muted,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
-              📂 ייבא מקובץ
+              {isHe?"📂 ייבא מקובץ":"📂 Import from File"}
             </button>
           ) : (
             <div className="fade">
               <input ref={fileInputRef} type="file" accept=".json" onChange={importFromFile} style={{display:"none"}}/>
               {!importText ? (
                 <button onClick={()=>fileInputRef.current?.click()} style={{width:"100%",background:"#f5f5f7",border:`2px dashed ${C.border}`,borderRadius:10,padding:"18px 12px",fontSize:15,fontWeight:700,cursor:"pointer",color:C.text,marginBottom:8,display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontFamily:"inherit"}}>
-                  <span style={{fontSize:22}}>📁</span> בחר קובץ
+                  <span style={{fontSize:22}}>📁</span> {isHe?"בחר קובץ":"Choose File"}
                 </button>
               ) : (
                 <>
-                  <div style={{fontSize:11,color:C.accent,marginBottom:8}}>✓ קובץ נטען — לחצי ייבא</div>
+                  <div style={{fontSize:11,color:C.accent,marginBottom:8}}>{isHe?"✓ קובץ נטען — לחצי ייבא":"✓ File loaded — tap Import"}</div>
                   <div style={{display:"flex",gap:8}}>
-                    <button onClick={()=>{setImporting(false);setImportText("");}} className="btn-muted" style={{flex:1}}>ביטול</button>
-                    <button onClick={importData} style={{flex:2,background:C.warn,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>ייבא עכשיו</button>
+                    <button onClick={()=>{setImporting(false);setImportText("");}} className="btn-muted" style={{flex:1}}>{isHe?"ביטול":"Cancel"}</button>
+                    <button onClick={importData} style={{flex:2,background:C.warn,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{isHe?"ייבא עכשיו":"Import Now"}</button>
                   </div>
                 </>
               )}
@@ -2599,7 +2687,8 @@ function SetupScreen({onDone}){
   );
 }
 // ── ProfileModal ───────────────────────────────────────────────────────────────
-function ProfileModal({profiles, activeId, onSelect, onClose, onBackup, onSetupProfile}){
+function ProfileModal({profiles, activeId, onSelect, onClose, onBackup, onSetupProfile, lang}){
+  const isHe=(lang||'he')!=='en';
   const [showNew,setShowNew]=useState(false);
   const [newName,setNewName]=useState("");
   const [newEmoji,setNewEmoji]=useState("👤");
@@ -2627,7 +2716,7 @@ function ProfileModal({profiles, activeId, onSelect, onClose, onBackup, onSetupP
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <div className="modal-sheet slide">
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <div style={{fontSize:15,fontWeight:700}}>👥 פרופילים</div>
+          <div style={{fontSize:15,fontWeight:700}}>{isHe?"👥 פרופילים":"👥 Profiles"}</div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
@@ -2638,12 +2727,12 @@ function ProfileModal({profiles, activeId, onSelect, onClose, onBackup, onSetupP
                 <span style={{fontSize:22}}>{p.emoji}</span>
                 <div>
                   <div style={{fontSize:13,fontWeight:p.id===activeId?700:400,color:p.id===activeId?C.accent:C.text}}>{p.name}</div>
-                  <div style={{fontSize:10,color:C.muted}}>{p.maxKcal} קק״ל · {p.maxCarbs}g פחמ׳</div>
+                  <div style={{fontSize:10,color:C.muted}}>{p.maxKcal} {isHe?"קק״ל":"kcal"} · {p.maxCarbs}g {isHe?"פחמ׳":"carbs"}</div>
                 </div>
               </div>
               <div style={{display:"flex",alignItems:"center",gap:4}}>
-                {p.id===activeId && <span style={{fontSize:10,color:C.accent,fontWeight:700}}>פעיל</span>}
-                {p.recommendations && <span style={{fontSize:10,color:C.muted}} title="יש המלצות">ℹ</span>}
+                {p.id===activeId && <span style={{fontSize:10,color:C.accent,fontWeight:700}}>{isHe?"פעיל":"Active"}</span>}
+                {p.recommendations && <span style={{fontSize:10,color:C.muted}} title={isHe?"יש המלצות":"Has recommendations"}>ℹ</span>}
                 <button onClick={e=>{e.stopPropagation();onSetupProfile&&onSetupProfile(p);}} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:6,color:C.accent,fontSize:11,fontWeight:700,cursor:"pointer",padding:"3px 7px",fontFamily:"inherit"}}>🎯</button>
                 {p.id!=="default" && <button onClick={e=>{e.stopPropagation();deleteProfile(p.id);}} style={{background:"none",border:"none",color:C.muted,fontSize:16,cursor:"pointer",padding:4}}>🗑</button>}
               </div>
@@ -2651,22 +2740,22 @@ function ProfileModal({profiles, activeId, onSelect, onClose, onBackup, onSetupP
           ))}
         </div>
         {!showNew
-          ? <><button onClick={()=>setShowNew(true)} style={{width:"100%",background:"transparent",border:`1px dashed ${C.border}`,borderRadius:10,padding:"10px",fontSize:13,color:C.muted,cursor:"pointer",marginBottom:8}}>+ פרופיל חדש</button>
-            <button onClick={onBackup} style={{width:"100%",background:"transparent",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px",fontSize:13,color:C.muted,cursor:"pointer"}}>💾 גיבוי וייבוא נתונים</button></>
+          ? <><button onClick={()=>setShowNew(true)} style={{width:"100%",background:"transparent",border:`1px dashed ${C.border}`,borderRadius:10,padding:"10px",fontSize:13,color:C.muted,cursor:"pointer",marginBottom:8}}>{isHe?"+ פרופיל חדש":"+ New Profile"}</button>
+            <button onClick={onBackup} style={{width:"100%",background:"transparent",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px",fontSize:13,color:C.muted,cursor:"pointer"}}>{isHe?"💾 גיבוי וייבוא נתונים":"💾 Backup & Import"}</button></>
 
           : (
             <div className="fade" style={{background:"#f5f5f7",borderRadius:10,padding:12}}>
-              <div style={{fontSize:11,color:C.muted,marginBottom:6}}>שם</div>
-              <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="שם הפרופיל" className="inp" style={{marginBottom:10}}/>
-              <div style={{fontSize:11,color:C.muted,marginBottom:6}}>אימוג׳י</div>
+              <div style={{fontSize:11,color:C.muted,marginBottom:6}}>{isHe?"שם":"Name"}</div>
+              <input value={newName} onChange={e=>setNewName(e.target.value)} placeholder={isHe?"שם הפרופיל":"Profile name"} className="inp" style={{marginBottom:10}}/>
+              <div style={{fontSize:11,color:C.muted,marginBottom:6}}>{isHe?"אימוג׳י":"Emoji"}</div>
               <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
                 {EMOJIS.map(em=>(
                   <button key={em} onClick={()=>setNewEmoji(em)} style={{width:36,height:36,border:`1px solid ${em===newEmoji?C.accent:C.border}`,borderRadius:8,background:em===newEmoji?"rgba(90,158,30,0.1)":"#fff",fontSize:18,cursor:"pointer"}}>{em}</button>
                 ))}
               </div>
               <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>setShowNew(false)} className="btn-muted" style={{flex:1}}>ביטול</button>
-                <button onClick={createProfile} disabled={!newName.trim()} style={{flex:2,background:newName.trim()?C.accent:"#ddd",border:"none",borderRadius:8,color:newName.trim()?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:newName.trim()?"pointer":"default"}}>צור פרופיל</button>
+                <button onClick={()=>setShowNew(false)} className="btn-muted" style={{flex:1}}>{isHe?"ביטול":"Cancel"}</button>
+                <button onClick={createProfile} disabled={!newName.trim()} style={{flex:2,background:newName.trim()?C.accent:"#ddd",border:"none",borderRadius:8,color:newName.trim()?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:newName.trim()?"pointer":"default"}}>{isHe?"צור פרופיל":"Create Profile"}</button>
               </div>
             </div>
           )
@@ -3279,6 +3368,7 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
   const connected=!!householdCfg;
   const[tab,setTab]=useState(connected?'connected':'create');
   const[memberName,setMemberName]=useState(householdCfg?.memberName||'');
+  const[householdName,setHouseholdName]=useState(householdCfg?.householdName||'');
   const[configText,setConfigText]=useState('');
   const[joinCode,setJoinCode]=useState('');
   const[loading,setLoading]=useState(false);
@@ -3345,7 +3435,7 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
     if(!cfg.apiKey||!cfg.databaseURL){setError(isHe?'חסרים שדות: apiKey ו-databaseURL':'Missing: apiKey and databaseURL');return;}
     setLoading(true);setError('');
     const hid=genId();
-    const newCfg={firebaseConfig:cfg,householdId:hid,memberName:memberName.trim()};
+    const newCfg={firebaseConfig:cfg,householdId:hid,memberName:memberName.trim(),householdName:householdName.trim()||memberName.trim()};
     const ok=await _fbInit(newCfg);
     if(!ok){setError(isHe?'שגיאה בחיבור ל-Firebase':'Firebase connection error');setLoading(false);return;}
     await registerMember(hid,memberName.trim());
@@ -3428,12 +3518,17 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
 
             {tab==='create'?(
               <>
-                <div style={{fontSize:11,color:"#64748b",marginBottom:8,lineHeight:1.5}}>
-                  {isHe?"1. כנסו ל-":"1. Go to "}<b>console.firebase.google.com</b><br/>
-                  {isHe?"2. צרו פרויקט חדש":"2. Create a new project"}<br/>
-                  {isHe?"3. Realtime Database → Create → Test mode":"3. Realtime Database → Create → Test mode"}<br/>
-                  {isHe?"4. Project Settings → Your apps → Add web app":"4. Project Settings → Your apps → Add web app"}<br/>
-                  {isHe?"5. העתיקו את ":"5. Copy the "}<b>firebaseConfig</b>{isHe?" והדביקו כאן:":" and paste it:"}
+                <input value={householdName} onChange={e=>setHouseholdName(e.target.value)}
+                  placeholder={isHe?"שם משק הבית (למשל: משפחת לוי)":"Household name (e.g. The Levy Family)"}
+                  style={{...inputStyle,marginBottom:10}}/>
+                <div style={{fontSize:11,color:"#64748b",marginBottom:8,lineHeight:1.8,background:"rgba(13,148,136,.04)",borderRadius:8,padding:"8px 10px",border:"1px solid rgba(13,148,136,.1)"}}>
+                  <b>{isHe?"הגדרת Firebase (חינמי):":"Firebase Setup (free):"}</b><br/>
+                  {isHe?"1. כנסו ל-":"1. Go to "}
+                  <span onClick={()=>window.open('https://console.firebase.google.com','_blank')} style={{color:C.accent,textDecoration:"underline",cursor:"pointer",fontWeight:700}}>console.firebase.google.com</span><br/>
+                  {isHe?"2. לחצו Add project → תנו שם → Continue":"2. Click Add project → name it → Continue"}<br/>
+                  {isHe?"3. Build → Realtime Database → Create → Test mode":"3. Build → Realtime Database → Create → Test mode"}<br/>
+                  {isHe?"4. Settings ⚙️ → General → Your apps → Add web app (</>)":"4. Settings ⚙️ → General → Your apps → Add web app (</>)"}<br/>
+                  {isHe?"5. העתיקו את ":"5. Copy the "}<b>firebaseConfig</b>{isHe?" והדביקו למטה ↓":" and paste below ↓"}
                 </div>
                 <textarea value={configText} onChange={e=>setConfigText(e.target.value)}
                   placeholder={'{\n  "apiKey": "...",\n  "databaseURL": "https://...",\n  ...\n}'}
@@ -3462,14 +3557,23 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
             {/* Sharing code box */}
             <div style={{background:"rgba(13,148,136,.06)",borderRadius:12,padding:"12px 14px",marginBottom:14,border:"1px solid rgba(13,148,136,.15)"}}>
               <div style={{fontSize:11,color:"#64748b",marginBottom:8}}>{isHe?"קוד הצטרפות לשיתוף:":"Join code to share:"}</div>
-              <div style={{display:"flex",gap:6,marginBottom:8}}>
+              {householdCfg?.householdName&&<div style={{fontSize:13,fontWeight:700,color:"#0d9488",marginBottom:6}}>🏠 {householdCfg.householdName}</div>}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:8}}>
                 <button onClick={copyCode}
-                  style={{...btnStyle,flex:1,background:copied?"rgba(13,148,136,.12)":"rgba(255,255,255,.9)",color:copied?"#0d9488":"#475569",border:"1px solid rgba(148,163,184,.3)",padding:"7px 10px"}}>
+                  style={{...btnStyle,background:copied?"rgba(13,148,136,.12)":"rgba(255,255,255,.9)",color:copied?"#0d9488":"#475569",border:"1px solid rgba(148,163,184,.3)",padding:"7px 8px",fontSize:11}}>
                   {copied?(isHe?"✓ הועתק!":"✓ Copied!"):(isHe?"📋 העתק קוד":"📋 Copy code")}
                 </button>
                 <button onClick={handleShowQR}
-                  style={{...btnStyle,flex:1,background:showQR?"rgba(13,148,136,.12)":"rgba(255,255,255,.9)",color:showQR?"#0d9488":"#475569",border:"1px solid rgba(148,163,184,.3)",padding:"7px 10px"}}>
-                  {isHe?(showQR?"✕ סגור QR":"📷 הצג QR"):(showQR?"✕ Close QR":"📷 Show QR")}
+                  style={{...btnStyle,background:showQR?"rgba(13,148,136,.12)":"rgba(255,255,255,.9)",color:showQR?"#0d9488":"#475569",border:"1px solid rgba(148,163,184,.3)",padding:"7px 8px",fontSize:11}}>
+                  {isHe?(showQR?"✕ סגור QR":"📷 QR"):(showQR?"✕ Close":"📷 QR")}
+                </button>
+                <button onClick={()=>{const msg=encodeURIComponent((isHe?"קוד הצטרפות למשק הבית":"Household join code")+": "+getSharingCode());window.open(`https://wa.me/?text=${msg}`,'_blank');}}
+                  style={{...btnStyle,background:"rgba(37,211,102,.1)",color:"#128c7e",border:"1px solid rgba(37,211,102,.3)",padding:"7px 8px",fontSize:11}}>
+                  💬 WhatsApp
+                </button>
+                <button onClick={()=>{const sub=encodeURIComponent(isHe?"הצטרפות למשק הבית":"Join Household");const body=encodeURIComponent((isHe?"קוד ההצטרפות שלך:":"Your join code:")+"\n\n"+getSharingCode());window.open(`mailto:?subject=${sub}&body=${body}`,'_blank');}}
+                  style={{...btnStyle,background:"rgba(59,130,246,.08)",color:"#2563eb",border:"1px solid rgba(59,130,246,.2)",padding:"7px 8px",fontSize:11}}>
+                  ✉️ {isHe?"מייל":"Email"}
                 </button>
               </div>
               {showQR&&qrSvg&&(
@@ -3730,9 +3834,9 @@ function App(){
       {showShopping && <ShoppingListModal onClose={()=>setShowShopping(false)} lang={lang} pid={pid} syncTick={syncTick}/>}
       {showHousehold && <HouseholdModal householdCfg={householdCfg} onConnect={cfg=>{setHouseholdCfg(cfg);setShowHousehold(false);}} onLeave={()=>{setHouseholdCfg(null);setHhSynced(false);setShowHousehold(false);}} onClose={()=>setShowHousehold(false)} lang={lang}/>}
       {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang}/>}
-      {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}}/>}
+      {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}} lang={lang}/>}
       {showWizard && <ProfileSetupWizard profile={wizardProfile} onSave={p=>{const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===p.id?p:x));setActiveProfile(p.id===pid?p:activeProfile);setProfiles(loadProfiles());setWizardProfile(null);setShowWizard(false);}} onSkip={()=>{setWizardProfile(null);setShowWizard(false);}}/>}
-      {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)}/>}
+      {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)} lang={lang}/>}
       {showJournal && <JournalView pid={pid} lang={lang} onClose={()=>setShowJournal(false)} onLoadDay={saved=>{setEntries(saved.map(e=>({...e,uid:Date.now()+Math.random()})));setShowJournal(false);}}/>}
       {showNewBtn && <NewButtonModal onClose={()=>setShowNewBtn(false)} onSave={saveNewBtn}/>}
       {showDB && <DBManagerModal pid={pid} lang={lang} onClose={()=>setShowDB(false)}/>}
