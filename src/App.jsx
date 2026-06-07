@@ -360,7 +360,7 @@ const sugarColor = v => { const n=Number(v); return n>=100?'#dc2626':n>=86?'#f59
 const goalColor=(consumed,max)=>{
   if(!max||isNaN(consumed)) return "#166534";
   const p=consumed/max;
-  if(p>=0.9) return "#dc2626";
+  if(p>=0.85) return "#dc2626";
   if(p>=0.6) return "#ea580c";
   if(p>=0.35) return "#ca8a04";
   return "#166534";
@@ -368,7 +368,7 @@ const goalColor=(consumed,max)=>{
 const goalGrad=(consumed,max)=>{
   if(!max) return ["#166534","#22c55e"];
   const p=consumed/max;
-  if(p>=0.9) return ["#dc2626","#f87171"];
+  if(p>=0.85) return ["#dc2626","#f87171"];
   if(p>=0.6) return ["#ea580c","#fb923c"];
   if(p>=0.35) return ["#ca8a04","#fbbf24"];
   return ["#166534","#22c55e"];
@@ -406,7 +406,7 @@ function CalcLoader({size=32}){
 // ── StatBar ────────────────────────────────────────────────────────────────────
 function StatBar({value,max,color}){
   const pct=Math.min(value/max*100,100);
-  const col=pct>90?C.danger:pct>70?C.warn:color;
+  const col=pct>85?C.danger:pct>60?C.warn:color;
   return <div className="stat-bar-bg"><div className="stat-bar" style={{width:`${pct}%`,background:col}}/></div>;
 }
 
