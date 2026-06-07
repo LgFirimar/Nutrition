@@ -1917,13 +1917,15 @@ function JournalView({onClose,onLoadDay,pid,lang}){
 
 
 // ── PantryModal ────────────────────────────────────────────────────────────────
-function PantryModal({onClose,lang}){
+function PantryModal({onClose,lang,syncTick}){
   const isHe=(lang||'he')!=='en';
   const [pantry,setPantry]=useState(loadPantry);
   const [inputs,setInputs]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,{name:"",qty:""}])));
   const [open,setOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,true])));
   const [imgLoading,setImgLoading]=useState({});
   const imgRefs=useRef({});
+
+  useEffect(()=>{if(syncTick>0)setPantry(loadPantry());},[syncTick]);
 
   const update=p=>{setPantry(p);savePantryLS(p);};
 
@@ -2013,13 +2015,15 @@ function PantryModal({onClose,lang}){
 }
 
 // ── ShoppingListModal ──────────────────────────────────────────────────────────
-function ShoppingListModal({onClose,lang,pid}){
+function ShoppingListModal({onClose,lang,pid,syncTick}){
   const isHe=(lang||'he')!=='en';
   const [items,setItems]=useState(loadShopping);
   const [loading,setLoading]=useState(false);
   const [newName,setNewName]=useState("");
   const [newQty,setNewQty]=useState("");
   const [error,setError]=useState("");
+
+  useEffect(()=>{if(syncTick>0)setItems(loadShopping());},[syncTick]);
 
   const save=list=>{setItems(list);saveShopping(list);};
 
@@ -2042,7 +2046,7 @@ function ShoppingListModal({onClose,lang,pid}){
         body:JSON.stringify({shoppingList:{pantry:pantryStr,recentFoods,isHe}})});
       const d=await r.json();
       if(d.error)throw new Error(d.error);
-      const newItems=(d.items||[]).map(i=>({id:Date.now()+Math.random(),name:i.name,qty:i.qty||"",checked:false,auto:true}));
+      const newItems=(d.items||[]).map(i=>({id:Date.now()+Math.random(),name:i.name,qty:i.qty||"",checked:false,auto:true,addedBy:_memberName||""}));
       // merge: don't duplicate existing unchecked items
       const existingNames=new Set(items.filter(i=>!i.checked).map(i=>i.name.toLowerCase()));
       const fresh=newItems.filter(i=>!existingNames.has(i.name.toLowerCase()));
@@ -3522,6 +3526,7 @@ function App(){
   const [showHousehold,setShowHousehold]=useState(false);
   const [householdCfg,setHouseholdCfg]=useState(()=>ls.get('nutrition_household'));
   const [hhSynced,setHhSynced]=useState(false);
+  const [syncTick,setSyncTick]=useState(0);
   const hhUnsubRef=useRef([]);
   const [activeRing,setActiveRing]=useState('kcal');
   const [lang,setLang]=useState(()=>localStorage.getItem('nutrition_lang')||'he');
@@ -3545,13 +3550,17 @@ function App(){
       setHhSynced(true);
       const unsubPantry=_fbOnValue(_fbRefFn(_fbDb,`households/${_householdId}/pantry`),snap=>{
         const data=snap.val();
-        if(data&&typeof data==='object')localStorage.setItem("nutrition_pantry",JSON.stringify(data));
+        if(data&&typeof data==='object'){
+          localStorage.setItem("nutrition_pantry",JSON.stringify(data));
+          setSyncTick(t=>t+1);
+        }
       });
       const unsubShopping=_fbOnValue(_fbRefFn(_fbDb,`households/${_householdId}/shopping`),snap=>{
         const data=snap.val();
         if(data!==null){
           const arr=Array.isArray(data)?data:Object.values(data||{});
           localStorage.setItem("nutrition_shopping",JSON.stringify(arr.filter(Boolean)));
+          setSyncTick(t=>t+1);
         }
       });
       hhUnsubRef.current=[unsubPantry,unsubShopping];
@@ -3670,8 +3679,8 @@ function App(){
     <div>
       {showSplash && <SplashScreen onDone={()=>setShowSplash(false)}/>}
       {showInfo && <InfoModal onClose={()=>setShowInfo(false)} lang={lang}/>}
-      {showPantry && <PantryModal onClose={()=>setShowPantry(false)} lang={lang}/>}
-      {showShopping && <ShoppingListModal onClose={()=>setShowShopping(false)} lang={lang} pid={pid}/>}
+      {showPantry && <PantryModal onClose={()=>setShowPantry(false)} lang={lang} syncTick={syncTick}/>}
+      {showShopping && <ShoppingListModal onClose={()=>setShowShopping(false)} lang={lang} pid={pid} syncTick={syncTick}/>}
       {showHousehold && <HouseholdModal householdCfg={householdCfg} onConnect={cfg=>{setHouseholdCfg(cfg);setShowHousehold(false);}} onLeave={()=>{setHouseholdCfg(null);setHhSynced(false);setShowHousehold(false);}} onClose={()=>setShowHousehold(false)} lang={lang}/>}
       {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang}/>}
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}}/>}
