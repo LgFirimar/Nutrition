@@ -3677,7 +3677,7 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
     if(!ok){setError(isHe?'שגיאה בחיבור ל-Firebase':'Firebase connection error');setLoading(false);return;}
     await registerMember(hid,memberName.trim());
     ls.set('nutrition_household',newCfg);
-    const sc=btoa(JSON.stringify({firebaseConfig:cfg,householdId:hid,householdName:newCfg.householdName}));
+    const sc=btoa(unescape(encodeURIComponent(JSON.stringify({firebaseConfig:cfg,householdId:hid,householdName:newCfg.householdName}))));
     onWelcome?.({householdName:newCfg.householdName,sharingCode:sc,cfg:newCfg});
     setLoading(false);
   };
@@ -3705,7 +3705,7 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
       const newCfg={firebaseConfig:cfg,householdId:hid,memberName:memberName.trim(),householdName:householdName.trim()||memberName.trim()};
       ls.set('nutrition_household',newCfg);
       autoSuccessCfgRef.current=newCfg;
-      const sc=btoa(JSON.stringify({firebaseConfig:cfg,householdId:hid,householdName:newCfg.householdName}));
+      const sc=btoa(unescape(encodeURIComponent(JSON.stringify({firebaseConfig:cfg,householdId:hid,householdName:newCfg.householdName}))));
       setAutoProgress(null);
       onWelcome?.({householdName:newCfg.householdName,sharingCode:sc,cfg:newCfg});
       // Init Firebase + register member in background (non-blocking)
@@ -3720,7 +3720,7 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
     if(!memberName.trim()){setError(isHe?'נא להזין שם':'Please enter your name');return;}
     if(!joinCode.trim()){setError(isHe?'נא להזין קוד הצטרפות':'Please enter join code');return;}
     let decoded;
-    try{decoded=JSON.parse(atob(joinCode.trim()));}catch{setError(isHe?'קוד הצטרפות לא תקין':'Invalid join code');return;}
+    try{decoded=JSON.parse(decodeURIComponent(escape(atob(joinCode.trim()))));}catch{setError(isHe?'קוד הצטרפות לא תקין':'Invalid join code');return;}
     setLoading(true);setError('');
     const newCfg={...decoded,memberName:memberName.trim()};
     const ok=await _fbInit(newCfg);
@@ -3728,7 +3728,7 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
     await registerMember(newCfg.householdId,memberName.trim());
     ls.set('nutrition_household',newCfg);
     autoSuccessCfgRef.current=newCfg;
-    const sc=btoa(JSON.stringify({firebaseConfig:decoded.firebaseConfig,householdId:decoded.householdId,householdName:decoded.householdName}));
+    const sc=btoa(unescape(encodeURIComponent(JSON.stringify({firebaseConfig:decoded.firebaseConfig,householdId:decoded.householdId,householdName:decoded.householdName}))));
     onWelcome?.({householdName:decoded.householdName||memberName.trim(),sharingCode:sc,cfg:newCfg});
     setLoading(false);
   };
@@ -3736,7 +3736,7 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
   const getSharingCode=()=>{
     if(!householdCfg)return'';
     const{memberName:_mn,...shareData}=householdCfg;
-    return btoa(JSON.stringify(shareData));
+    return btoa(unescape(encodeURIComponent(JSON.stringify(shareData))));
   };
 
   const copyCode=()=>{
