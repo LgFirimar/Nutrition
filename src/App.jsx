@@ -3502,6 +3502,14 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
   const[autoSuccess,setAutoSuccess]=useState(null); // {householdName, sharingCode}
   const[welcomePhase,setWelcomePhase]=useState('animate'); // 'animate'|'share'
   const autoSuccessCfgRef=useRef(null);
+
+  // Reset animation phase and start timer when autoSuccess appears
+  useEffect(()=>{
+    if(!autoSuccess)return;
+    setWelcomePhase('animate');
+    const t=setTimeout(()=>setWelcomePhase('share'),2600);
+    return()=>clearTimeout(t);
+  },[autoSuccess]);
   const[loading,setLoading]=useState(false);
   const[error,setError]=useState('');
   const[copied,setCopied]=useState(false);
@@ -3600,7 +3608,7 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
       // Update App state + show welcome screen immediately — don't block on Firebase SDK load
       onHouseholdReady?.(newCfg);
       autoSuccessCfgRef.current=newCfg;
-      const sc=btoa(JSON.stringify({firebaseConfig:cfg,householdId:hid}));
+      const sc=btoa(JSON.stringify({firebaseConfig:cfg,householdId:hid,householdName:newCfg.householdName}));
       setAutoProgress(null);
       setAutoSuccess({householdName:newCfg.householdName,sharingCode:sc});
       // Init Firebase + register member in background (non-blocking)
@@ -3763,10 +3771,6 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
 
                   {/* Welcome screen after successful setup */}
                   {autoSuccess&&(()=>{
-                    // Start timer on first render of autoSuccess
-                    if(welcomePhase==='animate'){
-                      setTimeout(()=>setWelcomePhase('share'),2600);
-                    }
                     const SPARKS=[
                       {top:'18%',left:'12%','--sx':'-40px','--sy':'-60px',delay:'0s',e:'✨'},
                       {top:'22%',right:'10%','--sx':'35px','--sy':'-55px',delay:'0.3s',e:'⭐'},
