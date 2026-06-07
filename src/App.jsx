@@ -231,9 +231,13 @@ async function _fbInit(cfg){
   if(_fbDb&&_householdId===cfg.householdId)return true;
   try{
     const[appMod,dbMod]=await Promise.all([import('firebase/app'),import('firebase/database')]);
-    const{initializeApp,getApps}=appMod;
+    const{initializeApp,getApps,deleteApp}=appMod;
     const{getDatabase,ref,set,onValue}=dbMod;
     const ANAME='nutrition-household';
+    const existing=getApps().find(a=>a.name===ANAME);
+    if(existing&&existing.options.projectId!==cfg.firebaseConfig?.projectId){
+      await deleteApp(existing);
+    }
     const app=getApps().find(a=>a.name===ANAME)||initializeApp(cfg.firebaseConfig,ANAME);
     _fbDb=getDatabase(app);
     _fbRefFn=ref;_fbSet=set;_fbOnValue=onValue;
@@ -3621,8 +3625,8 @@ function HouseholdWelcome({householdName,sharingCode,cfg,onDone,lang}){
   );
   return(
     <div className="overlay">
-      <div className="modal-sheet slide" style={{maxHeight:'90vh',overflowY:'auto'}}>
-        <div className="fade" style={{textAlign:'center',padding:'4px 0'}}>
+      <div className="modal-sheet slide" style={{maxHeight:'90vh',overflowY:'hidden',display:'flex',flexDirection:'column'}}>
+        <div className="fade" style={{textAlign:'center',padding:'4px 0',flex:1,overflowY:'auto'}}>
           <div style={{fontSize:40,marginBottom:8}}>🏠</div>
           <div style={{fontSize:19,fontWeight:900,marginBottom:4}}>{isHe?`בית ${householdName}`:`${householdName} Household`}</div>
           <div style={{fontSize:12,color:'#64748b',marginBottom:16}}>{isHe?'שלחו קישור לבני הבית כדי שיצטרפו:':'Share a link to invite household members:'}</div>
@@ -3631,8 +3635,9 @@ function HouseholdWelcome({householdName,sharingCode,cfg,onDone,lang}){
             <button onClick={()=>{const sub=encodeURIComponent(isHe?'הצטרפו למשק הבית':'Join our household');const body=encodeURIComponent((isHe?'קוד ההצטרפות:\n\n':'Join code:\n\n')+sharingCode);window.open(`mailto:?subject=${sub}&body=${body}`,'_blank');}} style={{background:'rgba(59,130,246,.08)',border:'1px solid rgba(59,130,246,.2)',borderRadius:10,padding:'10px 6px',fontSize:12,fontWeight:700,color:'#2563eb',cursor:'pointer',fontFamily:'inherit'}}>✉️ {isHe?'מייל':'Email'}</button>
             <button onClick={()=>{navigator.clipboard.writeText(sharingCode).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2000);}).catch(()=>{});}} style={{gridColumn:'1/-1',background:copied?'rgba(13,148,136,.12)':'rgba(148,163,184,.08)',border:`1px solid ${copied?'rgba(13,148,136,.3)':'rgba(148,163,184,.25)'}`,borderRadius:10,padding:'9px',fontSize:12,fontWeight:700,color:copied?'#0d9488':'#64748b',cursor:'pointer',fontFamily:'inherit',transition:'all .2s'}}>{copied?(isHe?'✓ הקוד הועתק!':'✓ Copied!'):(isHe?'📋 העתק קוד הצטרפות':'📋 Copy join code')}</button>
           </div>
-          <div style={{height:1,background:'rgba(148,163,184,.2)',marginBottom:12}}/>
-          <button onClick={()=>onDone(cfg)} style={{width:'100%',background:'linear-gradient(135deg,#5a9e1e,#3d7a0a)',border:'none',borderRadius:12,color:'#fff',padding:'14px',fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'inherit',letterSpacing:0.3,boxShadow:'0 4px 16px rgba(90,158,30,.35)'}}>{isHe?'מתחילים':'Let\'s go'}</button>
+        </div>
+        <div style={{paddingTop:12,borderTop:'1px solid rgba(148,163,184,.2)',flexShrink:0}}>
+          <button onClick={()=>onDone(cfg)} style={{width:'100%',background:'linear-gradient(135deg,#5a9e1e,#3d7a0a)',border:'none',borderRadius:12,color:'#fff',padding:'14px',fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'inherit',letterSpacing:0.3,boxShadow:'0 4px 16px rgba(90,158,30,.35)'}}>{isHe?'מתחילים 🏪':'Let\'s go 🏪'}</button>
         </div>
       </div>
     </div>
