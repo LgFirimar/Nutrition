@@ -117,7 +117,12 @@ const loadShopping=()=>{try{return JSON.parse(localStorage.getItem("nutrition_sh
 
 // ── Household / Firebase ──────────────────────────────────────────────────────
 let _fbDb=null,_fbRefFn=null,_fbSet=null,_fbOnValue=null;
-let _householdId=null,_memberName="";
+let _householdId=null,_memberName="",_lastSyncAt=0;
+
+// Pre-warm Firebase modules if household is already configured (improves first-open speed)
+if(ls.get('nutrition_household')){
+  Promise.all([import('firebase/app'),import('firebase/database')]).catch(()=>{});
+}
 
 async function _fbInit(cfg){
   if(_fbDb&&_householdId===cfg.householdId)return true;
@@ -3280,6 +3285,10 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
   const[error,setError]=useState('');
   const[copied,setCopied]=useState(false);
   const[members,setMembers]=useState({});
+  const[confirmLeave,setConfirmLeave]=useState(false);
+  const[showQR,setShowQR]=useState(false);
+  const[qrSvg,setQrSvg]=useState('');
+  const[syncLabel,setSyncLabel]=useState('');
 
   useEffect(()=>{
     if(!householdCfg||!_fbDb||!_fbOnValue||!_fbRefFn)return;
@@ -3288,6 +3297,20 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
     });
     return()=>unsub();
   },[householdCfg]);
+
+  // Last sync label — updates every 15s
+  useEffect(()=>{
+    if(!householdCfg)return;
+    const update=()=>{
+      if(!_lastSyncAt){setSyncLabel('');return;}
+      const s=Math.round((Date.now()-_lastSyncAt)/1000);
+      if(s<60)setSyncLabel(isHe?`סונכרן לפני ${s} שניות`:`Synced ${s}s ago`);
+      else setSyncLabel(isHe?`סונכרן לפני ${Math.round(s/60)} דקות`:`Synced ${Math.round(s/60)}m ago`);
+    };
+    update();
+    const id=setInterval(update,15000);
+    return()=>clearInterval(id);
+  },[householdCfg,isHe]);
 
   const genId=()=>{
     const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -3357,9 +3380,20 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
   };
 
   const handleLeave=()=>{
+    if(!confirmLeave){setConfirmLeave(true);setTimeout(()=>setConfirmLeave(false),3000);return;}
     ls.set('nutrition_household',null);
-    _fbDb=null;_fbRefFn=null;_fbSet=null;_fbOnValue=null;_householdId=null;_memberName="";
+    _fbDb=null;_fbRefFn=null;_fbSet=null;_fbOnValue=null;_householdId=null;_memberName="";_lastSyncAt=0;
     onLeave();
+  };
+
+  const handleShowQR=async()=>{
+    if(showQR){setShowQR(false);return;}
+    try{
+      const mod=await import('qrcode-svg');
+      const QRCodeSVG=mod.default||mod;
+      const svg=new QRCodeSVG({content:getSharingCode(),container:'svg-viewbox',width:200,height:200,color:'#0d9488',background:'#fff'}).svg();
+      setQrSvg(svg);setShowQR(true);
+    }catch(e){console.error(e);}
   };
 
   const btnStyle={flex:1,padding:"8px 0",fontSize:12,fontWeight:700,borderRadius:8,cursor:"pointer",border:"none",transition:"all .2s"};
@@ -3425,18 +3459,27 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
           </>
         ):(
           <>
-            {/* Connected view */}
+            {/* Sharing code box */}
             <div style={{background:"rgba(13,148,136,.06)",borderRadius:12,padding:"12px 14px",marginBottom:14,border:"1px solid rgba(13,148,136,.15)"}}>
-              <div style={{fontSize:11,color:"#64748b",marginBottom:6}}>{isHe?"קוד הצטרפות לשיתוף:":"Join code to share:"}</div>
-              <div style={{fontFamily:"monospace",fontSize:13,fontWeight:700,color:"#0d9488",letterSpacing:1,wordBreak:"break-all",marginBottom:8}}>
-                {getSharingCode().slice(0,40)}...
+              <div style={{fontSize:11,color:"#64748b",marginBottom:8}}>{isHe?"קוד הצטרפות לשיתוף:":"Join code to share:"}</div>
+              <div style={{display:"flex",gap:6,marginBottom:8}}>
+                <button onClick={copyCode}
+                  style={{...btnStyle,flex:1,background:copied?"rgba(13,148,136,.12)":"rgba(255,255,255,.9)",color:copied?"#0d9488":"#475569",border:"1px solid rgba(148,163,184,.3)",padding:"7px 10px"}}>
+                  {copied?(isHe?"✓ הועתק!":"✓ Copied!"):(isHe?"📋 העתק קוד":"📋 Copy code")}
+                </button>
+                <button onClick={handleShowQR}
+                  style={{...btnStyle,flex:1,background:showQR?"rgba(13,148,136,.12)":"rgba(255,255,255,.9)",color:showQR?"#0d9488":"#475569",border:"1px solid rgba(148,163,184,.3)",padding:"7px 10px"}}>
+                  {isHe?(showQR?"✕ סגור QR":"📷 הצג QR"):(showQR?"✕ Close QR":"📷 Show QR")}
+                </button>
               </div>
-              <button onClick={copyCode}
-                style={{...btnStyle,background:copied?"rgba(13,148,136,.12)":"rgba(255,255,255,.9)",color:copied?"#0d9488":"#475569",border:"1px solid rgba(148,163,184,.3)",padding:"7px 14px",width:"auto"}}>
-                {copied?(isHe?"✓ הועתק!":"✓ Copied!"):(isHe?"העתק קוד":"Copy code")}
-              </button>
+              {showQR&&qrSvg&&(
+                <div style={{display:"flex",justifyContent:"center",padding:"8px 0"}}>
+                  <div dangerouslySetInnerHTML={{__html:qrSvg}} style={{width:200,height:200}}/>
+                </div>
+              )}
             </div>
 
+            {/* Members */}
             {Object.keys(members).length>0&&(
               <div style={{marginBottom:14}}>
                 <div style={{fontSize:11,color:"#64748b",marginBottom:8,fontWeight:600}}>{isHe?"חברי המשק:":"Household members:"}</div>
@@ -3450,14 +3493,16 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
               </div>
             )}
 
+            {/* Sync status */}
             <div style={{fontSize:11,color:"#64748b",marginBottom:14,display:"flex",alignItems:"center",gap:6}}>
-              <span style={{width:8,height:8,borderRadius:"50%",background:"#22c55e",display:"inline-block"}}/>
-              {isHe?"מזווה ועגלה מסונכרנים":"Pantry & cart are synced"}
+              <span style={{width:8,height:8,borderRadius:"50%",background:"#22c55e",display:"inline-block",flexShrink:0}}/>
+              <span>{isHe?"מזווה ועגלה מסונכרנים":"Pantry & cart synced"}{syncLabel?` · ${syncLabel}`:""}</span>
             </div>
 
+            {/* Leave */}
             <button onClick={handleLeave}
-              style={{...btnStyle,width:"100%",background:"rgba(220,38,38,.06)",color:"#dc2626",border:"1px solid rgba(220,38,38,.2)",padding:"9px"}}>
-              {isHe?"עזוב משק בית":"Leave Household"}
+              style={{...btnStyle,width:"100%",background:confirmLeave?"rgba(220,38,38,.12)":"rgba(220,38,38,.06)",color:"#dc2626",border:`1px solid ${confirmLeave?"rgba(220,38,38,.4)":"rgba(220,38,38,.2)"}`,padding:"9px",transition:"all .2s"}}>
+              {confirmLeave?(isHe?"בטוח? לחץ שוב לאישור":"Sure? Tap again to confirm"):(isHe?"עזוב משק בית":"Leave Household")}
             </button>
           </>
         )}
@@ -3552,6 +3597,7 @@ function App(){
         const data=snap.val();
         if(data&&typeof data==='object'){
           localStorage.setItem("nutrition_pantry",JSON.stringify(data));
+          _lastSyncAt=Date.now();
           setSyncTick(t=>t+1);
         }
       });
@@ -3560,6 +3606,7 @@ function App(){
         if(data!==null){
           const arr=Array.isArray(data)?data:Object.values(data||{});
           localStorage.setItem("nutrition_shopping",JSON.stringify(arr.filter(Boolean)));
+          _lastSyncAt=Date.now();
           setSyncTick(t=>t+1);
         }
       });
