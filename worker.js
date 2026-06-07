@@ -79,7 +79,7 @@ After your calculation, output ONLY this JSON on the very last line (no markdown
 {"recipe":{"name":"שם בעברית","ingredients":[{"item":"שם חומר","amount":"כמות"}],"steps":["שלב הכנה"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`;
         } else {
           model = 'claude-sonnet-4-6';
-          max_tokens = 900;
+          max_tokens = 1100;
           system = 'אתה שף ותזונאי ישראלי. כתוב בעברית תקנית ונכונה. הפלט הוא JSON בלבד — ללא הסבר, ללא markdown, ללא טקסט לפני או אחרי.';
           const refineText = refine ? `\nהערות: ${refine}` : '';
           prompt = `הצע 3 ארוחות ל-${people} אנשים. העדפות: ${preferences || 'ללא הגבלות'}${refineText}

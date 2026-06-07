@@ -864,7 +864,7 @@ function DBManagerModal({onClose,pid,lang}){
   const startEdit=(f,i)=>{
     setEditing(i);
     setEditData({label:f.label,kcal:String(f.kcal),carbs:String(f.carbs),protein:String(f.protein),fat:String(f.fat||0),unit:f.unit||"g"});
-    setEditClaudeText(""); setEditQty(1); setEditPreview(null);
+    setEditClaudeText(f.label.replace(/^[^\w֐-׿]+/,'')); setEditQty(1); setEditPreview(null);
   };
 
   const saveEdit=(origLabel)=>{
@@ -2382,14 +2382,21 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
     const json=JSON.stringify(data,null,2);
     const fname=(filename.trim()||`nutrition-backup-${pid}`).replace(/\.json$/,"")+".json";
     const blob=new Blob([json],{type:"application/json"});
-    // Always use direct download — navigator.share on iOS can cause app reload
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    a.href=url; a.download=fname;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setMsg({type:"success",text:isHe?"✓ הקובץ נשמר בהצלחה":"✓ File saved successfully"});
+    // Try navigator.share first (iOS Files app), fallback to download link
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[new File([blob],fname,{type:"application/json"})]})){
+      navigator.share({files:[new File([blob],fname,{type:"application/json"})],title:fname})
+        .then(()=>{ setMsg({type:"success",text:isHe?"✓ הקובץ נשמר":"✓ Saved"}); setTimeout(onClose,1200); })
+        .catch(()=>{});
+    } else {
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url; a.download=fname;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setMsg({type:"success",text:isHe?"✓ הקובץ נשמר בהצלחה":"✓ File saved"});
+      setTimeout(onClose,1200);
+    }
   };
 
   const importData=()=>{
@@ -2627,7 +2634,7 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
       {/* Content */}
       <div style={{flex:1,padding:20,overflowY:"auto"}}>
         {step===0&&(
-          <div className="fade">
+          <div >
             <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>{stepTitles[0]}</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
               <div>
@@ -2656,7 +2663,7 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
           </div>
         )}
         {step===1&&(
-          <div className="fade">
+          <div >
             <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>{stepTitles[1]}</div>
             <div style={{fontSize:11,color:C.muted,marginBottom:14}}>בחרי את כל מה שרלוונטי, או השאירי ריק</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:14}}>
@@ -2667,7 +2674,7 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
           </div>
         )}
         {step===2&&(
-          <div className="fade">
+          <div >
             <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>{stepTitles[2]}</div>
             <div style={{fontSize:11,color:C.muted,marginBottom:14}}>בחרי את ההעדפות שלך</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:14}}>
@@ -2678,7 +2685,7 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
           </div>
         )}
         {step===3&&(
-          <div className="fade">
+          <div >
             <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:14}}>{stepTitles[3]}</div>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               {ACTIVITIES.map(a=>(
@@ -2698,7 +2705,7 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
           </div>
         )}
         {step===4&&(
-          <div className="fade">
+          <div >
             <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>{stepTitles[4]}</div>
             <div style={{fontSize:11,color:C.muted,marginBottom:14}}>מה חשוב לך להשיג?</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:14}}>
@@ -2709,7 +2716,7 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
           </div>
         )}
         {step===5&&(
-          <div className="fade" style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:280,gap:12}}>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:280,gap:12}}>
             <CalcLoader size={80}/>
             <div style={{fontSize:15,fontWeight:700,color:C.text}}>Claude מנתח את הפרופיל שלך</div>
             <div style={{fontSize:12,color:C.muted,textAlign:"center",lineHeight:1.7}}>
@@ -2722,7 +2729,7 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
           </div>
         )}
         {step===6&&(
-          <div className="fade">
+          <div >
             <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>{recs?"✨ ההמלצות שלך":"✏️ קבעי יעדים ידנית"}</div>
             <div style={{fontSize:11,color:C.muted,marginBottom:16}}>תוכלי לשנות את הערכים לפני השמירה</div>
             <div style={{background:"rgba(255,255,255,.9)",borderRadius:14,padding:"16px",marginBottom:10,boxShadow:"0 2px 10px rgba(0,0,0,.06)"}}>
@@ -3235,7 +3242,13 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
     if(BASE_INGS.some(b=>n.includes(b)))return false;
     return!fridgeFlat.some(f=>f.includes(n)||n.includes(f));
   };
-  const getMissing=opt=>(opt.ingredients||[]).filter(isMissing);
+  const getMissing=opt=>{
+    const ings=opt.ingredients||[];
+    if(ings.length) return ings.filter(isMissing);
+    // fallback: extract Hebrew words from description as rough ingredient list
+    const words=(opt.description||'').match(/[א-ת]{3,}/g)||[];
+    return words.filter(w=>!['עם','של','על','את','זו','כל','כך','אחד','לפי','לפני','ורוד','לבן','אדום'].includes(w)).filter(isMissing);
+  };
   const addMissingToCart=missing=>{
     if(!missing||!missing.length)return;
     const current=loadShopping();
@@ -3760,7 +3773,11 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
     if(!memberName.trim()){setError(isHe?'נא להזין שם':'Please enter your name');return;}
     if(!joinCode.trim()){setError(isHe?'נא להזין קוד הצטרפות':'Please enter join code');return;}
     let decoded;
-    try{decoded=JSON.parse(decodeURIComponent(escape(atob(joinCode.trim()))));}catch{setError(isHe?'קוד הצטרפות לא תקין':'Invalid join code');return;}
+    const rawCode=joinCode.trim().replace(/\s/g,'');
+    try{
+      try{decoded=JSON.parse(decodeURIComponent(escape(atob(rawCode))));}
+      catch{decoded=JSON.parse(decodeURIComponent(atob(rawCode).split('').map(c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join('')));}
+    }catch{setError(isHe?'קוד הצטרפות לא תקין':'Invalid join code');return;}
     setLoading(true);setError('');
     const newCfg={...decoded,memberName:memberName.trim()};
     const ok=await _fbInit(newCfg);
