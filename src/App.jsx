@@ -2149,7 +2149,7 @@ function PantryModal({onClose,lang,syncTick}){
   const isHe=(lang||'he')!=='en';
   const [pantry,setPantry]=useState(loadPantry);
   const [inputs,setInputs]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,{name:"",qty:"",unit:""}])));
-  const [open,setOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,true])));
+  const [open,setOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,false])));
   const [imgLoading,setImgLoading]=useState({});
   const imgRefs=useRef({});
 
