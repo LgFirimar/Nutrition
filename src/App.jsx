@@ -2145,7 +2145,7 @@ function PantryModal({onClose,lang,syncTick}){
   const isHe=(lang||'he')!=='en';
   const [pantry,setPantry]=useState(loadPantry);
   const [inputs,setInputs]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,{name:"",qty:""}])));
-  const [open,setOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,true])));
+  const [open,setOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,false])));
   const [imgLoading,setImgLoading]=useState({});
   const imgRefs=useRef({});
 
@@ -2537,6 +2537,7 @@ function ProfileSetupWizard({profile,onSave,onSkip}){
 
   const CONDS=[
     {id:"t2d",he:"סוכרת סוג 2"},{id:"t1d",he:"סוכרת סוג 1"},
+    {id:"prediab",he:"טרום סכרת"},
     {id:"menopause",he:"גיל המעבר"},{id:"hyper",he:"יתר לחץ דם"},
     {id:"chol",he:"כולסטרול גבוה"},{id:"meta",he:"תסמונת מטבולית"},
     {id:"kidney",he:"מחלת כליות"},{id:"heart",he:"מחלת לב"},
@@ -3169,7 +3170,7 @@ const FRIDGE_CATS=[
 const loadFridge=()=>{try{return JSON.parse(localStorage.getItem("nutrition_fridge")||"{}");}catch{return {};}};
 const saveFridgeLS=f=>localStorage.setItem("nutrition_fridge",JSON.stringify(f));
 
-function MealPlannerModal({onAdd,onClose,lang}){
+function MealPlannerModal({onAdd,onClose,lang,profile}){
   const T=LANG[lang]||LANG.he;
   const isHe=lang!=='en';
   const [step,setStep]=useState(1);
@@ -3338,7 +3339,20 @@ function MealPlannerModal({onAdd,onClose,lang}){
 
         {/* Step 1 */}
         {step===1&&<>
-          <div style={{fontSize:11,color:C.muted,marginBottom:4}}>{isHe?"העדפות תזונה (רשות)":"Dietary preferences (optional)"}</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+            <div style={{fontSize:11,color:C.muted}}>{isHe?"העדפות תזונה (רשות)":"Dietary preferences (optional)"}</div>
+            {profile&&(profile.dietPrefs?.length||profile.dietText||profile.conditions?.length)&&(
+              <button onClick={()=>{
+                const parts=[];
+                if(profile.conditions?.length) parts.push(...profile.conditions.map(c=>({t2d:"סוכרת סוג 2",t1d:"סוכרת סוג 1",prediab:"טרום סכרת",menopause:"גיל המעבר",hyper:"יתר לחץ דם",chol:"כולסטרול גבוה",meta:"תסמונת מטבולית",kidney:"מחלת כליות",heart:"מחלת לב"}[c]||c)));
+                if(profile.dietPrefs?.length) parts.push(...profile.dietPrefs.map(d=>({veg:"צמחוני",vegan:"טבעוני",gf:"ללא גלוטן",lf:"ללא לקטוז",kosher:"כשר",lowsodium:"דל נתרן",keto:"קטוגני"}[d]||d)));
+                if(profile.dietText) parts.push(profile.dietText);
+                setPrefs(parts.join(", "));
+              }} style={{background:"none",border:`1px solid ${C.accent}`,borderRadius:8,color:C.accent,fontSize:11,fontWeight:600,padding:"3px 10px",cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>
+                👤 {isHe?"מהפרופיל":"From profile"}
+              </button>
+            )}
+          </div>
           <div style={{display:"flex",gap:6,marginBottom:6}}>
             <textarea value={prefs} onChange={e=>setPrefs(e.target.value)}
               placeholder={isHe?"ללא גלוטן, טבעוני, דל פחמימות...":"gluten-free, vegan, low carb..."}
@@ -3412,7 +3426,7 @@ function MealPlannerModal({onAdd,onClose,lang}){
         {step===2&&<>
           {error&&<div style={{background:"#fee2e2",border:"1px solid #fca5a5",borderRadius:8,padding:"8px 12px",fontSize:12,color:C.danger,marginBottom:10}}>{error}</div>}
           {options.map((opt,i)=>{
-            const missing=(opt.missingIngredients||[]).filter(isMissing);
+            const missing=opt.missingIngredients||[];
             return(
             <div key={i} style={{background:"rgba(255,255,255,.7)",border:`1px solid rgba(148,163,184,.25)`,borderRadius:16,padding:14,marginBottom:10,position:'relative'}}>
               {/* Cart icon — top-left, always visible */}
@@ -4226,7 +4240,7 @@ function App(){
       {showPantry && <PantryModal onClose={()=>setShowPantry(false)} lang={lang} syncTick={syncTick}/>}
       {showShopping && <ShoppingListModal onClose={()=>setShowShopping(false)} lang={lang} pid={pid} syncTick={syncTick}/>}
       {showHousehold && <HouseholdModal householdCfg={householdCfg} onConnect={cfg=>{setHouseholdCfg(cfg);setShowHousehold(false);}} onHouseholdReady={cfg=>setHouseholdCfg(cfg)} onLeave={()=>{setHouseholdCfg(null);setHhSynced(false);setShowHousehold(false);}} onClose={()=>setShowHousehold(false)} onWelcome={data=>{setHouseholdCfg(data.cfg);setHhWelcome(data);setShowHousehold(false);}} lang={lang}/>}
-      {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang}/>}
+      {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang} profile={activeProfile}/>}
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}} lang={lang}/>}
       {showWizard && <ProfileSetupWizard profile={wizardProfile} onSave={p=>{const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===p.id?p:x));setActiveProfile(p.id===pid?p:activeProfile);setProfiles(loadProfiles());setWizardProfile(null);setShowWizard(false);}} onSkip={()=>{setWizardProfile(null);setShowWizard(false);}}/>}
       {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)} lang={lang} todayEntries={entries} todayDate={activeDate} todayBloodSugar={bloodSugar} todayTotals={totals}/>}
