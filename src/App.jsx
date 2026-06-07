@@ -2770,7 +2770,7 @@ function ProfileSetupWizard({profile,onSave,onSkip,lang}){
           ):(
             <>
             <div style={{display:"flex",gap:8}}>
-              {step>0&&<button onClick={()=>setStep(s=>s-1)} style={{flex:1,background:"none",border:`1px solid ${C.border}`,borderRadius:12,padding:"13px",fontSize:14,fontWeight:600,color:C.muted,cursor:"pointer",fontFamily:"inherit"}}>{isHe?"חזרה →":"← Back"}</button>}
+              {step>0&&<button onClick={()=>setStep(s=>s-1)} style={{flex:1,background:"none",border:`1px solid ${C.border}`,borderRadius:12,padding:"13px",fontSize:14,fontWeight:600,color:C.muted,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>{isHe?<><span>→</span><span>חזרה</span></>:"← Back"}</button>}
               <button onClick={handleNext} style={{flex:2,background:C.accent,border:"none",borderRadius:12,color:"#fff",padding:"13px",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
                 {step===4?(isHe?"קבלי המלצות מ-Claude 🔍 ←":"Get Claude's recommendations 🔍 →"):(isHe?"הבא ←":"Next →")}
               </button>
@@ -3542,7 +3542,7 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
             {error&&<div style={{color:C.danger,fontSize:12,marginBottom:8}}>{error}</div>}
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
               <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>{setStep(2);setRecipe(null);}} className="btn-muted" style={{flex:1,borderRadius:10}}>{isHe?"חזרה":"Back"}</button>
+                <button onClick={()=>{setStep(2);setRecipe(null);}} className="btn-muted" style={{flex:1,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>{isHe?<><span>→</span><span>חזרה</span></>:"← Back"}</button>
                 <button onClick={()=>addToDay()} className="btn-accent" style={{flex:2,borderRadius:10}}>{isHe?"+ הוסף ליומן היום":"+ Add to today"}</button>
               </div>
               <div style={{display:"flex",gap:6}}>
@@ -3587,7 +3587,7 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
               {recalcLoading?(isHe?"מחשב...":"Calculating..."):(isHe?"🔄 חשב ערכים מחדש":"🔄 Recalculate")}
             </button>
             <div style={{display:"flex",gap:6}}>
-              <button onClick={()=>setShowIngEdit(false)} className="btn-muted" style={{flex:1,borderRadius:10}}>{isHe?"חזרה":"Back"}</button>
+              <button onClick={()=>setShowIngEdit(false)} className="btn-muted" style={{flex:1,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>{isHe?<><span>→</span><span>חזרה</span></>:"← Back"}</button>
               <button onClick={()=>addToDay(editNutr)} className="btn-accent" style={{flex:2,borderRadius:10}}>{isHe?"✓ הוסף ליומן":"✓ Add to log"}</button>
               <button onClick={()=>saveToDb(editNutr)} style={{flex:1,background:savedToDb?"rgba(13,148,136,.12)":"none",border:`1px solid ${savedToDb?C.accent:C.border}`,color:savedToDb?C.accent:C.muted,borderRadius:10,padding:"9px",fontSize:12,fontWeight:600,cursor:"pointer"}}>
                 {savedToDb?"✓":"💾"}
