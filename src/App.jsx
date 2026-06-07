@@ -3727,7 +3727,7 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
     const newCfg={firebaseConfig:cfg,householdId:hid,memberName:memberName.trim(),householdName:householdName.trim()||memberName.trim()};
     const ok=await _fbInit(newCfg);
     if(!ok){setError(isHe?'שגיאה בחיבור ל-Firebase':'Firebase connection error');setLoading(false);return;}
-    await registerMember(hid,memberName.trim());
+    registerMember(hid,memberName.trim()).catch(()=>{});
     ls.set('nutrition_household',newCfg);
     const sc=btoa(unescape(encodeURIComponent(JSON.stringify({firebaseConfig:cfg,householdId:hid,householdName:newCfg.householdName}))));
     onWelcome?.({householdName:newCfg.householdName,sharingCode:sc,cfg:newCfg});
@@ -3782,7 +3782,7 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
       const newCfg={...decoded,memberName:memberName.trim()};
       const ok=await _fbInit(newCfg);
       if(!ok){setError(isHe?'שגיאה בחיבור':'Connection error');setLoading(false);return;}
-      await registerMember(newCfg.householdId,memberName.trim());
+      registerMember(newCfg.householdId,memberName.trim()).catch(()=>{});
       ls.set('nutrition_household',newCfg);
       autoSuccessCfgRef.current=newCfg;
       const sc=btoa(unescape(encodeURIComponent(JSON.stringify({firebaseConfig:decoded.firebaseConfig,householdId:decoded.householdId,householdName:decoded.householdName}))));
