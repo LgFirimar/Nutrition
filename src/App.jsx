@@ -694,10 +694,20 @@ function DBManagerModal({onClose,pid,lang}){
   const [addQty,setAddQty]=useState(1);
   const [addLoading,setAddLoading]=useState(false);
   const [addData,setAddData]=useState(null);
+  const [addError,setAddError]=useState("");
   const addImgRef=useRef(null);
+  const addRawRef=useRef(null); // stores raw Claude response for qty recalc
+
+  // Recalc numbers when qty changes and raw data exists (keeps label/unit edits)
+  useEffect(()=>{
+    const raw=addRawRef.current;
+    if(!raw)return;
+    const qty=Math.max(1,addQty);
+    setAddData(d=>d?{...d,kcal:String(Math.round((raw.kcal||0)/qty)),carbs:String(parseFloat(((raw.carbs||0)/qty).toFixed(1))),protein:String(parseFloat(((raw.protein||0)/qty).toFixed(1))),fat:String(parseFloat(((raw.fat||0)/qty).toFixed(1)))}:d);
+  },[addQty]);
 
   const askClaudeAdd=async(textOrImg)=>{
-    setAddLoading(true);setAddData(null);
+    setAddLoading(true);setAddData(null);setAddError("");addRawRef.current=null;
     try{
       const body=textOrImg.type==='text'
         ?{dbEditText:textOrImg.val}
@@ -705,9 +715,10 @@ function DBManagerModal({onClose,pid,lang}){
       const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       const d=await res.json();
       if(!d.kcal)throw new Error();
-      const q=Math.max(1,addQty);
-      setAddData({label:d.label||"",kcal:String(Math.round((d.kcal||0)/q)),carbs:String(parseFloat(((d.carbs||0)/q).toFixed(1))),protein:String(parseFloat(((d.protein||0)/q).toFixed(1))),fat:String(parseFloat(((d.fat||0)/q).toFixed(1))),unit:"g"});
-    }catch{setAddData(d=>d||null);}
+      addRawRef.current=d;
+      const qty=Math.max(1,addQty);
+      setAddData({label:d.label||"",kcal:String(Math.round((d.kcal||0)/qty)),carbs:String(parseFloat(((d.carbs||0)/qty).toFixed(1))),protein:String(parseFloat(((d.protein||0)/qty).toFixed(1))),fat:String(parseFloat(((d.fat||0)/qty).toFixed(1))),unit:"g"});
+    }catch{setAddError(isHe?"שגיאה בחישוב — נסה שנית":"Calculation error — try again");}
     setAddLoading(false);
   };
 
@@ -834,6 +845,7 @@ function DBManagerModal({onClose,pid,lang}){
                 {addLoading?<span style={{display:"inline-block",animation:"spin 1s linear infinite"}}>⟳</span>:`✨ ${isHe?"חשב":"Calculate"}`}
               </button>
             </div>
+            {addError&&<div style={{fontSize:11,color:C.danger,background:"rgba(220,38,38,.06)",borderRadius:6,padding:"5px 8px"}}>{addError}</div>}
             {addData&&(
               <div className="fade">
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:6}}>
@@ -1204,8 +1216,9 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
       const hasGrams=d.totalGrams>=20;
       const initW=hasGrams?String(d.totalGrams):"";
       // Use Claude's suggested amount/unit if provided, otherwise fall back to grams
+      const VALID_UNITS=["יח׳","מנות","g","ml","כף","כפית","כוס"];
       const initAmt=d.suggestedAmt?String(d.suggestedAmt):(hasGrams?String(d.totalGrams):"1");
-      const initUnit=d.suggestedUnit||(hasGrams?"g":"יח׳");
+      const initUnit=(d.suggestedUnit&&VALID_UNITS.includes(d.suggestedUnit))?d.suggestedUnit:(hasGrams?"g":"יח׳");
       setMealWeight(initW);setTotalUnits(parsedU);setLocalAmt(initAmt);setQtyUnit(initUnit);
       setPreview(d);
       setCalcVals(computeVals(d,1,initAmt,initUnit,initW,parsedU));
