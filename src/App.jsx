@@ -3671,7 +3671,9 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
     if(!ok){setError(isHe?'שגיאה בחיבור ל-Firebase':'Firebase connection error');setLoading(false);return;}
     await registerMember(hid,memberName.trim());
     ls.set('nutrition_household',newCfg);
-    onConnect(newCfg);
+    onHouseholdReady?.(newCfg);
+    const sc=btoa(JSON.stringify({firebaseConfig:cfg,householdId:hid,householdName:newCfg.householdName}));
+    onWelcome?.({householdName:newCfg.householdName,sharingCode:sc,cfg:newCfg});
     setLoading(false);
   };
 
