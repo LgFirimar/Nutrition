@@ -177,44 +177,32 @@ async function autoSetupHousehold(projectId,onStep){
   if(!pNum)throw new Error('לא הצלחנו לאמת את הפרויקט — בדקי את ה-Project ID');
 
   onStep('database');
-  const _findDb=async()=>{
-    for(const ref of[pNum,projectId]){
-      for(const loc of['-','us-central1','europe-west1','asia-southeast1']){
-        try{
-          const r=await _gapi(`https://firebasedatabase.googleapis.com/v1beta/projects/${ref}/locations/${loc}/instances`,tok);
-          if(r.instances?.length)return r.instances[0].databaseUrl;
-        }catch(_){}
-      }
-    }
-    return null;
+  // Try known URL patterns first (avoids management API permission issues)
+  const _probeDb=async(url)=>{
+    try{const r=await fetch(`${url}/.json?shallow=true`,{headers:{Authorization:`Bearer ${tok}`}});return r.status!==404;}catch(_){return false;}
   };
-  let dbUrl=await _findDb();
+  const candidates=[
+    `https://${projectId}-default-rtdb.firebaseio.com`,
+    `https://${projectId}-default-rtdb.europe-west1.firebasedatabase.app`,
+    `https://${projectId}.firebaseio.com`,
+  ];
+  let dbUrl=null;
+  for(const url of candidates){if(await _probeDb(url)){dbUrl=url;break;}}
+  // If not found by probing, try management API to create
   if(!dbUrl){
-    const standardUrl=`https://${projectId}-default-rtdb.firebaseio.com`;
-    let dbLastErr='';
-    let alreadyExists=false;
     for(const [ref,loc] of[[pNum,'europe-west1'],[pNum,'us-central1'],[projectId,'us-central1']]){
       try{
         const db=await _gapi(`https://firebasedatabase.googleapis.com/v1beta/projects/${ref}/locations/${loc}/instances?databaseId=${projectId}-default-rtdb`,tok,'POST',{type:'USER_DATABASE'});
         dbUrl=db.databaseUrl;break;
       }catch(e){
-        dbLastErr=e.message;
-        if(e.message.toLowerCase().includes('multiple')||e.message.toLowerCase().includes('already')||e.message.toLowerCase().includes('blaze')){
-          alreadyExists=true;break;
+        if(e.message.toLowerCase().includes('multiple')||e.message.toLowerCase().includes('blaze')||e.message.toLowerCase().includes('already')){
+          // DB definitely exists — use standard URL
+          dbUrl=candidates[0];break;
         }
       }
     }
-    if(!dbUrl&&alreadyExists){
-      // DB exists but API can't list it — verify by probing the standard URL
-      try{
-        const probe=await fetch(`${standardUrl}/.json`,{headers:{Authorization:`Bearer ${tok}`}});
-        // Any response (even 401/403) means the database exists
-        if(probe.status!==404)dbUrl=standardUrl;
-      }catch(_){}
-      if(!dbUrl)dbUrl=standardUrl; // Use standard URL anyway — Firebase confirmed it exists
-    }
-    if(!dbUrl)throw new Error(`יצירת Realtime Database נכשלה: ${dbLastErr}`);
   }
+  if(!dbUrl)throw new Error('לא הצלחנו למצוא את ה-Realtime Database — צרו אחד ידנית ב-Firebase Console');
 
   onStep('webapp');
   let appId=null;
