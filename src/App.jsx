@@ -3384,6 +3384,8 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
   const[householdName,setHouseholdName]=useState(householdCfg?.householdName||'');
   const[configText,setConfigText]=useState('');
   const[joinCode,setJoinCode]=useState('');
+  const[createStep,setCreateStep]=useState(1);
+  const[showScreenshot,setShowScreenshot]=useState(null);
   const[loading,setLoading]=useState(false);
   const[error,setError]=useState('');
   const[copied,setCopied]=useState(false);
@@ -3525,35 +3527,128 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
               ))}
             </div>
 
-            <input value={memberName} onChange={e=>setMemberName(e.target.value)}
-              placeholder={isHe?"השם שלך (יוצג בעגלה)":"Your name (shown in cart)"}
-              style={inputStyle}/>
-
-            {tab==='create'?(
-              <>
-                <input value={householdName} onChange={e=>setHouseholdName(e.target.value)}
-                  placeholder={isHe?"שם משק הבית (למשל: משפחת לוי)":"Household name (e.g. The Levy Family)"}
-                  style={{...inputStyle,marginBottom:10}}/>
-                <div style={{fontSize:11,color:"#64748b",marginBottom:8,lineHeight:1.8,background:"rgba(13,148,136,.04)",borderRadius:8,padding:"8px 10px",border:"1px solid rgba(13,148,136,.1)"}}>
-                  <b>{isHe?"הגדרת Firebase (חינמי):":"Firebase Setup (free):"}</b><br/>
-                  {isHe?"1. כנסו ל-":"1. Go to "}
-                  <span onClick={()=>window.open('https://console.firebase.google.com','_blank')} style={{color:C.accent,textDecoration:"underline",cursor:"pointer",fontWeight:700}}>console.firebase.google.com</span><br/>
-                  {isHe?"2. לחצו Add project → תנו שם → Continue":"2. Click Add project → name it → Continue"}<br/>
-                  {isHe?"3. Build → Realtime Database → Create → Test mode":"3. Build → Realtime Database → Create → Test mode"}<br/>
-                  {isHe?"4. Settings ⚙️ → General → Your apps → Add web app (</>)":"4. Settings ⚙️ → General → Your apps → Add web app (</>)"}<br/>
-                  {isHe?"5. העתיקו את ":"5. Copy the "}<b>firebaseConfig</b>{isHe?" והדביקו למטה ↓":" and paste below ↓"}
+            {tab==='create'?(()=>{
+              const linkBtn={width:"100%",background:"rgba(13,148,136,.06)",border:"1px solid rgba(13,148,136,.2)",borderRadius:8,color:"#0d9488",padding:"9px 12px",fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"center",gap:6,fontFamily:"inherit"};
+              const infoBtn={background:"rgba(13,148,136,.08)",border:"1px solid rgba(13,148,136,.2)",borderRadius:"50%",width:20,height:20,fontSize:11,color:"#0d9488",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit",flexShrink:0};
+              const backBtn={...btnStyle,flex:1,background:"rgba(148,163,184,.1)",color:"#64748b",border:"1px solid rgba(148,163,184,.2)",padding:"9px"};
+              const nextBtn={...btnStyle,flex:3,background:"linear-gradient(135deg,#14b8a6,#059669)",color:"#fff",padding:"9px"};
+              return(<>
+                {/* Progress bar */}
+                <div style={{display:"flex",gap:4,marginBottom:14}}>
+                  {[1,2,3].map(s=><div key={s} style={{flex:1,height:3,borderRadius:2,background:createStep>=s?"#0d9488":"rgba(148,163,184,.2)"}}/>)}
                 </div>
-                <textarea value={configText} onChange={e=>setConfigText(e.target.value)}
-                  placeholder={'{\n  "apiKey": "...",\n  "databaseURL": "https://...",\n  ...\n}'}
-                  style={{...inputStyle,height:110,resize:"vertical",fontFamily:"monospace",fontSize:11}}/>
-                {error&&<div style={{color:"#dc2626",fontSize:11,marginBottom:8}}>{error}</div>}
-                <button onClick={handleCreate} disabled={loading}
-                  style={{...btnStyle,width:"100%",background:"linear-gradient(135deg,#14b8a6,#059669)",color:"#fff",padding:"10px"}}>
-                  {loading?(isHe?"מתחבר...":"Connecting..."):(isHe?"צור משק בית":"Create Household")}
-                </button>
-              </>
-            ):(
+
+                {/* Step 1: Create project */}
+                {createStep===1&&<div className="fade">
+                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>{isHe?"שלב 1 — צרו פרויקט Firebase":"Step 1 — Create a Firebase project"}</div>
+                  <button onClick={()=>window.open('https://console.firebase.google.com','_blank')} style={linkBtn}>
+                    🔗 {isHe?"פתחו את Firebase Console":"Open Firebase Console"}
+                  </button>
+                  <ol style={{fontSize:12,color:"#475569",lineHeight:2.2,margin:"4px 0 14px",paddingRight:18,paddingLeft:0}}>
+                    <li>{isHe?'לחצו "Add project"':'Click "Add project"'}</li>
+                    <li>{isHe?"תנו שם כלשהו לפרויקט":"Give your project any name"}</li>
+                    <li>{isHe?"לחצו Continue עד הסוף":"Click Continue until done"}</li>
+                  </ol>
+                  <button onClick={()=>setCreateStep(2)} style={{...nextBtn,flex:"unset",width:"100%",padding:"10px"}}>
+                    {isHe?"✓ יצרתי פרויקט →":"✓ I created a project →"}
+                  </button>
+                </div>}
+
+                {/* Step 2: Realtime Database */}
+                {createStep===2&&<div className="fade">
+                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>{isHe?"שלב 2 — Realtime Database":"Step 2 — Realtime Database"}</div>
+                  <button onClick={()=>window.open('https://console.firebase.google.com','_blank')} style={linkBtn}>
+                    🔗 {isHe?"חזרו ל-Firebase Console":"Back to Firebase Console"}
+                  </button>
+                  <div style={{fontSize:12,color:"#475569",lineHeight:1.5,margin:"4px 0 14px",display:"flex",flexDirection:"column",gap:10}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{background:"#0d9488",color:"#fff",borderRadius:"50%",width:20,height:20,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>1</span>
+                      <span style={{flex:1}}>{isHe?"בחרו בפרויקט שיצרתם":"Select your project"}</span>
+                      <button onClick={()=>setShowScreenshot('step1')} style={infoBtn}>ℹ</button>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{background:"#0d9488",color:"#fff",borderRadius:"50%",width:20,height:20,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>2</span>
+                      <span style={{flex:1}}>{isHe?"בתפריט: Build → Realtime Database":"In menu: Build → Realtime Database"}</span>
+                      <button onClick={()=>setShowScreenshot('step2')} style={infoBtn}>ℹ</button>
+                    </div>
+                    <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
+                      <span style={{background:"#0d9488",color:"#fff",borderRadius:"50%",width:20,height:20,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>3</span>
+                      <span>{isHe?"Create Database → Next → בחרו Test mode → Enable":"Create Database → Next → choose Test mode → Enable"}</span>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={()=>setCreateStep(1)} style={backBtn}>←</button>
+                    <button onClick={()=>setCreateStep(3)} style={nextBtn}>{isHe?"✓ יצרתי Database →":"✓ Created Database →"}</button>
+                  </div>
+                </div>}
+
+                {/* Step 3: Add web app & config */}
+                {createStep===3&&<div className="fade">
+                  <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>{isHe?"שלב 3 — הוסיפו אפליקציה ועתיקו קוד":"Step 3 — Add App & Copy Config"}</div>
+                  <button onClick={()=>window.open('https://console.firebase.google.com','_blank')} style={linkBtn}>
+                    🔗 {isHe?"כנסו לפרויקט שלכם":"Enter your Firebase project"}
+                  </button>
+                  <div style={{fontSize:12,color:"#475569",lineHeight:1.8,marginBottom:10}}>
+                    {isHe?"לחצו ":"Click "}<b>+ Add app</b>{isHe?" ואז על the icon ":" then "}<span style={{fontFamily:"monospace",fontWeight:700,background:"#f1f5f9",borderRadius:4,padding:"1px 6px"}}>&lt;/&gt;</span>
+                  </div>
+                  <input value={memberName} onChange={e=>setMemberName(e.target.value)}
+                    placeholder={isHe?"השם שלך (יוצג בעגלה)":"Your name (shown in cart)"}
+                    style={inputStyle}/>
+                  <input value={householdName} onChange={e=>setHouseholdName(e.target.value)}
+                    placeholder={isHe?"שם משק הבית (למשל: משפחת לוי)":"Household name (e.g. The Levy Family)"}
+                    style={{...inputStyle,marginBottom:6}}/>
+                  {/* Config paste with fixed frame */}
+                  <div style={{fontFamily:"monospace",fontSize:11,color:"#64748b",background:"#f5f5f7",borderRadius:"8px 8px 0 0",padding:"6px 10px",border:"1px solid rgba(148,163,184,.25)",borderBottom:"none"}}>
+                    const firebaseConfig = {'{'}
+                  </div>
+                  <textarea value={configText} onChange={e=>setConfigText(e.target.value)}
+                    placeholder={"  apiKey: \"AIza...\",\n  authDomain: \"...\",\n  databaseURL: \"https://...\",\n  projectId: \"...\",\n  storageBucket: \"...\",\n  messagingSenderId: \"...\",\n  appId: \"...\""}
+                    style={{...inputStyle,height:100,resize:"vertical",fontFamily:"monospace",fontSize:11,borderRadius:0,borderTop:"none",borderBottom:"none",marginBottom:0}}/>
+                  <div style={{fontFamily:"monospace",fontSize:11,color:"#64748b",background:"#f5f5f7",borderRadius:"0 0 8px 8px",padding:"6px 10px",border:"1px solid rgba(148,163,184,.25)",borderTop:"none",marginBottom:4}}>
+                    {'};'}
+                  </div>
+                  <div style={{fontSize:10,color:C.muted,marginBottom:8}}>
+                    {isHe?"העתיקו רק את השורות שבפנים — ללא הסוגריים { }":"Copy only the inner lines — without the curly braces { }"}
+                  </div>
+                  {error&&<div style={{color:"#dc2626",fontSize:11,marginBottom:8}}>{error}</div>}
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={()=>setCreateStep(2)} style={backBtn}>←</button>
+                    <button onClick={handleCreate} disabled={loading} style={nextBtn}>
+                      {loading?(isHe?"מתחבר...":"Connecting..."):(isHe?"צור משק בית":"Create Household")}
+                    </button>
+                  </div>
+                </div>}
+
+                {/* Screenshot overlay */}
+                {showScreenshot&&<div onClick={()=>setShowScreenshot(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+                  <div style={{position:"relative",maxWidth:300,width:"100%"}}>
+                    <img src={showScreenshot==='step1'?"/Nutrition/fb-step1.png":"/Nutrition/fb-step2.png"} style={{width:"100%",borderRadius:12,display:"block"}} alt=""/>
+                    {showScreenshot==='step1'&&<>
+                      {/* White cover over "Lior" */}
+                      <div style={{position:"absolute",background:"white",top:"37%",left:"44%",width:"30%",height:"7%",borderRadius:2}}/>
+                      {/* Cover pink arrow + replace with teal styled arrow */}
+                      <div style={{position:"absolute",background:"white",top:"11%",left:"5%",width:"48%",height:"9%"}}/>
+                      <svg style={{position:"absolute",top:"11%",left:"5%",width:"48%",height:"9%"}} viewBox="0 0 110 24" fill="none">
+                        <defs><marker id="a1" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><polygon points="8 0,0 3,8 6" fill="#0d9488"/></marker></defs>
+                        <path d="M 100 12 C 80 5, 55 18, 15 12" stroke="#0d9488" strokeWidth="3.5" strokeLinecap="round" markerEnd="url(#a1)"/>
+                      </svg>
+                    </>}
+                    {showScreenshot==='step2'&&<>
+                      {/* Arrow pointing to Realtime Database from right */}
+                      <svg style={{position:"absolute",top:"53%",right:"3%",width:"28%",height:"7%"}} viewBox="0 0 80 20" fill="none">
+                        <defs><marker id="a2" markerWidth="8" markerHeight="6" refX="0" refY="3" orient="auto"><polygon points="8 0,0 3,8 6" fill="#0d9488"/></marker></defs>
+                        <path d="M 75 10 L 10 10" stroke="#0d9488" strokeWidth="3.5" strokeLinecap="round" markerEnd="url(#a2)"/>
+                      </svg>
+                    </>}
+                    <div style={{textAlign:"center",color:"rgba(255,255,255,.7)",fontSize:11,marginTop:10}}>{isHe?"לחצו לסגירה":"Tap to close"}</div>
+                  </div>
+                </div>}
+              </>);
+            })():(
               <>
+                <input value={memberName} onChange={e=>setMemberName(e.target.value)}
+                  placeholder={isHe?"השם שלך (יוצג בעגלה)":"Your name (shown in cart)"}
+                  style={inputStyle}/>
                 <textarea value={joinCode} onChange={e=>setJoinCode(e.target.value)}
                   placeholder={isHe?"הדבק כאן את קוד ההצטרפות":"Paste the join code here"}
                   style={{...inputStyle,height:80,resize:"vertical",fontFamily:"monospace",fontSize:11}}/>
