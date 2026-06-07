@@ -3559,31 +3559,51 @@ function HouseholdWelcome({householdName,sharingCode,cfg,onDone,lang}){
   const isHe=(lang||'he')!=='en';
   const[phase,setPhase]=useState('animate');
   const[copied,setCopied]=useState(false);
-  const SPARKS=[
-    {top:'18%',left:'12%','--sx':'-40px','--sy':'-60px',delay:'0s',e:'✨'},
-    {top:'22%',right:'10%','--sx':'35px','--sy':'-55px',delay:'0.3s',e:'⭐'},
-    {top:'72%',left:'8%','--sx':'-30px','--sy':'50px',delay:'0.15s',e:'🌟'},
-    {top:'68%',right:'12%','--sx':'40px','--sy':'45px',delay:'0.45s',e:'✨'},
-    {top:'45%',left:'5%','--sx':'-50px','--sy':'0px',delay:'0.6s',e:'💫'},
-    {top:'40%',right:'6%','--sx':'45px','--sy':'-10px',delay:'0.2s',e:'⭐'},
-  ];
   useEffect(()=>{
-    const t=setTimeout(()=>setPhase('share'),2600);
+    const t=setTimeout(()=>setPhase('share'),3200);
     return()=>clearTimeout(t);
   },[]);
   if(phase==='animate') return(
-    <div onClick={()=>setPhase('share')} style={{position:'fixed',top:0,right:0,bottom:0,left:0,zIndex:9999,background:'linear-gradient(150deg,#0d9488 0%,#059669 55%,#0f766e 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:'pointer'}}>
-      <div style={{position:'absolute',top:16,right:16,color:'rgba(255,255,255,0.5)',fontSize:11,letterSpacing:.5}}>{isHe?'לחצו לדילוג':'tap to skip'}</div>
-      {[0,0.6,1.2].map((d,i)=>(
-        <div key={i} style={{position:'absolute',width:180,height:180,borderRadius:'50%',border:'2px solid rgba(255,255,255,0.18)',animation:`ringOut 2.4s ${d}s ease-out infinite`,pointerEvents:'none'}}/>
+    <div onClick={()=>setPhase('share')} style={{position:'fixed',top:0,right:0,bottom:0,left:0,zIndex:9999,background:'linear-gradient(150deg,#040e08 0%,#071812 50%,#040c07 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:'pointer',userSelect:'none'}}>
+      {/* Skip */}
+      <div style={{position:'absolute',top:18,right:18,color:'rgba(74,222,128,0.35)',fontSize:10,letterSpacing:1.5,fontFamily:'monospace'}}>{isHe?'לחצו לדילוג':'TAP TO SKIP'}</div>
+      {/* Dot grid */}
+      <div style={{position:'absolute',inset:0,backgroundImage:'radial-gradient(circle,rgba(74,222,128,0.07) 1px,transparent 1px)',backgroundSize:'26px 26px',pointerEvents:'none'}}/>
+      {/* Scan line */}
+      <div style={{position:'absolute',left:0,right:0,height:1,background:'linear-gradient(90deg,transparent 0%,rgba(74,222,128,0.0) 10%,rgba(74,222,128,0.6) 50%,rgba(74,222,128,0.0) 90%,transparent 100%)',animation:'techScan 4s linear 0.5s infinite',pointerEvents:'none'}}/>
+      {/* Corner accents */}
+      {[[0,0,'top:0,left:0,borderTop,borderLeft'],[0,1,'top:0,right:0,borderTop,borderRight'],[1,0,'bottom:0,left:0,borderBottom,borderLeft'],[1,1,'bottom:0,right:0,borderBottom,borderRight']].map((_,i)=>(
+        <div key={i} style={{position:'absolute',...[[{top:0,left:0},{top:0,right:0},{bottom:0,left:0},{bottom:0,right:0}][i]],width:28,height:28,borderColor:'rgba(74,222,128,0.3)',borderStyle:'solid',borderWidth:[i===0?'2px 0 0 2px':i===1?'2px 2px 0 0':i===2?'0 0 2px 2px':'0 2px 2px 0'][0],pointerEvents:'none'}}/>
       ))}
-      {SPARKS.map((s,i)=>(
-        <div key={i} style={{position:'absolute',top:s.top,left:s.left,right:s.right,fontSize:18,'--sx':s['--sx'],'--sy':s['--sy'],animation:`sparkFloat 1.8s ${s.delay} ease-out infinite`,pointerEvents:'none'}}>{s.e}</div>
+      {/* Avocado orbit system */}
+      <div style={{position:'relative',width:200,height:200,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:22,flexShrink:0}}>
+        {/* Glow behind */}
+        <div style={{position:'absolute',width:110,height:110,borderRadius:'50%',background:'radial-gradient(circle,rgba(74,222,128,0.28) 0%,transparent 65%)',animation:'glowPulse 2.2s ease-in-out infinite',pointerEvents:'none'}}/>
+        {/* Outer ring CW */}
+        <div style={{position:'absolute',width:170,height:170,borderRadius:'50%',border:'1px solid rgba(74,222,128,0.22)',animation:'orbitCW 10s linear infinite',pointerEvents:'none'}}>
+          <div style={{position:'absolute',top:-5,left:'50%',marginLeft:-5,width:10,height:10,borderRadius:'50%',background:'#4ade80',boxShadow:'0 0 10px #4ade80,0 0 20px rgba(74,222,128,0.5)'}}/>
+          <div style={{position:'absolute',bottom:-3,right:'20%',width:6,height:6,borderRadius:'50%',background:'rgba(74,222,128,0.5)',boxShadow:'0 0 6px rgba(74,222,128,0.5)'}}/>
+        </div>
+        {/* Inner ring CCW */}
+        <div style={{position:'absolute',width:128,height:128,borderRadius:'50%',border:'1px solid rgba(74,222,128,0.14)',animation:'orbitCCW 6s linear infinite',pointerEvents:'none'}}>
+          <div style={{position:'absolute',bottom:-4,left:'30%',width:7,height:7,borderRadius:'50%',background:'#86efac',boxShadow:'0 0 8px #86efac'}}/>
+        </div>
+        {/* Avocado — nested divs so bounce + bob don't conflict */}
+        <div style={{animation:'avoBounceIn 1s cubic-bezier(0.34,1.56,0.64,1) both',position:'relative',zIndex:2}}>
+          <div style={{fontSize:86,lineHeight:1,animation:'avoBob 3.4s ease-in-out 1.2s infinite',filter:'drop-shadow(0 0 20px rgba(74,222,128,0.8)) drop-shadow(0 6px 20px rgba(0,0,0,0.6))'}}>🥑</div>
+        </div>
+      </div>
+      {/* Text */}
+      <div style={{color:'rgba(74,222,128,0.65)',fontSize:10,fontWeight:600,animation:'welcomeUp 0.5s ease 0.9s both',letterSpacing:3,fontFamily:'monospace',marginBottom:8,textTransform:'uppercase'}}>{isHe?'ברוכים הבאים ל':'WELCOME TO'}</div>
+      <div style={{color:'#fff',fontSize:30,fontWeight:900,animation:'welcomeUp 0.6s ease 1.2s both,neonFlicker 5s ease 2s infinite',textAlign:'center',padding:'0 28px',letterSpacing:'-0.5px',textShadow:'0 0 24px rgba(74,222,128,0.55),0 2px 8px rgba(0,0,0,0.4)',marginBottom:14}}>{isHe?`בית ${householdName}`:`${householdName}`}</div>
+      <div style={{color:'rgba(74,222,128,0.75)',fontSize:12,animation:'welcomeUp 0.5s ease 1.6s both',display:'flex',alignItems:'center',gap:8,fontFamily:'monospace',letterSpacing:0.5}}>
+        <span style={{width:7,height:7,borderRadius:'50%',background:'#4ade80',display:'inline-block',boxShadow:'0 0 10px #4ade80',animation:'glowPulse 1.2s ease-in-out infinite'}}/>
+        {isHe?'המשק בית שלכם מוכן':'HOUSEHOLD READY'}
+      </div>
+      {/* Floating particles */}
+      {[0,1,2,3,4,5,6].map(i=>(
+        <div key={i} style={{position:'absolute',width:i%2?4:3,height:i%2?4:3,borderRadius:'50%',background:`rgba(74,222,128,${0.3+i%3*0.2})`,left:`${8+i*13}%`,top:'95%',boxShadow:'0 0 5px rgba(74,222,128,0.5)',animation:`techDotFloat ${2.2+i*0.45}s ease-out ${i*0.55}s infinite`,pointerEvents:'none'}}/>
       ))}
-      <div style={{fontSize:88,animation:'houseIn 0.7s cubic-bezier(0.34,1.56,0.64,1) both',marginBottom:18,filter:'drop-shadow(0 8px 24px rgba(0,0,0,0.25))'}}>🏠</div>
-      <div style={{color:'rgba(255,255,255,0.8)',fontSize:15,fontWeight:400,animation:'welcomeUp 0.5s ease 0.45s both',letterSpacing:0.8,marginBottom:8}}>{isHe?'ברוכים הבאים ל':'Welcome to'}</div>
-      <div style={{color:'#fff',fontSize:30,fontWeight:900,animation:'welcomeUp 0.6s ease 0.75s both',textAlign:'center',padding:'0 24px',letterSpacing:'-0.5px',textShadow:'0 2px 12px rgba(0,0,0,0.2)'}}>{isHe?`בית ${householdName}`:`${householdName} Household`}</div>
-      <div style={{color:'rgba(255,255,255,0.65)',fontSize:13,animation:'welcomeUp 0.5s ease 1.1s both',marginTop:14}}>🎉 {isHe?'המשק בית שלכם מוכן!':'Your household is ready!'}</div>
     </div>
   );
   return(

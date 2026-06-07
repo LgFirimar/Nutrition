@@ -18,6 +18,14 @@ button:active{opacity:0.75;transform:scale(0.97)}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
 @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes avoBounceIn{0%{opacity:0;transform:scale(0) translateY(50px)}55%{opacity:1;transform:scale(1.22) translateY(-12px)}75%{transform:scale(0.93) translateY(5px)}90%{transform:scale(1.05) translateY(-3px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes avoBob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-14px) rotate(3deg)}}
+@keyframes glowPulse{0%,100%{opacity:0.6;transform:scale(1)}50%{opacity:1;transform:scale(1.12)}}
+@keyframes techScan{0%{transform:translateY(-100vh)}100%{transform:translateY(100vh)}}
+@keyframes techDotFloat{0%{opacity:0;transform:translateY(0) scale(0.5)}15%{opacity:0.8}80%{opacity:0.3}100%{opacity:0;transform:translateY(-55vh) scale(1.5)}}
+@keyframes orbitCW{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes orbitCCW{from{transform:rotate(0deg)}to{transform:rotate(-360deg)}}
+@keyframes neonFlicker{0%,95%,100%{opacity:1}96%,99%{opacity:0.7}}
 .fade{animation:fadeIn 0.2s ease}
 .slide{animation:slideUp 0.25s ease}
 
