@@ -3592,6 +3592,8 @@ function HouseholdModal({householdCfg,onConnect,onLeave,onClose,lang}){
       if(!ok)throw new Error(isHe?'שגיאה בחיבור ל-Firebase':'Firebase init failed');
       await registerMember(hid,memberName.trim());
       ls.set('nutrition_household',newCfg);
+      // Brief pause to show "הכל מוכן!" then auto-close
+      await new Promise(r=>setTimeout(r,1500));
       onConnect(newCfg);
     }catch(e){
       setAutoError(e.message||(isHe?'שגיאה בהגדרה האוטומטית':'Auto setup failed'));
@@ -4132,9 +4134,17 @@ function App(){
           <div style={{width:26,height:26,borderRadius:8,background:"linear-gradient(135deg,#14b8a6,#0d9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,boxShadow:"0 2px 8px rgba(13,148,136,.35)",cursor:"pointer"}} onClick={()=>setShowProfiles(true)}>{activeProfile?.emoji}</div>
         </div>
         {/* Date + greeting below the icons */}
-        <div>
-          <div style={{fontSize:11,color:C.muted,letterSpacing:.3,marginBottom:3}}>{getDateLabel(isToday?undefined:activeDate)}</div>
-          <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:"-.5px"}}>{T.greeting}, {activeProfile?.name} {isToday?"👋":""}</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:11,color:C.muted,letterSpacing:.3,marginBottom:3}}>{getDateLabel(isToday?undefined:activeDate)}</div>
+            <div style={{fontSize:22,fontWeight:900,color:C.text,letterSpacing:"-.5px"}}>{T.greeting}, {activeProfile?.name} {isToday?"👋":""}</div>
+          </div>
+          {householdCfg?.householdName&&(
+            <div onClick={()=>setShowHousehold(true)} style={{display:"flex",alignItems:"center",gap:4,background:"rgba(13,148,136,.08)",borderRadius:20,padding:"3px 10px 3px 6px",border:"1px solid rgba(13,148,136,.2)",cursor:"pointer",marginTop:4,flexShrink:0}}>
+              <span style={{width:6,height:6,borderRadius:"50%",background:hhSynced?"#22c55e":"#f59e0b",display:"inline-block",flexShrink:0}}/>
+              <span style={{fontSize:11,fontWeight:600,color:C.accent}}>בית {householdCfg.householdName}</span>
+            </div>
+          )}
         </div>
       </div>
 
