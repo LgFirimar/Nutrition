@@ -944,7 +944,7 @@ function DBManagerModal({onClose,pid,lang}){
                 className="inp" rows={2} style={{flex:1,fontSize:12,resize:"none"}}/>
               <button onClick={()=>addImgRef.current?.click()} style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:18}}>📷</button>
             </div>
-            {addLoading&&<div style={{textAlign:'center',marginBottom:4}}><CalcLoader size={56}/></div>}
+            {addLoading&&<div style={{textAlign:'center',marginBottom:4}}><CalcLoader size={64}/></div>}
             <div style={{display:"flex",alignItems:"center",gap:6}}>
               <span style={{fontSize:11,color:C.muted}}>{isHe?"מספר מנות:":"Servings:"}</span>
               <button onClick={()=>setAddQty(v=>Math.max(1,v-1))} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#fff",cursor:"pointer",fontSize:13}}>−</button>
@@ -1021,7 +1021,7 @@ function DBManagerModal({onClose,pid,lang}){
                         <textarea value={editClaudeText} onChange={e=>setEditClaudeText(e.target.value)}
                           placeholder="תאר את המאכל... (למשל: 100g עוף + 50g אורז)"
                           className="inp" rows={2} style={{fontSize:12,resize:"none",marginBottom:6}}/>
-                        {editLoading&&<div style={{textAlign:'center',marginBottom:4}}><CalcLoader size={56}/></div>}
+                        {editLoading&&<div style={{textAlign:'center',marginBottom:4}}><CalcLoader size={64}/></div>}
                         <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
                           <span style={{fontSize:11,color:C.muted}}>מספר מנות:</span>
                           <button onClick={()=>setEditQty(v=>Math.max(1,v-1))} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>−</button>
@@ -1172,7 +1172,7 @@ function AskClaude({foodName, amount, unit, onAddToDay, onSaved}){
     <div style={{marginTop:8}}>
       {!preview&&(
         <>
-          {loading&&<div style={{textAlign:'center',marginBottom:8}}><CalcLoader size={56}/></div>}
+          {loading&&<div style={{textAlign:'center',marginBottom:8}}><CalcLoader size={64}/></div>}
           <button onClick={ask} disabled={loading} style={{width:"100%",background:"linear-gradient(135deg,#5a9e1e,#7bc42e)",border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:loading?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6,opacity:loading?0.85:1}}>
             {loading?"מחפש ערכים...":"✨ שאל את Claude"}
           </button>
@@ -1418,7 +1418,7 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
           <div style={{fontSize:12,color:C.muted}}>בחרי תמונה</div>
         </button>
       ))}
-      {loading&&<div style={{textAlign:"center",padding:"14px 0",color:C.muted,fontSize:13}}><CalcLoader size={56}/><div style={{marginTop:6}}>מנתח תמונה...</div></div>}
+      {loading&&<div style={{textAlign:"center",padding:"14px 0",color:C.muted,fontSize:13}}><CalcLoader size={64}/><div style={{marginTop:6}}>מנתח תמונה...</div></div>}
       {error&&<div style={{background:"#fff0f0",border:`1px solid ${C.danger}`,borderRadius:8,padding:"8px 12px",fontSize:11,color:C.danger,marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <span>⚠ {error}</span>
         <button onClick={()=>fileRef.current.click()} style={{background:C.danger,border:"none",borderRadius:6,color:"#fff",padding:"2px 8px",fontSize:11,fontWeight:700,cursor:"pointer"}}>נסי שוב</button>
@@ -1574,7 +1574,7 @@ function MealPanel({onAdd,onClose}){
       </div>
       {!preview&&(
         <>
-          {loading&&<div style={{textAlign:'center',marginBottom:8}}><CalcLoader size={56}/></div>}
+          {loading&&<div style={{textAlign:'center',marginBottom:8}}><CalcLoader size={64}/></div>}
           <button onClick={ask} disabled={!text.trim()||loading}
             style={{width:"100%",background:text.trim()?"linear-gradient(135deg,#5a9e1e,#7bc42e)":"#ddd",border:"none",borderRadius:8,color:text.trim()?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:text.trim()?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:8}}>
             {loading?"מנתח ארוחה...":"✨ שאל את Claude"}
@@ -2289,7 +2289,7 @@ function ShoppingListModal({onClose,lang,pid,syncTick}){
         </div>
 
         {/* Generate button */}
-        {loading&&<div style={{textAlign:'center',marginBottom:8}}><CalcLoader size={56}/></div>}
+        {loading&&<div style={{textAlign:'center',marginBottom:8}}><CalcLoader size={64}/></div>}
         <button onClick={generate} disabled={loading} style={{width:"100%",background:"linear-gradient(135deg,#14b8a6,#059669)",border:"none",borderRadius:10,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
           {loading?(isHe?"מנתח...":"Analyzing..."):(isHe?"✨ הצע רשימת קניות לפי המזווה והרגלים":"✨ Suggest based on pantry & habits")}
         </button>
@@ -2970,7 +2970,7 @@ function EditQuickFoodModal({food,onSave,onClose}){
         <textarea value={desc} onChange={e=>setDesc(e.target.value)} rows={3}
           placeholder="תארי בחופשיות, למשל: אצבע גבינה צהובה 20g"
           className="inp" style={{marginBottom:8,resize:"none",lineHeight:1.5,fontSize:13}}/>
-        {loading&&<div style={{textAlign:'center',marginBottom:8}}><CalcLoader size={56}/></div>}
+        {loading&&<div style={{textAlign:'center',marginBottom:8}}><CalcLoader size={64}/></div>}
         <button onClick={ask} disabled={loading}
           style={{width:"100%",background:"linear-gradient(135deg,#5a9e1e,#7bc42e)",border:"none",borderRadius:8,color:"#fff",padding:"9px",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:10,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
           {loading?"מחשב...":"✨ חשב עם Claude"}
