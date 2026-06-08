@@ -3217,8 +3217,8 @@ function SplashScreen({onDone,lang}){
 
 // ── i18n ───────────────────────────────────────────────────────────────────────
 const LANG={
-  he:{greeting:"שלום",calories:"קלוריות היום",consumed:"נאכל",target:"יעד",sugar:"סוכר",left:"נותרו",
-      kcal:"קק״ל",mgdl:"mg/dL",goal:"יעד",
+  he:{greeting:"שלום",calories:"קלוריות היום",consumed:"נאכל",target:"עד",sugar:"סוכר",left:"נותרו",
+      kcal:"קק״ל",mgdl:"mg/dL",goal:"עד",
       carbs:"פחמ׳",carbsFull:"פחמימות",protein:"חלבון",fat:"שומן",noLimit:"ללא הגבלה",
       quickAdd:"הוספה מהירה",edit:"✏️ ערוך",done:"✓ סיום",reset:"↺ אפס",newBtn:"+ חדש",presets:"⭐ קבועים",
       todayLog:"יומן היום",items:"פריטים",allLog:"הכל ›",addItem:"הוסף פריט",
@@ -4623,7 +4623,7 @@ function App(){
                   <div style={{height:4,borderRadius:3,background:"rgba(148,163,184,.2)",overflow:"hidden",marginTop:7}}>
                     {max&&<div style={{height:"100%",borderRadius:3,background:`linear-gradient(90deg,${mg0},${mg1})`,width:`${Math.min(100,parseFloat(val)/max*100)}%`}}></div>}
                   </div>
-                  <div style={{fontSize:9,color:C.muted,marginTop:5}}>{max?`${T.goal} ${max}g`:T.noLimit}</div>
+                  <div style={{fontSize:9,color:C.muted,marginTop:5}}>{max?`${lk==="protein"?"יעד":T.goal} ${max}g`:T.noLimit}</div>
                 </div>
               );
             })}
