@@ -2376,15 +2376,15 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
   const fileInputRef=useRef(null);
 
   const exportData=()=>{
-    // Merge today's live state into journal before export (handles unsaved state)
     const journal=loadJournal(pid);
-    if(todayEntries?.length||todayBloodSugar){
-      journal[todayDate||getTodayKey()]={
-        entries:(todayEntries||[]).map(e=>({label:e.label,kcal:e.kcal,carbs:e.carbs,protein:e.protein,fat:e.fat||0})),
-        totals:todayTotals||{kcal:0,carbs:0,protein:0},
-        ...(todayBloodSugar?{bloodSugar:parseFloat(todayBloodSugar)}:{}),
-      };
-    }
+    // Always write live state for the viewed date — no condition,
+    // so today is never missing even if entries were just added
+    const exportKey=todayDate||getTodayKey();
+    journal[exportKey]={
+      entries:(todayEntries||[]).map(e=>({label:e.label,kcal:e.kcal,carbs:e.carbs,protein:e.protein,fat:e.fat||0,...(e.count&&{count:e.count}),...(e.perUnit&&{perUnit:e.perUnit})})),
+      totals:todayTotals||{kcal:0,carbs:0,protein:0,fat:0},
+      ...(todayBloodSugar?{bloodSugar:parseFloat(todayBloodSugar)}:{}),
+    };
     const data={
       version:4,
       exportDate:new Date().toISOString(),
