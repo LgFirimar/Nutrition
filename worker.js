@@ -15,10 +15,21 @@ export default {
     }
 
     try {
-      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, profileData } = await request.json();
+      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, profileData } = await request.json();
 
       let prompt, model, system, max_tokens, messages;
-      if (pantryImageData) {
+      if (pantryBulkData) {
+        model = 'claude-sonnet-4-6';
+        max_tokens = 1200;
+        system = 'You are a pantry and grocery expert. Identify food items in images. Return ONLY valid JSON, no markdown.';
+        messages = [{role:'user', content:[
+          {type:'image', source:{type:'base64', media_type:pantryBulkMediaType||'image/jpeg', data:pantryBulkData}},
+          {type:'text', text:`Identify ALL food/grocery items visible in this image (receipt, shelf, or pantry contents).
+For each item, assign a category from exactly these options: cheeses, veggies, protein, legumes, carbs, nuts, spices, other
+Return ONLY this JSON: {"items":[{"name":"שם בעברית","qty":"כמות (e.g. 500g, 3 יח׳ — leave empty string if unknown)","cat":"category"}]}
+Include every distinct item you can identify. Use Hebrew names.`}
+        ]}];
+      } else if (pantryImageData) {
         model = 'claude-haiku-4-5-20251001';
         max_tokens = 200;
         system = 'You are a grocery expert. Identify food items in images. Return ONLY valid JSON, no markdown.';

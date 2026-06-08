@@ -1925,22 +1925,41 @@ function MetricWeekChart({journal,metric,color,label,lang}){
 
 // ── SugarWeekChart ─────────────────────────────────────────────────────────────
 function SugarWeekChart({journal}){
-  // Scale: range 60-140 (80 units) mapped to H=54px
-  const H=54, W=280, PAD=14, RANGE=80, MIN_V=60;
-  const toY=v=>Math.max(2,Math.min(H-2, H-(Number(v)-MIN_V)/RANGE*H));
-  // x positions evenly distributed (LTR: index 0 = oldest = left, index 6 = today = right)
-  const xs=Array.from({length:7},(_,i)=>Math.round(PAD+i*(W-2*PAD)/6));
-  const y100=H-(100-MIN_V)/RANGE*H; // ≈27
-  const y86 =H-(86 -MIN_V)/RANGE*H; // ≈37
+  const [range,setRange]=useState(7);
+  const H=54, W=280, PAD=14, SUGAR_RANGE=80, MIN_V=60;
+  const toY=v=>Math.max(2,Math.min(H-2, H-(Number(v)-MIN_V)/SUGAR_RANGE*H));
+  const y100=H-(100-MIN_V)/SUGAR_RANGE*H;
+  const y86 =H-(86 -MIN_V)/SUGAR_RANGE*H;
   const HE=['א','ב','ג','ד','ה','ו','ש'];
+  const now=new Date();
+  const todayKey=getTodayKey();
+  const fmtKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
   const days=[];
-  for(let i=6;i>=0;i--){
-    const d=new Date(); d.setDate(d.getDate()-i);
-    const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  for(let i=range-1;i>=0;i--){
+    const d=new Date(now); d.setDate(d.getDate()-i);
+    const k=fmtKey(d);
     const v=journal[k]?.bloodSugar?Number(journal[k].bloodSugar):null;
-    days.push({k,v,dow:d.getDay()});
+    days.push({k,v,dow:d.getDay(),date:new Date(d)});
   }
+  const xs=Array.from({length:range},(_,i)=>Math.round(PAD+i*(W-2*PAD)/Math.max(range-1,1)));
+
+  // Average for a given window: include today if it has a value, else start from yesterday
+  const todayVal=journal[todayKey]?.bloodSugar?Number(journal[todayKey].bloodSugar):null;
+  const calcAvg=nDays=>{
+    const startOff=todayVal!=null?0:1;
+    const vals=[];
+    for(let i=startOff;i<startOff+nDays;i++){
+      const d=new Date(now); d.setDate(d.getDate()-i);
+      const v=journal[fmtKey(d)]?.bloodSugar?Number(journal[fmtKey(d)].bloodSugar):null;
+      if(v!=null) vals.push(v);
+    }
+    return vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):null;
+  };
+  const avg7=calcAvg(7);
+  const avgRange=calcAvg(range);
+  const avgY=avgRange!=null?toY(avgRange):null;
+
   const known=days.map((d,i)=>d.v?{x:xs[i],y:toY(d.v)}:null).filter(Boolean);
   if(!known.length)return null;
 
@@ -1955,24 +1974,43 @@ function SugarWeekChart({journal}){
   };
   const linePath=known.length>=2?crPath(known):null;
 
+  // X-axis labels for longer ranges (inside SVG)
+  const svgLabels=[];
+  if(range===30){
+    days.forEach((d,i)=>{if(i%7===0)svgLabels.push({x:xs[i],txt:`${d.date.getDate()}/${d.date.getMonth()+1}`});});
+  } else if(range===90){
+    const mNames=['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ'];
+    let lastM=-1;
+    days.forEach((d,i)=>{const m=d.date.getMonth();if(m!==lastM){lastM=m;svgLabels.push({x:xs[i],txt:mNames[m]});}});
+  }
+  const svgH=range===7?H:H+12;
+
   return(
     <div style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:"1px solid rgba(255,255,255,.88)",borderRadius:18,padding:"12px 14px 10px",marginBottom:16,boxShadow:"0 4px 20px rgba(80,130,180,.1)",maxWidth:440}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-        <div style={{fontSize:9.5,color:"#94a3b8",letterSpacing:1.4,textTransform:"uppercase"}}>🩸 סוכר — שבוע נוכחי</div>
-        <div style={{display:"flex",gap:8}}>
-          {[["≤85","#0d9488"],["86–99","#f59e0b"],["≥100","#dc2626"]].map(([l,c])=>(
-            <span key={l} style={{fontSize:7.5,color:c,display:"inline-flex",alignItems:"center",gap:2}}>
-              <span style={{width:6,height:2,borderRadius:1,background:"currentColor",display:"inline-block"}}></span>{l}
-            </span>
-          ))}
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <div style={{fontSize:9.5,color:"#94a3b8",letterSpacing:1.4,textTransform:"uppercase"}}>🩸 סוכר</div>
+          {avg7!=null&&<span style={{fontSize:8.5,color:sugarColor(avg7),background:sugarColor(avg7)+'18',borderRadius:8,padding:"1px 6px",fontWeight:700}}>ממוצע 7ד: {avg7}</span>}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <div style={{display:"flex",gap:3}}>
+            {[[7,"7ד"],[30,"חודש"],[90,"3ח"]].map(([r,l])=>(
+              <button key={r} onClick={()=>setRange(r)} style={{background:range===r?"rgba(148,163,184,.25)":"transparent",border:`1px solid ${range===r?"rgba(148,163,184,.5)":"rgba(148,163,184,.2)"}`,color:range===r?"#475569":"#94a3b8",borderRadius:5,padding:"2px 5px",fontSize:8,cursor:"pointer",fontFamily:"inherit",fontWeight:range===r?700:400}}>{l}</button>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            {[["≤85","#0d9488"],["86–99","#f59e0b"],["≥100","#dc2626"]].map(([l,c])=>(
+              <span key={l} style={{fontSize:7.5,color:c,display:"inline-flex",alignItems:"center",gap:2}}>
+                <span style={{width:6,height:2,borderRadius:1,background:"currentColor",display:"inline-block"}}></span>{l}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* SVG — clipped, no overflow */}
       <div style={{overflow:"hidden",borderRadius:8}}>
-        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{display:"block"}}>
+        <svg width="100%" viewBox={`0 0 ${W} ${svgH}`} style={{display:"block"}}>
           <defs>
-            {/* Gradient stroke: red (top/high) → orange → green (bottom/low), mapped to y-axis */}
             <linearGradient id="sg-line" x1="0" y1="0" x2="0" y2={H} gradientUnits="userSpaceOnUse">
               <stop offset="0%"   stopColor="#dc2626"/>
               <stop offset={`${(y100/H*100-8).toFixed(0)}%`} stopColor="#dc2626"/>
@@ -1981,15 +2019,17 @@ function SugarWeekChart({journal}){
               <stop offset="100%" stopColor="#15803d"/>
             </linearGradient>
           </defs>
-          {/* Subtle threshold lines */}
           <line x1={PAD} y1={y100} x2={W-PAD} y2={y100} stroke="rgba(220,38,38,.15)" strokeWidth="0.7" strokeDasharray="3,3"/>
           <line x1={PAD} y1={y86}  x2={W-PAD} y2={y86}  stroke="rgba(245,158,11,.15)" strokeWidth="0.7" strokeDasharray="3,3"/>
           <text x={W-2} y={y100-1} fontSize="5.5" fill="rgba(220,38,38,.45)" textAnchor="end" fontFamily="Heebo,sans-serif">100</text>
           <text x={W-2} y={y86-1}  fontSize="5.5" fill="rgba(245,158,11,.5)"  textAnchor="end" fontFamily="Heebo,sans-serif">86</text>
-          {/* Gradient smooth line */}
+          {avgY!=null&&<>
+            <line x1={PAD} y1={avgY} x2={W-PAD} y2={avgY} stroke="#6366f1" strokeWidth="1.2" strokeDasharray="4,3" opacity="0.75"/>
+            <rect x={PAD} y={avgY-8} width="28" height="9" rx="2" fill="#6366f1" opacity="0.85"/>
+            <text x={PAD+14} y={avgY-0.5} fontSize="5.5" fill="white" textAnchor="middle" fontFamily="Heebo,sans-serif" fontWeight="700">⌀ {avgRange}</text>
+          </>}
           {linePath&&<path d={linePath} fill="none" stroke="url(#sg-line)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>}
-          {/* Dots */}
-          {days.map((d,i)=>{
+          {range===7&&days.map((d,i)=>{
             if(!d.v) return <circle key={i} cx={xs[i]} cy={H*0.58} r="2" fill="none" stroke="rgba(148,163,184,.25)" strokeWidth="1"/>;
             const y=toY(d.v),col=sugarColor(d.v);
             return <g key={i}>
@@ -1997,19 +2037,23 @@ function SugarWeekChart({journal}){
               <circle cx={xs[i]} cy={y} r="2.2" fill={col}/>
             </g>;
           })}
+          {range>7&&svgLabels.map((lbl,i)=>(
+            <text key={i} x={lbl.x} y={svgH-1} textAnchor="middle" fontSize="7" fill="#94a3b8" fontFamily="Heebo,sans-serif">{lbl.txt}</text>
+          ))}
         </svg>
       </div>
 
-      {/* Labels — direction:ltr so index 0 = left = matches SVG x */}
-      <div style={{display:"flex",direction:"ltr",marginTop:5}}>
-        {days.map((d,i)=>(
-          <div key={i} style={{flex:1,textAlign:"center"}}>
-            <div style={{fontSize:7.5,color:"#94a3b8"}}>{HE[d.dow]}</div>
-            {d.v?<div style={{fontSize:8.5,fontWeight:700,color:sugarColor(d.v)}}>{d.v}</div>
-                :<div style={{fontSize:8.5,color:"rgba(148,163,184,.4)"}}>—</div>}
-          </div>
-        ))}
-      </div>
+      {range===7&&(
+        <div style={{display:"flex",direction:"ltr",marginTop:5}}>
+          {days.map((d,i)=>(
+            <div key={i} style={{flex:1,textAlign:"center"}}>
+              <div style={{fontSize:7.5,color:"#94a3b8"}}>{HE[d.dow]}</div>
+              {d.v?<div style={{fontSize:8.5,fontWeight:700,color:sugarColor(d.v)}}>{d.v}</div>
+                  :<div style={{fontSize:8.5,color:"rgba(148,163,184,.4)"}}>—</div>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -2024,7 +2068,7 @@ function JournalView({onClose,onLoadDay,pid,lang}){
   const [activeChart,setActiveChart]=useState(null);
   const todayKey=getTodayKey();
   const days=Object.keys(journal).sort((a,b)=>b.localeCompare(a));
-  const weekDays=days.slice(0,7);
+  const weekDays=days.filter(k=>k!==todayKey).slice(0,7);
   const wt=weekDays.reduce((acc,k)=>{const d=journal[k];return{kcal:acc.kcal+d.totals.kcal,carbs:acc.carbs+d.totals.carbs,protein:acc.protein+d.totals.protein,n:acc.n+1};},{kcal:0,carbs:0,protein:0,n:0});
   const deleteDay=key=>{const j={...journal};delete j[key];saveJournal(j,pid||'default');setJournal(j);if(selected===key)setSelected(null);};
 
@@ -2151,11 +2195,48 @@ function PantryModal({onClose,lang,syncTick}){
   const [inputs,setInputs]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,{name:"",qty:"",unit:""}])));
   const [open,setOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,false])));
   const [imgLoading,setImgLoading]=useState({});
+  const [scanLoading,setScanLoading]=useState(false);
+  const [scanResults,setScanResults]=useState(null);
   const imgRefs=useRef({});
+  const bulkInputRef=useRef(null);
 
   useEffect(()=>{if(syncTick>0)setPantry(loadPantry());},[syncTick]);
 
   const update=p=>{setPantry(p);savePantryLS(p);};
+
+  const handleBulkScan=e=>{
+    const file=e.target.files[0]; if(!file)return; e.target.value="";
+    setScanLoading(true);
+    const reader=new FileReader();
+    reader.onload=async ev=>{
+      const b64=ev.target.result.split(',')[1];
+      try{
+        const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({pantryBulkData:b64,pantryBulkMediaType:file.type||'image/jpeg'})});
+        if(!res.ok)throw new Error();
+        const d=await res.json();
+        if(d.items?.length) setScanResults(d.items.map((item,i)=>({...item,_id:i,checked:true})));
+      }catch{}
+      setScanLoading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const confirmScan=()=>{
+    const newPantry={...pantry};
+    const newOpen={...open};
+    scanResults.filter(i=>i.checked).forEach(item=>{
+      const cat=FRIDGE_CATS.find(c=>c.key===item.cat)?item.cat:'other';
+      if(!newPantry[cat])newPantry[cat]=[];
+      const idx=newPantry[cat].findIndex(e=>e.name.toLowerCase()===item.name.toLowerCase());
+      if(idx>=0) newPantry[cat][idx]={...newPantry[cat][idx],qty:item.qty||newPantry[cat][idx].qty};
+      else newPantry[cat].push({id:Date.now()+Math.random(),name:item.name,qty:item.qty||"",unit:""});
+      newOpen[cat]=true;
+    });
+    update(newPantry);
+    setOpen(newOpen);
+    setScanResults(null);
+  };
 
   const addItem=(cat)=>{
     const {name,qty,unit}=inputs[cat];
@@ -2201,7 +2282,37 @@ function PantryModal({onClose,lang,syncTick}){
           </div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
         </div>
+        {/* Bulk scan button */}
+        <input ref={bulkInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif" style={{display:"none"}} onChange={handleBulkScan}/>
+        <button onClick={()=>bulkInputRef.current?.click()} disabled={scanLoading}
+          style={{width:"100%",background:"rgba(99,102,241,.07)",border:"1px solid rgba(99,102,241,.25)",borderRadius:10,color:"#6366f1",padding:"10px",fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+          {scanLoading?<CalcLoader/>:"📸"} {isHe?"סרוק חשבונית / מדפי מזווה":"Scan receipt / pantry shelf"}
+        </button>
         <div style={{fontSize:11,color:C.muted,marginBottom:14}}>{isHe?"מה יש בבית? הכנס פריטים עם כמויות:":"What do you have at home? Add items with quantities:"}</div>
+        {/* Scan confirmation overlay */}
+        {scanResults&&(
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:300,display:"flex",alignItems:"flex-end"}}>
+            <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:20,width:"100%",maxHeight:"70vh",overflowY:"auto",boxSizing:"border-box"}}>
+              <div style={{fontSize:15,fontWeight:700,marginBottom:4}}>{isHe?`נמצאו ${scanResults.length} פריטים`:`Found ${scanResults.length} items`}</div>
+              <div style={{fontSize:11,color:C.muted,marginBottom:12}}>{isHe?"סמן את הפריטים להוספה למזווה:":"Select items to add to pantry:"}</div>
+              {scanResults.map((item,i)=>(
+                <div key={item._id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:`1px solid ${C.border}`}}>
+                  <input type="checkbox" checked={item.checked} onChange={()=>setScanResults(r=>r.map((x,j)=>j===i?{...x,checked:!x.checked}:x))} style={{width:16,height:16,cursor:"pointer",flexShrink:0}}/>
+                  <span style={{flex:1,fontSize:13,color:C.text}}>{item.name}</span>
+                  {item.qty&&<span style={{fontSize:11,color:C.muted}}>{item.qty}</span>}
+                  <span style={{fontSize:9.5,color:C.muted,background:"#f5f5f7",borderRadius:6,padding:"2px 7px",flexShrink:0}}>{FRIDGE_CATS.find(c=>c.key===item.cat)?.[isHe?'he':'en']||item.cat}</span>
+                </div>
+              ))}
+              <div style={{display:"flex",gap:8,marginTop:16}}>
+                <button onClick={()=>setScanResults(null)} style={{flex:1,background:"transparent",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{isHe?"ביטול":"Cancel"}</button>
+                <button onClick={confirmScan} disabled={!scanResults.some(i=>i.checked)}
+                  style={{flex:2,background:scanResults.some(i=>i.checked)?C.accent:"#ddd",border:"none",borderRadius:10,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+                  {isHe?`הוסף ${scanResults.filter(i=>i.checked).length} פריטים`:`Add ${scanResults.filter(i=>i.checked).length} items`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {FRIDGE_CATS.map(cat=>(
           <div key={cat.key} style={{marginBottom:10}}>
             <input ref={el=>imgRefs.current[cat.key]=el} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif"
@@ -3106,8 +3217,8 @@ function SplashScreen({onDone,lang}){
 
 // ── i18n ───────────────────────────────────────────────────────────────────────
 const LANG={
-  he:{greeting:"שלום",calories:"קלוריות היום",consumed:"נאכל",target:"עד",sugar:"סוכר",left:"נותרו",
-      kcal:"קק״ל",mgdl:"mg/dL",goal:"עד",
+  he:{greeting:"שלום",calories:"קלוריות היום",consumed:"נאכל",target:"יעד",sugar:"סוכר",left:"נותרו",
+      kcal:"קק״ל",mgdl:"mg/dL",goal:"יעד",
       carbs:"פחמ׳",carbsFull:"פחמימות",protein:"חלבון",fat:"שומן",noLimit:"ללא הגבלה",
       quickAdd:"הוספה מהירה",edit:"✏️ ערוך",done:"✓ סיום",reset:"↺ אפס",newBtn:"+ חדש",presets:"⭐ קבועים",
       todayLog:"יומן היום",items:"פריטים",allLog:"הכל ›",addItem:"הוסף פריט",
