@@ -2711,7 +2711,7 @@ function RecommendationsInfoModal({recs,onClose}){
 }
 
 // ── ProfileSetupWizard ─────────────────────────────────────────────────────────
-function ProfileSetupWizard({profile,onSave,onSkip,lang}){
+function ProfileSetupWizard({profile,onSave,onSkip,lang,onToggleLang}){
   const isHe=(lang||'he')!=='en';
   const [step,setStep]=useState(0);
   const [age,setAge]=useState(profile?.age||"");
@@ -2810,7 +2810,10 @@ function ProfileSetupWizard({profile,onSave,onSkip,lang}){
       <div style={{padding:"52px 20px 12px",background:"rgba(255,255,255,.95)",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
           <div style={{fontSize:15,fontWeight:700,color:C.text}}>🎯 {isHe?"כוון יעדים תזונתיים":"Set Nutrition Goals"}</div>
-          <button onClick={onSkip} style={{background:"none",border:"none",color:C.muted,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{isHe?"דלג ›":"Skip ›"}</button>
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            {onToggleLang&&<button onClick={onToggleLang} style={{height:24,borderRadius:7,background:"rgba(255,255,255,.85)",border:"1px solid rgba(200,200,200,.6)",cursor:"pointer",fontSize:9,fontWeight:700,color:"#666",padding:"0 8px"}}>{isHe?'EN':'עב'}</button>}
+            <button onClick={onSkip} style={{background:"none",border:"none",color:C.muted,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{isHe?"דלג ›":"Skip ›"}</button>
+          </div>
         </div>
         {step<5&&(
           <div style={{display:"flex",gap:4}}>
@@ -2974,7 +2977,7 @@ function ProfileSetupWizard({profile,onSave,onSkip,lang}){
 }
 
 // ── SetupScreen ────────────────────────────────────────────────────────────────
-function SetupScreen({onDone,lang}){
+function SetupScreen({onDone,lang,onToggleLang}){
   const isHe=(lang||'he')!=='en';
   const [name,setName]=useState("");
   const [emoji,setEmoji]=useState("👩");
@@ -2986,7 +2989,8 @@ function SetupScreen({onDone,lang}){
     onDone({id:"profile_"+Date.now(),name:name.trim(),emoji,maxKcal,maxCarbs,maxProtein:120});
   };
   return (
-    <div style={{minHeight:"100vh",background:"#f5f5f7",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24}}>
+    <div style={{minHeight:"100vh",background:"#f5f5f7",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,position:"relative"}}>
+      {onToggleLang&&<button onClick={onToggleLang} style={{position:"fixed",top:18,right:20,zIndex:10,height:26,borderRadius:7,background:"rgba(255,255,255,.85)",border:"1px solid rgba(200,200,200,.7)",cursor:"pointer",fontSize:10,fontWeight:700,color:"#666",padding:"0 10px",boxShadow:"0 1px 4px rgba(0,0,0,.08)"}}>{isHe?'EN':'עב'}</button>}
       <div style={{fontSize:48,marginBottom:12}}>{emoji}</div>
       <div style={{fontSize:20,fontWeight:900,color:C.accent,marginBottom:4}}>{isHe?"ברוכה הבאה!":"Welcome!"}</div>
       <div style={{fontSize:13,color:C.muted,marginBottom:28,textAlign:"center"}}>{isHe?"צרי פרופיל ראשון כדי להתחיל":"Create your first profile to get started"}</div>
@@ -4494,7 +4498,7 @@ function App(){
   const maxProtein=activeProfile?.maxProtein||120;
 
   if(showSetup||!activeProfile) return (
-    <SetupScreen lang={lang} onDone={(p)=>{
+    <SetupScreen lang={lang} onToggleLang={toggleLang} onDone={(p)=>{
       const updated=[p];
       saveProfiles(updated);
       saveActiveProfileId(p.id);
@@ -4516,7 +4520,7 @@ function App(){
       {showHousehold && <HouseholdModal householdCfg={householdCfg} onConnect={cfg=>{setHouseholdCfg(cfg);setShowHousehold(false);}} onHouseholdReady={cfg=>setHouseholdCfg(cfg)} onLeave={()=>{setHouseholdCfg(null);setHhSynced(false);setShowHousehold(false);}} onClose={()=>setShowHousehold(false)} onWelcome={data=>{setHouseholdCfg(data.cfg);setHhWelcome(data);setShowHousehold(false);}} lang={lang}/>}
       {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang} profile={activeProfile}/>}
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}} lang={lang}/>}
-      {showWizard && <ProfileSetupWizard lang={lang} profile={wizardProfile} onSave={p=>{const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===p.id?p:x));setActiveProfile(p.id===pid?p:activeProfile);setProfiles(loadProfiles());setWizardProfile(null);setShowWizard(false);}} onSkip={()=>{setWizardProfile(null);setShowWizard(false);}}/>}
+      {showWizard && <ProfileSetupWizard lang={lang} onToggleLang={toggleLang} profile={wizardProfile} onSave={p=>{const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===p.id?p:x));setActiveProfile(p.id===pid?p:activeProfile);setProfiles(loadProfiles());setWizardProfile(null);setShowWizard(false);}} onSkip={()=>{setWizardProfile(null);setShowWizard(false);}}/>}
       {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)} lang={lang} todayEntries={entries} todayDate={activeDate} todayBloodSugar={bloodSugar} todayTotals={totals}/>}
       {showJournal && <JournalView pid={pid} lang={lang} onClose={()=>setShowJournal(false)} onLoadDay={saved=>{setEntries(saved.map(e=>({...e,uid:Date.now()+Math.random()})));setShowJournal(false);}}/>}
       {showNewBtn && <NewButtonModal onClose={()=>setShowNewBtn(false)} onSave={saveNewBtn}/>}
@@ -4532,26 +4536,30 @@ function App(){
 
       {/* ── TOP BAR ── */}
       <div style={{padding:"50px 20px 0"}}>
-        {/* Icon row — above the date, aligned to the left edge */}
-        <div style={{display:"flex",justifyContent:"flex-end",gap:6,alignItems:"center",marginBottom:10}}>
-          <button onClick={toggleLang} style={{height:22,borderRadius:7,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:9,fontWeight:700,color:C.muted,padding:"0 6px"}}>
-            {lang==='he'?'EN':'עב'}
-          </button>
-          <button onClick={()=>setShowPantry(true)} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <img src={lang==='he'?"/Nutrition/pantry-he.png":"/Nutrition/pantry-en.png"} style={{width:20,height:20,objectFit:"contain"}} alt="מזווה"/>
-          </button>
-          <button onClick={()=>setShowShopping(true)} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <img src="/Nutrition/shopping-cart.png" style={{width:20,height:20,objectFit:"contain"}} alt="קניות"/>
-          </button>
-          <button onClick={()=>setShowInfo(true)} style={{width:24,height:24,borderRadius:7,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontWeight:700}}>ℹ</button>
-          <button onClick={()=>{const url='https://lgfirimar.github.io/Nutrition/';const msg=lang==='en'?`🥗 Smart nutrition tracker — calories, blood sugar, meal planning & pantry!\n${url}`:`🥗 אפליקציית מעקב תזונה חכמה — קלוריות, סוכר, תכנון ארוחות ומזווה!\n${url}`;window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');}}
-            style={{width:24,height:24,borderRadius:7,background:"rgba(37,211,102,.15)",border:"1px solid rgba(37,211,102,.4)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>📤</button>
-          <button onClick={saveDay} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .3s",animation:saveFlash?"pop .35s ease":"none",boxShadow:"0 2px 8px rgba(80,120,160,.1)"}}>💾</button>
-          <button onClick={()=>setShowHousehold(true)} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
-            👥
-            {householdCfg&&<span style={{position:"absolute",top:-1,right:-1,width:7,height:7,borderRadius:"50%",background:hhSynced?"#22c55e":"#f59e0b",border:"1.5px solid white"}}/>}
-          </button>
-          <div style={{width:26,height:26,borderRadius:8,background:"linear-gradient(135deg,#14b8a6,#0d9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,boxShadow:"0 2px 8px rgba(13,148,136,.35)",cursor:"pointer"}} onClick={()=>setShowProfiles(true)}>{activeProfile?.emoji}</div>
+        {/* Icon row — main icons left, lang+share right */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <button onClick={()=>setShowPantry(true)} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <img src={lang==='he'?"/Nutrition/pantry-he.png":"/Nutrition/pantry-en.png"} style={{width:20,height:20,objectFit:"contain"}} alt="מזווה"/>
+            </button>
+            <button onClick={()=>setShowShopping(true)} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <img src="/Nutrition/shopping-cart.png" style={{width:20,height:20,objectFit:"contain"}} alt="קניות"/>
+            </button>
+            <button onClick={()=>setShowInfo(true)} style={{width:24,height:24,borderRadius:7,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontWeight:700}}>ℹ</button>
+            <button onClick={saveDay} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .3s",animation:saveFlash?"pop .35s ease":"none",boxShadow:"0 2px 8px rgba(80,120,160,.1)"}}>💾</button>
+            <button onClick={()=>setShowHousehold(true)} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
+              👥
+              {householdCfg&&<span style={{position:"absolute",top:-1,right:-1,width:7,height:7,borderRadius:"50%",background:hhSynced?"#22c55e":"#f59e0b",border:"1.5px solid white"}}/>}
+            </button>
+            <div style={{width:26,height:26,borderRadius:8,background:"linear-gradient(135deg,#14b8a6,#0d9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,boxShadow:"0 2px 8px rgba(13,148,136,.35)",cursor:"pointer"}} onClick={()=>setShowProfiles(true)}>{activeProfile?.emoji}</div>
+          </div>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <button onClick={toggleLang} style={{height:24,borderRadius:7,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:9,fontWeight:700,color:C.muted,padding:"0 8px"}}>
+              {lang==='he'?'EN':'עב'}
+            </button>
+            <button onClick={()=>{const url='https://lgfirimar.github.io/Nutrition/';const msg=lang==='en'?`🥗 Smart nutrition tracker — calories, blood sugar, meal planning & pantry!\n${url}`:`🥗 אפליקציית מעקב תזונה חכמה — קלוריות, סוכר, תכנון ארוחות ומזווה!\n${url}`;window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');}}
+              style={{width:24,height:24,borderRadius:7,background:"rgba(37,211,102,.15)",border:"1px solid rgba(37,211,102,.4)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>📤</button>
+          </div>
         </div>
         {/* Date + greeting below the icons */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
