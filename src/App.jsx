@@ -1293,7 +1293,7 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
   const computeVals=(p,s,amt,unit,mealW,mealU)=>{
     const a=parseFloat(amt)||1;
     const pg=getP100g(p,mealW);
-    if(unit==='יח׳'||unit==='מנות'){
+    if(unit==='יח׳'||unit==='מנות'||unit==='קוביות'){
       // When we know grams-per-unit, use gram path for accuracy
       const uCount=parseFloat(mealU)||0;
       if(pg&&uCount>0&&parseFloat(mealW)>0){
@@ -1349,12 +1349,12 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
           fat:parseFloat(((d.fat||0)/d.totalGrams*100).toFixed(1))
         };
       }
-      // Parse unit count from portions string (e.g. "14 יח׳ 50g" → 14)
-      const parsedU=d.portions?parseInt((d.portions.match(/(\d+)\s*יח/)||[])[1]||"0"):0;
+      // Parse unit/piece count — prefer explicit piecesCount, then portions string
+      const parsedU=d.piecesCount>0?d.piecesCount:(d.portions?parseInt((d.portions.match(/(\d+)\s*(יח|piece)/i)||[])[1]||"0"):0);
       const hasGrams=d.totalGrams>=20;
       const initW=hasGrams?String(d.totalGrams):"";
       // Use Claude's suggested amount/unit if provided, otherwise fall back to grams
-      const VALID_UNITS=["יח׳","מנות","g","ml","כף","כפית","כוס"];
+      const VALID_UNITS=["יח׳","קוביות","מנות","g","ml","כף","כפית","כוס"];
       const initAmt=d.suggestedAmt?String(d.suggestedAmt):(hasGrams?String(d.totalGrams):"1");
       const initUnit=(d.suggestedUnit&&VALID_UNITS.includes(d.suggestedUnit))?d.suggestedUnit:(hasGrams?"g":"יח׳");
       setMealWeight(initW);setTotalUnits(parsedU);setLocalAmt(initAmt);setQtyUnit(initUnit);
@@ -1467,7 +1467,7 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
             {totalUnits>0&&<input type="number" value={totalUnits} onChange={e=>setTotalUnits(parseFloat(e.target.value)||0)}
               className="inp"
               style={{width:46,padding:"4px 6px",fontSize:13,textAlign:"center",marginBottom:0,fontWeight:700}}/>}
-            {totalUnits>0&&<span style={{fontSize:10,color:C.muted}}>יח׳</span>}
+            {totalUnits>0&&<span style={{fontSize:10,color:C.muted}}>{qtyUnit==='קוביות'?'pieces':'יח׳'}</span>}
           </div>
           <div className="g3" style={{marginBottom:8}}>
             {[{l:"קק״ל",v:calcVals.kcal,c:C.accent},{l:"פחמ׳g",v:calcVals.carbs,c:C.warn},{l:"חלבוןg",v:calcVals.protein,c:C.blue}].map(({l,v,c})=>(
@@ -1489,6 +1489,7 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
               className="inp" style={{flex:1,textAlign:"center",padding:"7px 6px",fontSize:13}}/>
             <select value={qtyUnit} onChange={e=>setQtyUnit(e.target.value)} className="inp" style={{flex:1,padding:"7px 6px",fontSize:12,cursor:"pointer"}}>
               <option value="יח׳">יח׳</option>
+              <option value="קוביות">קוביות</option>
               <option value="מנות">מנות</option>
               <option value="g">גר׳</option>
               <option value="ml">מ״ל</option>

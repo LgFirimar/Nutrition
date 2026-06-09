@@ -60,10 +60,11 @@ Step 1 — identify each food item visible.
 Step 2 — estimate each item's weight in grams using visual cues: plate/bowl diameter, food thickness, density, standard portion sizes (e.g. a whole chicken breast ≈ 160-200g, a cup of cooked rice ≈ 180g, a medium apple ≈ 180g, a slice of bread ≈ 30g).
 Step 3 — sum the weights to get totalGrams (solid food only; exclude water/plain tea/coffee unless they ARE the main item).
 Step 4 — calculate total nutrition, then divide by totalGrams×0.01 to get per100g values.
+Step 5 — check if the photo shows a nutrition label or packaging with serving size expressed in "pieces" or "pcs" or similar. If so, set piecesCount to that number (e.g. "serving size: 5 pieces" → piecesCount:5, totalGrams = grams for those 5 pieces). Otherwise piecesCount:0.
 
 Output ONLY this JSON on the very last line (no markdown):
-{"label":"Hebrew meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT,"totalGrams":ESTIMATED_TOTAL_GRAMS_INT,"per100g":{"kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT},"portions":"Hebrew list: item ~Xg, e.g: עוף ~160g, אורז ~90g, שמן ~10ml","suggestedAmt":NATURAL_AMOUNT_NUMBER,"suggestedUnit":"natural unit: יח׳ if countable items (e.g. 2 cookies), g if weighed, מנות if a full meal"}
-For suggestedAmt/suggestedUnit: prefer countable units when applicable (e.g. 2 ביצים → 2/יח׳, whole pizza slice → 1/יח׳, pasta bowl → totalGrams/g).`;
+{"label":"Hebrew meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT,"totalGrams":ESTIMATED_TOTAL_GRAMS_INT,"per100g":{"kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT},"portions":"Hebrew list: item ~Xg, e.g: עוף ~160g, אורז ~90g, שמן ~10ml","suggestedAmt":NATURAL_AMOUNT_NUMBER,"suggestedUnit":"natural unit: קוביות if photo shows pieces/pcs count, יח׳ if countable whole items (e.g. 2 cookies), g if weighed, מנות if a full meal","piecesCount":NUMBER}
+For suggestedAmt/suggestedUnit: if photo has a nutrition label saying X pieces, use suggestedUnit=קוביות and suggestedAmt=X and piecesCount=X. For regular countable items use יח׳. For weighed food use g.`;
         messages = [{role:'user', content:[
           {type:'image', source:{type:'base64', media_type:imageMediaType||'image/jpeg', data:imageData}},
           {type:'text', text:analysisPrompt}
