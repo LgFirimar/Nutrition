@@ -3201,10 +3201,10 @@ function SplashScreen({onDone,lang}){
           </div>
         ))}
         {/* Center animation */}
-        <div className="sp-avo-center">
+        <div className="sp-avo-center" style={{mixBlendMode:"multiply"}}>
           <div className="sp-avo-anim">
             <video src="/Nutrition/avo-animation.mp4" autoPlay loop muted playsInline
-              style={{width:200,height:"auto",display:"block",mixBlendMode:"multiply",filter:"drop-shadow(0 6px 22px rgba(35,90,5,.3))"}}/>
+              style={{width:200,height:"auto",display:"block"}}/>
           </div>
         </div>
       </div>
