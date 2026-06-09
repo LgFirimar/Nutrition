@@ -3006,6 +3006,31 @@ function SetupScreen({onDone,lang,onToggleLang,onRestored}){
   const [emoji,setEmoji]=useState("👩");
   const [restoreErr,setRestoreErr]=useState("");
   const restoreRef=useRef(null);
+  const setupCvRef=useRef(null);
+  const setupVidRef=useRef(null);
+  useEffect(()=>{
+    const vid=setupVidRef.current, cv=setupCvRef.current;
+    if(!vid||!cv) return;
+    const dpr=Math.min(window.devicePixelRatio||1,3);
+    const SIZE=120;
+    cv.width=SIZE*dpr; cv.height=SIZE*dpr;
+    const ctx=cv.getContext('2d',{willReadFrequently:true});
+    let raf;
+    vid.play().catch(()=>{});
+    const draw=()=>{
+      raf=requestAnimationFrame(draw);
+      if(!vid.videoWidth||vid.readyState<2) return;
+      ctx.clearRect(0,0,cv.width,cv.height);
+      ctx.drawImage(vid,0,0,cv.width,cv.height);
+      try{
+        const id=ctx.getImageData(0,0,cv.width,cv.height),d=id.data;
+        for(let i=0;i<d.length;i+=4){const mn=Math.min(d[i],d[i+1],d[i+2]);if(mn>230)d[i+3]=0;else if(mn>180)d[i+3]=Math.round(255*(1-(mn-180)/50));}
+        ctx.putImageData(id,0,0);
+      }catch(_){}
+    };
+    raf=requestAnimationFrame(draw);
+    return()=>cancelAnimationFrame(raf);
+  },[]);
   const EMOJIS=["👩","👨","👧","👦","👵","👴","🧑","👩‍⚕️","👨‍⚕️","🧑‍🍳","🏃","💪","🧘","🌸","🌟","⭐","🦋","🐱","🐶","🦊","🍎","🥑","🌿","❤️","💙","💚","🔥","✨","🎯","🏅"];
   const create=()=>{
     if(!name.trim())return;
@@ -3043,8 +3068,12 @@ function SetupScreen({onDone,lang,onToggleLang,onRestored}){
   return (
     <div style={{minHeight:"100vh",background:"#f5f5f7",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,position:"relative"}}>
       {onToggleLang&&<button onClick={onToggleLang} style={{position:"fixed",top:18,right:20,zIndex:10,height:26,borderRadius:7,background:"rgba(255,255,255,.85)",border:"1px solid rgba(200,200,200,.7)",cursor:"pointer",fontSize:10,fontWeight:700,color:"#666",padding:"0 10px",boxShadow:"0 1px 4px rgba(0,0,0,.08)"}}>{isHe?'EN':'עב'}</button>}
-      <div style={{fontSize:48,marginBottom:12}}>{emoji}</div>
-      <div style={{fontSize:20,fontWeight:900,color:C.accent,marginBottom:4}}>{isHe?"ברוכה הבאה!":"Welcome!"}</div>
+      <div style={{position:"relative",width:120,height:120,marginBottom:8}}>
+        <video ref={setupVidRef} src="/Nutrition/avo-animation.mp4" autoPlay loop muted playsInline crossOrigin="anonymous"
+          style={{position:"absolute",inset:0,width:120,height:120,opacity:0}}/>
+        <canvas ref={setupCvRef} style={{position:"absolute",inset:0,width:120,height:120,display:"block"}}/>
+      </div>
+      <div style={{fontSize:22,fontWeight:900,color:C.accent,marginBottom:4}}>{isHe?"ברוכים הבאים!":"Welcome!"}</div>
       <div style={{fontSize:13,color:C.muted,marginBottom:28,textAlign:"center"}}>{isHe?"צרי פרופיל ראשון כדי להתחיל":"Create your first profile to get started"}</div>
       <div style={{background:"#fff",borderRadius:16,padding:20,width:"100%",maxWidth:360,boxShadow:"0 2px 12px rgba(0,0,0,0.08)"}}>
         <div style={{fontSize:11,color:C.muted,marginBottom:6,fontWeight:700}}>{isHe?"שם":"Name"}</div>
