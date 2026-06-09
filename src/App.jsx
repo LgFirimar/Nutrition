@@ -2545,21 +2545,34 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
   const fileInputRef=useRef(null);
 
   const exportData=()=>{
-    const journal=loadJournal(pid);
-    // Always write live state for the viewed date — no condition,
-    // so today is never missing even if entries were just added
+    const allProfiles=loadProfiles();
+    // Collect data for ALL profiles
+    const profilesData={};
+    allProfiles.forEach(p=>{
+      profilesData[p.id]={
+        journal:loadJournal(p.id),
+        customBtns:loadCustomBtns(p.id),
+        customDB:loadCustomDB(p.id),
+        quickFoods:loadQuickFoods(p.id),
+      };
+    });
+    // Patch live today data into current pid
+    const journal=profilesData[pid]?.journal||loadJournal(pid);
     const exportKey=todayDate||getTodayKey();
     journal[exportKey]={
       entries:(todayEntries||[]).map(e=>({label:e.label,kcal:e.kcal,carbs:e.carbs,protein:e.protein,fat:e.fat||0,...(e.count&&{count:e.count}),...(e.perUnit&&{perUnit:e.perUnit})})),
       totals:todayTotals||{kcal:0,carbs:0,protein:0,fat:0},
       ...(todayBloodSugar?{bloodSugar:parseFloat(todayBloodSugar)}:{}),
     };
+    if(profilesData[pid]) profilesData[pid].journal=journal;
     const data={
-      version:4,
+      version:5,
       exportDate:new Date().toISOString(),
       pid,
-      profiles:loadProfiles(),
+      profiles:allProfiles,
       activeProfileId:loadActiveProfileId(),
+      profilesData,
+      // v4 compat keys for current pid
       journal,
       customBtns:loadCustomBtns(pid),
       customDB:loadCustomDB(pid),
@@ -2592,23 +2605,32 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
   const importData=()=>{
     try{
       const data=JSON.parse(importText.trim());
-      if(!data.version||!data.journal) throw new Error(isHe?"פורמט לא תקין":"Invalid format");
-      const targetPid=pid;
+      if(!data.version) throw new Error(isHe?"פורמט לא תקין":"Invalid format");
       if(data.profiles) saveProfiles(data.profiles);
       if(data.activeProfileId) saveActiveProfileId(data.activeProfileId);
-      // Merge journal: keep existing days not in backup, restore backup days
-      if(data.journal){
+      // v5: restore all profiles' data
+      if(data.profilesData){
+        Object.entries(data.profilesData).forEach(([profileId,pd])=>{
+          if(pd.journal){const ex=loadJournal(profileId);saveJournal({...ex,...pd.journal},profileId);}
+          if(pd.customBtns) saveCustomBtns(pd.customBtns,profileId);
+          if(pd.customDB) saveCustomDB(pd.customDB,profileId);
+          if(pd.quickFoods) saveQuickFoods(pd.quickFoods,profileId);
+        });
+      } else if(data.journal) {
+        // v4 fallback: single profile
+        const targetPid=data.pid||pid;
         const existing=loadJournal(targetPid);
         saveJournal({...existing,...data.journal},targetPid);
+        if(data.customBtns) saveCustomBtns(data.customBtns,targetPid);
+        if(data.customDB) saveCustomDB(data.customDB,targetPid);
+        if(data.quickFoods) saveQuickFoods(data.quickFoods,targetPid);
       }
-      if(data.customBtns) saveCustomBtns(data.customBtns,targetPid);
-      if(data.customDB) saveCustomDB(data.customDB,targetPid);
       if(data.fridge) saveFridgeLS(data.fridge);
       if(data.pantry) savePantryLS(data.pantry);
       if(data.shopping) saveShopping(data.shopping);
       if(data.savedPrefs) localStorage.setItem("nutrition_saved_prefs",JSON.stringify(data.savedPrefs));
-      if(data.quickFoods) saveQuickFoods(data.quickFoods,targetPid);
-      setMsg({type:"success",text:isHe?`✓ יובאו ${Object.keys(data.journal||{}).length} ימים בהצלחה! רענן את הדף.`:`✓ Imported ${Object.keys(data.journal||{}).length} days. Please refresh.`});
+      const days=Object.keys((data.profilesData?Object.values(data.profilesData)[0]?.journal:data.journal)||{}).length;
+      setMsg({type:"success",text:isHe?`✓ יובאו ${days} ימים בהצלחה! רענן את הדף.`:`✓ Imported ${days} days. Please refresh.`});
       setImporting(false);
       setImportText("");
     }catch(e){
@@ -2978,16 +3000,47 @@ function ProfileSetupWizard({profile,onSave,onSkip,lang,onToggleLang}){
 }
 
 // ── SetupScreen ────────────────────────────────────────────────────────────────
-function SetupScreen({onDone,lang,onToggleLang}){
+function SetupScreen({onDone,lang,onToggleLang,onRestored}){
   const isHe=(lang||'he')!=='en';
   const [name,setName]=useState("");
   const [emoji,setEmoji]=useState("👩");
   const [maxKcal,setMaxKcal]=useState(1800);
   const [maxCarbs,setMaxCarbs]=useState(80);
+  const [restoreErr,setRestoreErr]=useState("");
+  const restoreRef=useRef(null);
   const EMOJIS=["👩","👨","👧","👦","👵","👴","🧑","👩‍⚕️","👨‍⚕️","🧑‍🍳","🏃","💪","🧘","🌸","🌟","⭐","🦋","🐱","🐶","🦊","🍎","🥑","🌿","❤️","💙","💚","🔥","✨","🎯","🏅"];
   const create=()=>{
     if(!name.trim())return;
     onDone({id:"profile_"+Date.now(),name:name.trim(),emoji,maxKcal,maxCarbs,maxProtein:120});
+  };
+  const restoreFromFile=e=>{
+    const file=e.target.files[0]; if(!file)return; e.target.value="";
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const data=JSON.parse(ev.target.result);
+        if(!data.profiles?.length) throw new Error(isHe?"קובץ לא תקין — חסרים פרופילים":"Invalid file — no profiles found");
+        saveProfiles(data.profiles);
+        if(data.activeProfileId) saveActiveProfileId(data.activeProfileId);
+        if(data.profilesData){
+          Object.entries(data.profilesData).forEach(([pid,pd])=>{
+            if(pd.journal) saveJournal(pd.journal,pid);
+            if(pd.customBtns) saveCustomBtns(pd.customBtns,pid);
+            if(pd.customDB) saveCustomDB(pd.customDB,pid);
+            if(pd.quickFoods) saveQuickFoods(pd.quickFoods,pid);
+          });
+        } else if(data.journal){
+          const tpid=data.pid||data.profiles[0]?.id;
+          if(tpid){saveJournal(data.journal,tpid);if(data.customBtns)saveCustomBtns(data.customBtns,tpid);if(data.customDB)saveCustomDB(data.customDB,tpid);if(data.quickFoods)saveQuickFoods(data.quickFoods,tpid);}
+        }
+        if(data.fridge) saveFridgeLS(data.fridge);
+        if(data.pantry) savePantryLS(data.pantry);
+        if(data.shopping) saveShopping(data.shopping);
+        if(data.savedPrefs) localStorage.setItem("nutrition_saved_prefs",JSON.stringify(data.savedPrefs));
+        onRestored&&onRestored();
+      }catch(err){setRestoreErr(err.message);}
+    };
+    reader.readAsText(file);
   };
   return (
     <div style={{minHeight:"100vh",background:"#f5f5f7",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,position:"relative"}}>
@@ -3017,6 +3070,16 @@ function SetupScreen({onDone,lang,onToggleLang}){
         <button onClick={create} disabled={!name.trim()} style={{width:"100%",background:name.trim()?C.accent:"#ddd",border:"none",borderRadius:10,color:name.trim()?"#fff":"#aaa",padding:"13px",fontSize:14,fontWeight:700,cursor:name.trim()?"pointer":"default"}}>
           🚀 {isHe?"התחל לעקוב":"Start tracking"}
         </button>
+        <div style={{display:"flex",alignItems:"center",gap:8,margin:"16px 0 12px"}}>
+          <div style={{flex:1,height:1,background:C.border}}/>
+          <span style={{fontSize:11,color:C.muted}}>{isHe?"או":"or"}</span>
+          <div style={{flex:1,height:1,background:C.border}}/>
+        </div>
+        <input ref={restoreRef} type="file" accept=".json" onChange={restoreFromFile} style={{display:"none"}}/>
+        <button onClick={()=>restoreRef.current?.click()} style={{width:"100%",background:"transparent",border:`1px solid ${C.border}`,borderRadius:10,color:C.muted,padding:"12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+          📂 {isHe?"טען מגיבוי קיים":"Restore from Backup"}
+        </button>
+        {restoreErr&&<div style={{fontSize:11,color:C.danger,marginTop:8,textAlign:"center"}}>{restoreErr}</div>}
       </div>
     </div>
   );
@@ -4508,6 +4571,14 @@ function App(){
       setShowSetup(false);
       setWizardProfile(p);
       setShowWizard(true);
+    }} onRestored={()=>{
+      const ps=loadProfiles();
+      const activeId=loadActiveProfileId();
+      const active=ps.find(p=>p.id===activeId)||ps[0];
+      if(!active)return;
+      setProfiles(ps);
+      setActiveProfile(active);
+      setShowSetup(false);
     }}/>
   );
 
