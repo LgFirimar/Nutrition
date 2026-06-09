@@ -3173,21 +3173,24 @@ function SplashScreen({onDone,lang}){
     if(!vid||!cv) return;
     const ctx=cv.getContext('2d',{willReadFrequently:true});
     let raf;
+    vid.play().catch(()=>{});
     const draw=()=>{
       raf=requestAnimationFrame(draw);
-      if(vid.readyState<2) return;
+      if(!vid.videoWidth || vid.readyState<2) return;
       const w=cv.width, h=cv.height;
       ctx.clearRect(0,0,w,h);
       ctx.drawImage(vid,0,0,w,h);
-      const id=ctx.getImageData(0,0,w,h), d=id.data;
-      for(let i=0;i<d.length;i+=4){
-        const mn=Math.min(d[i],d[i+1],d[i+2]);
-        if(mn>230) d[i+3]=0;
-        else if(mn>180) d[i+3]=Math.round(255*(1-(mn-180)/50));
-      }
-      ctx.putImageData(id,0,0);
+      try{
+        const id=ctx.getImageData(0,0,w,h), d=id.data;
+        for(let i=0;i<d.length;i+=4){
+          const mn=Math.min(d[i],d[i+1],d[i+2]);
+          if(mn>230) d[i+3]=0;
+          else if(mn>180) d[i+3]=Math.round(255*(1-(mn-180)/50));
+        }
+        ctx.putImageData(id,0,0);
+      }catch(_){}
     };
-    draw();
+    raf=requestAnimationFrame(draw);
     return()=>cancelAnimationFrame(raf);
   },[]);
   const R=140, DUR=16;
@@ -3229,7 +3232,8 @@ function SplashScreen({onDone,lang}){
         <div className="sp-avo-center">
           <div className="sp-avo-anim">
             <canvas ref={cvRef} width={200} height={200} style={{width:200,height:200,display:"block",filter:"drop-shadow(0 6px 22px rgba(35,90,5,.3))"}}/>
-            <video ref={vidRef} src="/Nutrition/avo-animation.mp4" autoPlay loop muted playsInline style={{display:"none"}}/>
+            <video ref={vidRef} src="/Nutrition/avo-animation.mp4" autoPlay loop muted playsInline crossOrigin="anonymous"
+              style={{position:"absolute",width:1,height:1,opacity:0,pointerEvents:"none"}}/>
           </div>
         </div>
       </div>
