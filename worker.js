@@ -55,18 +55,26 @@ Include every distinct item you can identify. Use Hebrew names.`}
         max_tokens = 1024;
         system = 'You are a precise nutrition calculator with expert knowledge of food composition databases.';
         const isHeImg = (lang || 'he') !== 'en';
-        const analysisPrompt = `Analyze this food photo carefully.
+        const analysisPrompt = isHeImg ? `נתח את תמונת האוכל הזו.
+
+שלב 1 — זהה כל פריט אוכל גלוי.
+שלב 2 — העריך משקל בגרמים לפי רמזים ויזואליים (קוטר צלחת, עובי, צפיפות, גודל סטנדרטי).
+שלב 3 — סכום המשקלים = totalGrams (מוצקים בלבד).
+שלב 4 — חשב ערכים תזונתיים כוללים, ולאחר מכן per100g = ערכים / totalGrams * 100.
+שלב 5 — אם התמונה מציגה תווית תזונה עם "X pieces/pcs", קבע piecesCount=X ו-totalGrams=גרמים לאותן X חתיכות.
+
+פלט JSON בלבד בשורה האחרונה:
+{"label":"שם ארוחה בעברית","kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT,"totalGrams":INT,"per100g":{"kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT},"portions":"רשימה בעברית: פריט ~Xg","suggestedAmt":NUMBER,"suggestedUnit":"יח׳ או g או מנות או קוביות","piecesCount":NUMBER}`
+        : `Analyze this food photo carefully.
 
 Step 1 — identify each food item visible.
-Step 2 — estimate each item's weight in grams using visual cues: plate/bowl diameter, food thickness, density, standard portion sizes (e.g. a whole chicken breast ≈ 160-200g, a cup of cooked rice ≈ 180g, a medium apple ≈ 180g, a slice of bread ≈ 30g).
-Step 3 — sum the weights to get totalGrams (solid food only; exclude water/plain tea/coffee unless they ARE the main item).
-Step 4 — calculate total nutrition, then divide by totalGrams×0.01 to get per100g values.
-Step 5 — check if the photo shows a nutrition label or packaging with serving size expressed in "pieces" or "pcs" or similar. If so, set piecesCount to that number (e.g. "serving size: 5 pieces" → piecesCount:5, totalGrams = grams for those 5 pieces). Otherwise piecesCount:0.
+Step 2 — estimate each item's weight in grams (use visual cues: plate size, food thickness, standard portions: chicken breast ≈ 180g, cup rice ≈ 180g, apple ≈ 180g, bread slice ≈ 30g).
+Step 3 — sum the weights = totalGrams (solid food only).
+Step 4 — calculate total nutrition, then per100g = values / totalGrams * 100.
+Step 5 — if the photo shows a nutrition label with "X pieces/pcs", set piecesCount=X and totalGrams=grams for those X pieces. Otherwise piecesCount:0.
 
-Output ONLY this JSON on the very last line (no markdown):
-{"label":"${isHeImg ? 'Hebrew' : 'English'} meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT,"totalGrams":ESTIMATED_TOTAL_GRAMS_INT,"per100g":{"kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT},"portions":"${isHeImg ? 'Hebrew' : 'English'} list: item ~Xg, e.g: ${isHeImg ? 'עוף ~160g, אורז ~90g' : 'chicken ~160g, rice ~90g'}","suggestedAmt":NATURAL_AMOUNT_NUMBER,"suggestedUnit":"natural unit: קוביות if photo shows pieces/pcs count, יח׳ if countable whole items (e.g. 2 cookies), g if weighed, מנות if a full meal","piecesCount":NUMBER}
-For suggestedAmt/suggestedUnit: if photo has a nutrition label saying X pieces, use suggestedUnit=קוביות and suggestedAmt=X and piecesCount=X. For regular countable items use יח׳. For weighed food use g.
-Write label and portions in ${isHeImg ? 'Hebrew' : 'English'}.`;
+Output ONLY this JSON on the last line (no markdown):
+{"label":"English meal name","kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT,"totalGrams":INT,"per100g":{"kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT},"portions":"English list: item ~Xg, e.g: chicken ~160g, rice ~90g","suggestedAmt":NUMBER,"suggestedUnit":"pcs if countable items, g if weighed, servings if a full meal, cubes if pieces/pcs on label","piecesCount":NUMBER}`;
         messages = [{role:'user', content:[
           {type:'image', source:{type:'base64', media_type:imageMediaType||'image/jpeg', data:imageData}},
           {type:'text', text:analysisPrompt}
