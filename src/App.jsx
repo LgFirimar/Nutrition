@@ -4536,8 +4536,15 @@ function App(){
 
       {/* ── TOP BAR ── */}
       <div style={{padding:"50px 20px 0"}}>
-        {/* Icon row — main icons left, lang+share right */}
+        {/* Icon row — lang+share left, main icons right */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <button onClick={toggleLang} style={{height:24,borderRadius:7,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:9,fontWeight:700,color:C.muted,padding:"0 8px"}}>
+              {lang==='he'?'EN':'עב'}
+            </button>
+            <button onClick={()=>{const url='https://lgfirimar.github.io/Nutrition/';const msg=lang==='en'?`🥗 Smart nutrition tracker — calories, blood sugar, meal planning & pantry!\n${url}`:`🥗 אפליקציית מעקב תזונה חכמה — קלוריות, סוכר, תכנון ארוחות ומזווה!\n${url}`;window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');}}
+              style={{width:24,height:24,borderRadius:7,background:"rgba(37,211,102,.15)",border:"1px solid rgba(37,211,102,.4)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>📤</button>
+          </div>
           <div style={{display:"flex",gap:6,alignItems:"center"}}>
             <button onClick={()=>setShowPantry(true)} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
               <img src={lang==='he'?"/Nutrition/pantry-he.png":"/Nutrition/pantry-en.png"} style={{width:20,height:20,objectFit:"contain"}} alt="מזווה"/>
@@ -4552,13 +4559,6 @@ function App(){
               {householdCfg&&<span style={{position:"absolute",top:-1,right:-1,width:7,height:7,borderRadius:"50%",background:hhSynced?"#22c55e":"#f59e0b",border:"1.5px solid white"}}/>}
             </button>
             <div style={{width:26,height:26,borderRadius:8,background:"linear-gradient(135deg,#14b8a6,#0d9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,boxShadow:"0 2px 8px rgba(13,148,136,.35)",cursor:"pointer"}} onClick={()=>setShowProfiles(true)}>{activeProfile?.emoji}</div>
-          </div>
-          <div style={{display:"flex",gap:6,alignItems:"center"}}>
-            <button onClick={toggleLang} style={{height:24,borderRadius:7,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:9,fontWeight:700,color:C.muted,padding:"0 8px"}}>
-              {lang==='he'?'EN':'עב'}
-            </button>
-            <button onClick={()=>{const url='https://lgfirimar.github.io/Nutrition/';const msg=lang==='en'?`🥗 Smart nutrition tracker — calories, blood sugar, meal planning & pantry!\n${url}`:`🥗 אפליקציית מעקב תזונה חכמה — קלוריות, סוכר, תכנון ארוחות ומזווה!\n${url}`;window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');}}
-              style={{width:24,height:24,borderRadius:7,background:"rgba(37,211,102,.15)",border:"1px solid rgba(37,211,102,.4)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center",justifyContent:"center"}}>📤</button>
           </div>
         </div>
         {/* Date + greeting below the icons */}
