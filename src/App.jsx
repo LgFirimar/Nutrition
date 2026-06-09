@@ -3004,14 +3004,12 @@ function SetupScreen({onDone,lang,onToggleLang,onRestored}){
   const isHe=(lang||'he')!=='en';
   const [name,setName]=useState("");
   const [emoji,setEmoji]=useState("👩");
-  const [maxKcal,setMaxKcal]=useState(1800);
-  const [maxCarbs,setMaxCarbs]=useState(80);
   const [restoreErr,setRestoreErr]=useState("");
   const restoreRef=useRef(null);
   const EMOJIS=["👩","👨","👧","👦","👵","👴","🧑","👩‍⚕️","👨‍⚕️","🧑‍🍳","🏃","💪","🧘","🌸","🌟","⭐","🦋","🐱","🐶","🦊","🍎","🥑","🌿","❤️","💙","💚","🔥","✨","🎯","🏅"];
   const create=()=>{
     if(!name.trim())return;
-    onDone({id:"profile_"+Date.now(),name:name.trim(),emoji,maxKcal,maxCarbs,maxProtein:120});
+    onDone({id:"profile_"+Date.now(),name:name.trim(),emoji,maxKcal:1800,maxCarbs:80,maxProtein:120});
   };
   const restoreFromFile=e=>{
     const file=e.target.files[0]; if(!file)return; e.target.value="";
@@ -3057,18 +3055,8 @@ function SetupScreen({onDone,lang,onToggleLang,onRestored}){
             <button key={em} onClick={()=>setEmoji(em)} style={{width:38,height:38,border:`2px solid ${em===emoji?C.accent:"#e0e0e5"}`,borderRadius:8,background:em===emoji?"rgba(90,158,30,0.1)":"#fff",fontSize:20,cursor:"pointer"}}>{em}</button>
           ))}
         </div>
-        <div style={{display:"flex",gap:12,marginBottom:16}}>
-          <div style={{flex:1}}>
-            <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:700}}>{isHe?"יעד קלוריות":"Calorie goal"}</div>
-            <input type="number" value={maxKcal} onChange={e=>setMaxKcal(parseInt(e.target.value)||1800)} className="inp"/>
-          </div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:11,color:C.muted,marginBottom:4,fontWeight:700}}>{isHe?"יעד פחמ׳ (g)":"Carbs goal (g)"}</div>
-            <input type="number" value={maxCarbs} onChange={e=>setMaxCarbs(parseInt(e.target.value)||80)} className="inp"/>
-          </div>
-        </div>
         <button onClick={create} disabled={!name.trim()} style={{width:"100%",background:name.trim()?C.accent:"#ddd",border:"none",borderRadius:10,color:name.trim()?"#fff":"#aaa",padding:"13px",fontSize:14,fontWeight:700,cursor:name.trim()?"pointer":"default"}}>
-          🚀 {isHe?"התחל לעקוב":"Start tracking"}
+          {isHe?"מתחילים":"Let's go"}
         </button>
         <div style={{display:"flex",alignItems:"center",gap:8,margin:"16px 0 12px"}}>
           <div style={{flex:1,height:1,background:C.border}}/>
