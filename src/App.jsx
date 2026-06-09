@@ -3230,10 +3230,11 @@ function SplashScreen({onDone,lang}){
         ))}
         {/* Center animation */}
         <div className="sp-avo-center">
-          <div className="sp-avo-anim">
-            <canvas ref={cvRef} width={200} height={200} style={{width:200,height:200,display:"block",filter:"drop-shadow(0 6px 22px rgba(35,90,5,.3))"}}/>
+          <div className="sp-avo-anim" style={{position:"relative",width:200,height:200}}>
             <video ref={vidRef} src="/Nutrition/avo-animation.mp4" autoPlay loop muted playsInline crossOrigin="anonymous"
-              style={{position:"absolute",width:1,height:1,opacity:0,pointerEvents:"none"}}/>
+              style={{position:"absolute",inset:0,width:200,height:200,opacity:0}}/>
+            <canvas ref={cvRef} width={200} height={200}
+              style={{position:"absolute",inset:0,width:200,height:200,display:"block",filter:"drop-shadow(0 6px 22px rgba(35,90,5,.3))"}}/>
           </div>
         </div>
       </div>
