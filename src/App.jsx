@@ -849,7 +849,7 @@ function DBManagerModal({onClose,pid,lang}){
   const saveNewItem=()=>{
     if(!addData)return;
     const label=addData.label||addText.trim()||"פריט חדש";
-    const entry={names:[label.toLowerCase().replace(/^[^\w]/,'')],label,kcal:parseFloat(addData.kcal)||0,carbs:parseFloat(addData.carbs)||0,protein:parseFloat(addData.protein)||0,fat:parseFloat(addData.fat)||0,unit:addData.unit||"g",defaultAmt:100};
+    const entry={names:[label.toLowerCase().replace(/^[^\w]/,'')],label,kcal:parseFloat(addData.kcal)||0,carbs:parseFloat(addData.carbs)||0,protein:parseFloat(addData.protein)||0,fat:parseFloat(addData.fat)||0,unit:addData.unit||"g",defaultAmt:100,...(addText.trim()?{sourceText:addText.trim()}:{})};
     const apid=window._activePid||pid||'default';
     const updated=[...db.filter(f=>f.label!==label),entry];
     saveCustomDB(updated,apid);setDb(updated);
@@ -868,7 +868,7 @@ function DBManagerModal({onClose,pid,lang}){
   const startEdit=(f,i)=>{
     setEditing(i);
     setEditData({label:f.label,kcal:String(f.kcal),carbs:String(f.carbs),protein:String(f.protein),fat:String(f.fat||0),unit:f.unit||"g"});
-    setEditClaudeText(f.label.replace(/^[^\w֐-׿]+/,'')); setEditQty(1); setEditPreview(null);
+    setEditClaudeText(f.sourceText||f.label.replace(/^[^\w֐-׿]+/,'')); setEditQty(1); setEditPreview(null);
   };
 
   const saveEdit=(origLabel)=>{
@@ -1060,7 +1060,7 @@ function DBManagerModal({onClose,pid,lang}){
 }
 
 // ── FoodAutocomplete ───────────────────────────────────────────────────────────
-function FoodAutocomplete({value, onChange, onSelect, onSelectFood, placeholder}){
+function FoodAutocomplete({value, onChange, onSelect, onSelectFood, placeholder, recentFoods, onSelectRecent}){
   const [open, setOpen] = useState(false);
 
   const allFoods = [
@@ -1069,10 +1069,13 @@ function FoodAutocomplete({value, onChange, onSelect, onSelectFood, placeholder}
   ];
 
   const q = value.trim().toLowerCase();
-  const suggestions = q.length < 1 ? [] : allFoods.filter(f =>
+  const suggestions = q.length >= 1 ? allFoods.filter(f =>
     f.label.toLowerCase().includes(q) ||
     f.name.toLowerCase().includes(q)
-  ).slice(0, 6);
+  ).slice(0, 6) : [];
+
+  const showRecent = open && q.length === 0 && recentFoods && recentFoods.length > 0;
+  const showSuggestions = open && suggestions.length > 0;
 
   return (
     <div style={{position:"relative", marginBottom:8}}>
@@ -1081,13 +1084,27 @@ function FoodAutocomplete({value, onChange, onSelect, onSelectFood, placeholder}
         onChange={e=>{ onChange(e.target.value); setOpen(true); }}
         onKeyDown={e=>{ if(e.key==="Enter"){ setOpen(false); onSelect(value); } if(e.key==="Escape") setOpen(false); }}
         onFocus={()=>setOpen(true)}
+        onBlur={()=>setTimeout(()=>setOpen(false),150)}
         placeholder={placeholder}
         className="inp"
         style={{fontSize:15, width:"100%"}}
       />
-      {open && suggestions.length > 0 && (
+      {(showRecent || showSuggestions) && (
         <div style={{position:"absolute", top:"calc(100% + 4px)", right:0, left:0, background:"#fff", border:`1px solid ${C.accent}`, borderRadius:10, zIndex:50, overflow:"hidden", boxShadow:"0 6px 20px rgba(0,0,0,0.1)", animation:"fadeIn 0.1s ease"}}>
-          {suggestions.map((f,i)=>(
+          {showRecent && <>
+            <div style={{padding:"6px 14px 4px", fontSize:9.5, color:C.muted, letterSpacing:1.5, background:"#f8f8fa"}}>אחרונים</div>
+            {recentFoods.map((f,i)=>(
+              <div key={i} onMouseDown={e=>{ e.preventDefault(); if(onSelectRecent) onSelectRecent(f); setOpen(false); }}
+                style={{padding:"9px 14px", fontSize:13, color:C.text, cursor:"pointer", borderBottom:i<recentFoods.length-1?`1px solid ${C.border}`:"none", background:"#fff", display:"flex", justifyContent:"space-between", alignItems:"center"}}
+                onMouseEnter={e=>e.currentTarget.style.background="#f0fae8"}
+                onMouseLeave={e=>e.currentTarget.style.background="#fff"}
+              >
+                <span>{f.label}</span>
+                <span style={{fontSize:11, color:C.muted}}>{Math.round(f.kcal)} קק״ל</span>
+              </div>
+            ))}
+          </>}
+          {showSuggestions && suggestions.map((f,i)=>(
             <div key={i} onMouseDown={e=>{
               e.preventDefault();
               onChange(f.label);
@@ -1646,7 +1663,7 @@ function SmartAddPanel({onAdd,onClose}){
     const name=(matched?matched.label:query)||"מאכל";
     const entry=matched
       ?{names:[...new Set([...(matched.names||[]),query.toLowerCase()])].filter(Boolean),label:matched.label,kcal:matched.kcal,carbs:matched.carbs,protein:matched.protein,fat:matched.fat||0,defaultAmt:matched.defaultAmt||100,unit:matched.unit||"g"}
-      :{names:[query.toLowerCase()].filter(Boolean),label:query||"מאכל",kcal:parseFloat(kcal)||0,carbs:parseFloat(carbs)||0,protein:parseFloat(protein)||0,fat:parseFloat(fat)||0,defaultAmt:parseFloat(amount)||100,unit:unit||"g"};
+      :{names:[query.toLowerCase()].filter(Boolean),label:query||"מאכל",kcal:parseFloat(kcal)||0,carbs:parseFloat(carbs)||0,protein:parseFloat(protein)||0,fat:parseFloat(fat)||0,defaultAmt:parseFloat(amount)||100,unit:unit||"g",sourceText:query||""};
     const db=loadCustomDB(pid);
     saveCustomDB([...db.filter(f=>f.label!==entry.label),entry],pid);
     setSavedToDb(true);
@@ -1701,25 +1718,14 @@ function SmartAddPanel({onAdd,onClose}){
 
   return (
     <div className="panel fade">
-      {!query&&recent.length>0&&(
-        <div style={{marginBottom:8}}>
-          <div style={{fontSize:10,color:C.muted,letterSpacing:1.5,marginBottom:6}}>אחרונים</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-            {recent.map((f,i)=>(
-              <button key={i} className="chip" style={{fontSize:11}} onClick={()=>{onAdd({uid:Date.now()+Math.random(),...f});onClose();}}>
-                <span>{f.label}</span>
-                <span className="chip-sub">{Math.round(f.kcal)} קק״ל</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
       <FoodAutocomplete
         value={query}
         onChange={v=>{setQuery(v);setMatched(null);setCandidates([]);setNotFound(false);setKcal("");setCarbs("");setProtein("");}}
         onSelect={name=>runSearch(name,amount,unit)}
         onSelectFood={food=>applyFood(food, food.defaultAmt||amount||"", food.unit||unit)}
         placeholder="שם המאכל..."
+        recentFoods={recent}
+        onSelectRecent={f=>{onAdd({uid:Date.now()+Math.random(),...f});onClose();}}
       />
       <div style={{display:"flex",gap:8,marginBottom:10}}>
         <input type="number" value={amount} placeholder="כמות" onChange={e=>{setAmount(e.target.value);recalc(e.target.value,unit);}} className="inp" style={{flex:1,textAlign:"center",padding:"9px 6px"}}/>
@@ -1990,11 +1996,11 @@ function SugarWeekChart({journal}){
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           <div style={{fontSize:9.5,color:"#94a3b8",letterSpacing:1.4,textTransform:"uppercase"}}>🩸 סוכר</div>
-          {avg7!=null&&<span style={{fontSize:8.5,color:sugarColor(avg7),background:sugarColor(avg7)+'18',borderRadius:8,padding:"1px 6px",fontWeight:700}}>ממוצע 7ד: {avg7}</span>}
+          {avg7!=null&&<span style={{fontSize:8.5,color:sugarColor(avg7),background:sugarColor(avg7)+'18',borderRadius:8,padding:"1px 6px",fontWeight:700}}>ממוצע שבוע: {avg7}</span>}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           <div style={{display:"flex",gap:3}}>
-            {[[7,"7ד"],[30,"חודש"],[90,"3ח"]].map(([r,l])=>(
+            {[[7,"שבוע"],[30,"חודש"],[90,"3ח"]].map(([r,l])=>(
               <button key={r} onClick={()=>setRange(r)} style={{background:range===r?"rgba(148,163,184,.25)":"transparent",border:`1px solid ${range===r?"rgba(148,163,184,.5)":"rgba(148,163,184,.2)"}`,color:range===r?"#475569":"#94a3b8",borderRadius:5,padding:"2px 5px",fontSize:8,cursor:"pointer",fontFamily:"inherit",fontWeight:range===r?700:400}}>{l}</button>
             ))}
           </div>
@@ -3194,9 +3200,12 @@ function SplashScreen({onDone,lang}){
             <div className="sp-orbit-pos"><canvas id={id}/></div>
           </div>
         ))}
-        {/* Avocado */}
+        {/* Center animation */}
         <div className="sp-avo-center">
-          <div className="sp-avo-anim"><canvas id="sp-avo"/></div>
+          <div className="sp-avo-anim">
+            <video src="/Nutrition/avo-animation.mp4" autoPlay loop muted playsInline
+              style={{width:200,height:"auto",display:"block",mixBlendMode:"multiply",filter:"drop-shadow(0 6px 22px rgba(35,90,5,.3))"}}/>
+          </div>
         </div>
       </div>
       {/* Title */}
@@ -3265,18 +3274,28 @@ function InfoModal({onClose,lang}){
     ["⚡","Quick add","Tap any food chip to instantly add to today's log"],
     ["🔍","Smart add","Search by name — Claude calculates the nutrition values"],
     ["📷","Photo analysis","Photograph a meal and Claude identifies & calculates it"],
-    ["🍳","What to eat","Get personalized meal suggestions with full recipe"],
-    ["📓","Weekly journal","View averages, calorie chart and weekly sugar curve"],
-    ["👤","Profiles","Manage multiple profiles with different goals"],
+    ["🍳","Meal planner","Get personalized meal suggestions using what's in your pantry"],
+    ["📓","Weekly journal","View calorie chart, weight, sugar curve and weekly averages"],
+    ["🫙","Pantry","Track what you have at home by category"],
+    ["🛒","Shopping list","Manage your shopping list, synced across the household"],
+    ["🏠","Household sync","Share pantry & shopping list in real time with family"],
+    ["💾","Personal food DB","Save your own meals and foods with custom nutrition values"],
+    ["👤","Profiles","Multiple profiles with separate goals, journal and food history"],
+    ["📤","Backup & export","Export your data as JSON or text and restore it any time"],
   ]:[
     ["📊","מעקב יומי","רשמי קלוריות, פחמימות, חלבון ושומן לכל מאכל"],
-    ["🩸","סוכר בדם","הזיני ערך סוכר בבוקר ועקבי אחר העקומה השבועית"],
+    ["🩸","סוכר בדם","הזיני ערך סוכר בבוקר ועקבי אחר עקומה שבועית"],
     ["⚡","הוספה מהירה","לחצי על מאכל להוספה מיידית ליומן היום"],
     ["🔍","הוספה חכמה","חפשי מאכל לפי שם — Claude יחשב את הערכים"],
-    ["📷","ניתוח תמונה","צלמי ארוחה וClaudeיזהה ויחשב את הערכים"],
-    ["🍳","מה אוכלים","קבלי הצעות ארוחה עם מתכון מותאם אישית"],
-    ["📓","יומן שבועי","צפי בממוצעים, גרף קלוריות וסוכר שבועי"],
-    ["👤","פרופילים","ניהול מספר פרופילים עם יעדים שונים"],
+    ["📷","ניתוח תמונה","צלמי ארוחה ו-Claude יזהה ויחשב את הערכים"],
+    ["🍳","מתכנן ארוחות","קבלי הצעות ארוחה עם מתכון מלא לפי מה שיש במזווה"],
+    ["📓","יומן שבועי","גרף קלוריות, משקל, עקומת סוכר וממוצעים שבועיים"],
+    ["🫙","מזווה","עקבי אחר מה שיש בבית לפי קטגוריות"],
+    ["🛒","רשימת קניות","נהלי רשימת קניות — מסתנכרנת עם כל הבית"],
+    ["🏠","סנכרון בית","שיתוף מזווה ורשימת קניות בזמן אמת עם בני הבית"],
+    ["💾","מאגר אישי","שמרי מאכלים ומנות עם ערכים תזונתיים מותאמים אישית"],
+    ["👤","פרופילים","מספר פרופילים עם יעדים, יומן והיסטוריה נפרדת לכל אחד"],
+    ["📤","גיבוי וייצוא","ייצאי את הנתונים כ-JSON או טקסט ושחזרי בכל עת"],
   ];
   return(
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
