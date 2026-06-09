@@ -1251,7 +1251,8 @@ function AskClaude({foodName, amount, unit, onAddToDay, onSaved}){
   );
 }
 // ── PhotoMealPanel ─────────────────────────────────────────────────────────────
-function PhotoMealPanel({onAdd,onClose,initialPhoto}){
+function PhotoMealPanel({onAdd,onClose,initialPhoto,lang}){
+  const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en';
   const [loading,setLoading]=useState(false);
   const [preview,setPreview]=useState(null);
   const [calcVals,setCalcVals]=useState(null);
@@ -1431,22 +1432,22 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
   return (
     <div className="panel fade">
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif" onChange={handleFile} style={{display:"none"}}/>
-      <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>📷 ניתוח תמונה</div>
+      <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>📷 {isHe?"ניתוח תמונה":"Photo Analysis"}</div>
       {imgSrc?(
         <div style={{position:"relative",marginBottom:10}}>
           <img src={imgSrc} style={{width:"100%",borderRadius:10,maxHeight:180,objectFit:"cover"}}/>
-          <button onClick={()=>fileRef.current.click()} style={{position:"absolute",top:6,left:6,background:"rgba(0,0,0,0.55)",border:"none",borderRadius:6,padding:"4px 10px",fontSize:12,color:"#fff",cursor:"pointer"}}>🖼️ החלף</button>
+          <button onClick={()=>fileRef.current.click()} style={{position:"absolute",top:6,left:6,background:"rgba(0,0,0,0.55)",border:"none",borderRadius:6,padding:"4px 10px",fontSize:12,color:"#fff",cursor:"pointer"}}>🖼️ {isHe?"החלף":"Replace"}</button>
         </div>
       ):(!loading&&!error&&(
         <button onClick={()=>fileRef.current.click()} style={{width:"100%",background:"#f5f5f7",border:`1px solid ${C.border}`,borderRadius:10,padding:"18px 8px",textAlign:"center",cursor:"pointer",fontFamily:"inherit",marginBottom:10}}>
           <div style={{fontSize:26,marginBottom:4}}>📷</div>
-          <div style={{fontSize:12,color:C.muted}}>בחרי תמונה</div>
+          <div style={{fontSize:12,color:C.muted}}>{isHe?"בחרי תמונה":"Choose a photo"}</div>
         </button>
       ))}
-      {loading&&<div style={{textAlign:"center",padding:"14px 0",color:C.muted,fontSize:13}}><CalcLoader size={64}/><div style={{marginTop:6}}>מנתח תמונה...</div></div>}
+      {loading&&<div style={{textAlign:"center",padding:"14px 0",color:C.muted,fontSize:13}}><CalcLoader size={64}/><div style={{marginTop:6}}>{isHe?"מנתח תמונה...":"Analyzing photo..."}</div></div>}
       {error&&<div style={{background:"#fff0f0",border:`1px solid ${C.danger}`,borderRadius:8,padding:"8px 12px",fontSize:11,color:C.danger,marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <span>⚠ {error}</span>
-        <button onClick={()=>fileRef.current.click()} style={{background:C.danger,border:"none",borderRadius:6,color:"#fff",padding:"2px 8px",fontSize:11,fontWeight:700,cursor:"pointer"}}>נסי שוב</button>
+        <button onClick={()=>fileRef.current.click()} style={{background:C.danger,border:"none",borderRadius:6,color:"#fff",padding:"2px 8px",fontSize:11,fontWeight:700,cursor:"pointer"}}>{isHe?"נסי שוב":"Retry"}</button>
       </div>}
       {preview&&calcVals&&(
         <div className="green-box fade" style={{marginBottom:8}}>
@@ -1458,50 +1459,50 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
           )}
           {/* Serving info — drives all calculations */}
           <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:8,background:"rgba(255,255,255,0.85)",borderRadius:8,padding:"6px 10px",border:`1px solid ${mealWeight?C.accent:C.border}`}}>
-            <span style={{fontSize:10,color:C.muted}}>⚖️ מנה:</span>
+            <span style={{fontSize:10,color:C.muted}}>⚖️ {isHe?"מנה:":"Serving:"}</span>
             <input type="number" value={mealWeight} onChange={e=>setMealWeight(e.target.value)}
-              placeholder="גר׳" className="inp"
+              placeholder="g" className="inp"
               style={{width:58,padding:"4px 6px",fontSize:13,textAlign:"center",marginBottom:0,fontWeight:700,borderColor:mealWeight?C.accent:C.border}}/>
-            <span style={{fontSize:10,color:C.muted}}>גר׳</span>
+            <span style={{fontSize:10,color:C.muted}}>g</span>
             {totalUnits>0&&<span style={{fontSize:10,color:C.muted,marginRight:4}}>/</span>}
             {totalUnits>0&&<input type="number" value={totalUnits} onChange={e=>setTotalUnits(parseFloat(e.target.value)||0)}
               className="inp"
               style={{width:46,padding:"4px 6px",fontSize:13,textAlign:"center",marginBottom:0,fontWeight:700}}/>}
-            {totalUnits>0&&<span style={{fontSize:10,color:C.muted}}>{qtyUnit==='קוביות'?'pieces':'יח׳'}</span>}
+            {totalUnits>0&&<span style={{fontSize:10,color:C.muted}}>pcs</span>}
           </div>
           <div className="g3" style={{marginBottom:8}}>
-            {[{l:"קק״ל",v:calcVals.kcal,c:C.accent},{l:"פחמ׳g",v:calcVals.carbs,c:C.warn},{l:"חלבוןg",v:calcVals.protein,c:C.blue}].map(({l,v,c})=>(
+            {[{l:"kcal",v:calcVals.kcal,c:C.accent},{l:"carbs g",v:calcVals.carbs,c:C.warn},{l:"prot g",v:calcVals.protein,c:C.blue}].map(({l,v,c})=>(
               <div key={l} className="preview-box"><div className="preview-val" style={{color:c}}>{v}</div><div className="preview-lbl">{l}</div></div>
             ))}
           </div>
           {qtyUnit!=='יח׳'&&qtyUnit!=='מנות'&&!mealWeight&&(
-            <div style={{fontSize:10,color:C.warn,marginBottom:6,textAlign:"center"}}>⚠ הזן משקל הצילום בגר׳ למעלה כדי לחשב לפי {qtyUnit}</div>
+            <div style={{fontSize:10,color:C.warn,marginBottom:6,textAlign:"center"}}>⚠ {isHe?`הזן משקל הצילום בגר׳ למעלה כדי לחשב לפי ${qtyUnit}`:`Enter photo weight in g above to calculate by ${qtyUnit}`}</div>
           )}
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,background:"rgba(255,255,255,0.7)",borderRadius:8,padding:"5px 10px"}}>
-            <span style={{fontSize:11,color:C.muted,flex:1}}>חלק עם:</span>
+            <span style={{fontSize:11,color:C.muted,flex:1}}>{isHe?"חלק עם:":"Share with:"}</span>
             <button onClick={()=>setServings(v=>Math.max(1,v-1))} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>−</button>
             <span style={{fontWeight:700,fontSize:13,color:C.accent,minWidth:16,textAlign:"center"}}>{servings}</span>
             <button onClick={()=>setServings(v=>v+1)} style={{width:24,height:24,border:`1px solid ${C.border}`,borderRadius:6,background:"#f5f5f7",cursor:"pointer",fontSize:13}}>+</button>
-            <span style={{fontSize:11,color:C.muted}}>{servings===1?"אנשים (כל הארוחה לי)":"אנשים"}</span>
+            <span style={{fontSize:11,color:C.muted}}>{isHe?(servings===1?"אנשים (כל הארוחה לי)":"אנשים"):(servings===1?"people (whole meal)":"people")}</span>
           </div>
           <div style={{display:"flex",gap:6,marginBottom:8,alignItems:"center"}}>
             <input type="number" value={localAmt} onChange={e=>setLocalAmt(e.target.value)}
               className="inp" style={{flex:1,textAlign:"center",padding:"7px 6px",fontSize:13}}/>
             <select value={qtyUnit} onChange={e=>setQtyUnit(e.target.value)} className="inp" style={{flex:1,padding:"7px 6px",fontSize:12,cursor:"pointer"}}>
-              <option value="יח׳">יח׳</option>
-              <option value="קוביות">קוביות</option>
-              <option value="מנות">מנות</option>
-              <option value="g">גר׳</option>
-              <option value="ml">מ״ל</option>
-              <option value="כף">כף (15מ״ל)</option>
-              <option value="כפית">כפית (5מ״ל)</option>
-              <option value="כוס">כוס (240מ״ל)</option>
+              <option value="יח׳">{isHe?"יח׳":"pcs"}</option>
+              <option value="קוביות">{isHe?"קוביות":"cubes"}</option>
+              <option value="מנות">{isHe?"מנות":"servings"}</option>
+              <option value="g">{isHe?"גר׳":"g"}</option>
+              <option value="ml">{isHe?"מ״ל":"ml"}</option>
+              <option value="כף">{isHe?"כף (15מ״ל)":"tbsp (15ml)"}</option>
+              <option value="כפית">{isHe?"כפית (5מ״ל)":"tsp (5ml)"}</option>
+              <option value="כוס">{isHe?"כוס (240מ״ל)":"cup (240ml)"}</option>
             </select>
           </div>
           <div style={{display:"flex",gap:6}}>
-            <button onClick={addToDay} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ הוסף ליום</button>
+            <button onClick={addToDay} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ {isHe?"הוסף ליום":"Add to day"}</button>
             <button onClick={openDbSave} style={{flex:1,background:savedToDb?"rgba(13,148,136,.1)":"transparent",border:`1px solid ${savedToDb?C.accent:C.border}`,borderRadius:8,padding:"10px",fontSize:13,fontWeight:600,color:savedToDb?C.accent:C.muted,cursor:"pointer"}}>
-              {savedToDb?"✓ נשמר":"💾"}
+              {savedToDb?"✓":"💾"}
             </button>
           </div>
           {showDbInput&&(
@@ -1509,20 +1510,21 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto}){
               <input value={dbName} onChange={e=>setDbName(e.target.value)}
                 onKeyDown={e=>e.key==="Enter"&&saveToDb()}
                 className="inp" style={{flex:1,fontSize:12}} autoFocus
-                placeholder="שם לשמירה במאגר"/>
-              <button onClick={saveToDb} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 12px",cursor:"pointer",fontSize:12,fontWeight:700}}>שמור</button>
+                placeholder={isHe?"שם לשמירה במאגר":"Name to save"}/>
+              <button onClick={saveToDb} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 12px",cursor:"pointer",fontSize:12,fontWeight:700}}>{isHe?"שמור":"Save"}</button>
               <button onClick={()=>setShowDbInput(false)} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,padding:"0 10px",cursor:"pointer",fontSize:12}}>✕</button>
             </div>
           )}
         </div>
       )}
-      <button onClick={onClose} className="btn-muted" style={{marginTop:4}}>ביטול</button>
+      <button onClick={onClose} className="btn-muted" style={{marginTop:4}}>{isHe?"ביטול":"Cancel"}</button>
     </div>
   );
 }
 
 // ── MealPanel ──────────────────────────────────────────────────────────────────
-function MealPanel({onAdd,onClose}){
+function MealPanel({onAdd,onClose,lang}){
+  const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en';
   const [text,setText]=useState("");
   const [servings,setServings]=useState(1);
   const [loading,setLoading]=useState(false);
@@ -1588,12 +1590,12 @@ function MealPanel({onAdd,onClose}){
 
   return (
     <div className="panel fade">
-      <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>🍽 ניתוח ארוחה מורכבת</div>
+      <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:10}}>🍽 {isHe?"ניתוח ארוחה מורכבת":"Complex Meal Analysis"}</div>
       <textarea value={text} onChange={e=>setText(e.target.value)} rows={4}
-        placeholder={"תארי את הארוחה בחופשיות, למשל:\nסלט עם 100g קינואה, גבינת פטה, עגבניות, מלפפון, 15ml שמן זית"}
+        placeholder={isHe?"תארי את הארוחה בחופשיות, למשל:\nסלט עם 100g קינואה, גבינת פטה, עגבניות, מלפפון, 15ml שמן זית":"Describe the meal freely, e.g.:\nSalad with 100g quinoa, feta cheese, tomatoes, cucumber, 15ml olive oil"}
         className="inp" style={{marginBottom:10,resize:"none",lineHeight:1.6,fontSize:13}}/>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,background:"#f5f5f7",borderRadius:8,padding:"8px 12px"}}>
-        <span style={{fontSize:12,color:C.muted,flex:1}}>מספר מנות / אנשים:</span>
+        <span style={{fontSize:12,color:C.muted,flex:1}}>{isHe?"מספר מנות / אנשים:":"Servings / people:"}</span>
         <button onClick={()=>setServings(v=>Math.max(1,v-1))} style={{width:28,height:28,border:`1px solid ${C.border}`,borderRadius:6,background:"#fff",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
         <span style={{fontWeight:900,fontSize:16,color:C.accent,minWidth:20,textAlign:"center"}}>{servings}</span>
         <button onClick={()=>setServings(v=>v+1)} style={{width:28,height:28,border:`1px solid ${C.border}`,borderRadius:6,background:"#fff",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
@@ -1603,27 +1605,27 @@ function MealPanel({onAdd,onClose}){
           {loading&&<div style={{textAlign:'center',marginBottom:8}}><CalcLoader size={64}/></div>}
           <button onClick={ask} disabled={!text.trim()||loading}
             style={{width:"100%",background:text.trim()?"linear-gradient(135deg,#5a9e1e,#7bc42e)":"#ddd",border:"none",borderRadius:8,color:text.trim()?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:text.trim()?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:8}}>
-            {loading?"מנתח ארוחה...":"✨ שאל את Claude"}
+            {loading?(isHe?"מנתח ארוחה...":"Analyzing meal..."):(isHe?"✨ שאל את Claude":"✨ Ask Claude")}
           </button>
         </>
       )}
       {error&&(
         <div style={{background:"#fff0f0",border:`1px solid ${C.danger}`,borderRadius:8,padding:"8px 12px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
           <span style={{fontSize:11,color:C.danger}}>⚠ {error}</span>
-          <button onClick={ask} style={{background:C.danger,border:"none",borderRadius:6,color:"#fff",padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>נסה שוב</button>
+          <button onClick={ask} style={{background:C.danger,border:"none",borderRadius:6,color:"#fff",padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>{isHe?"נסה שוב":"Retry"}</button>
         </div>
       )}
       {preview&&(
         <div className="green-box fade" style={{marginBottom:8}}>
           <div style={{fontSize:11,color:C.accent,fontWeight:700,marginBottom:2}}>✨ {preview.label}</div>
-          <div style={{fontSize:10,color:C.muted,marginBottom:8}}>{servings>1?`סה״כ ÷ ${servings} מנות = ערכים למנה אחת`:"ערכים לכל הארוחה"}</div>
+          <div style={{fontSize:10,color:C.muted,marginBottom:8}}>{servings>1?(isHe?`סה״כ ÷ ${servings} מנות = ערכים למנה אחת`:`Total ÷ ${servings} servings = per serving`):(isHe?"ערכים לכל הארוחה":"Values for whole meal")}</div>
           <div className="g3" style={{marginBottom:10}}>
-            {[{l:"קק״ל",v:Math.round(preview.kcal/servings),c:C.accent},{l:"פחמ׳g",v:parseFloat(((preview.carbs||0)/servings).toFixed(1)),c:C.warn},{l:"חלבוןg",v:parseFloat(((preview.protein||0)/servings).toFixed(1)),c:C.blue}].map(({l,v,c})=>(
+            {[{l:"kcal",v:Math.round(preview.kcal/servings),c:C.accent},{l:"carbs g",v:parseFloat(((preview.carbs||0)/servings).toFixed(1)),c:C.warn},{l:"prot g",v:parseFloat(((preview.protein||0)/servings).toFixed(1)),c:C.blue}].map(({l,v,c})=>(
               <div key={l} className="preview-box"><div className="preview-val" style={{color:c}}>{v}</div><div className="preview-lbl">{l}</div></div>
             ))}
           </div>
           <div style={{display:"flex",gap:6}}>
-            <button onClick={addToDay} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ הוסף ליום</button>
+            <button onClick={addToDay} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ {isHe?"הוסף ליום":"Add to day"}</button>
             <button onClick={openDbSave} style={{flex:1,background:savedToDb?"rgba(13,148,136,.1)":"transparent",border:`1px solid ${savedToDb?C.accent:C.border}`,borderRadius:8,padding:"10px",fontSize:12,fontWeight:600,color:savedToDb?C.accent:C.muted,cursor:"pointer"}}>
               {savedToDb?"✓":"💾"}
             </button>
@@ -1632,20 +1634,21 @@ function MealPanel({onAdd,onClose}){
             <div className="fade" style={{marginTop:8,display:"flex",gap:6}}>
               <input value={dbName} onChange={e=>setDbName(e.target.value)}
                 onKeyDown={e=>e.key==="Enter"&&saveToDb()}
-                className="inp" style={{flex:1,fontSize:12}} autoFocus/>
-              <button onClick={saveToDb} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 12px",cursor:"pointer",fontSize:12,fontWeight:700}}>שמור</button>
+                className="inp" style={{flex:1,fontSize:12}} autoFocus placeholder={isHe?"שם לשמירה":"Name"}/>
+              <button onClick={saveToDb} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 12px",cursor:"pointer",fontSize:12,fontWeight:700}}>{isHe?"שמור":"Save"}</button>
               <button onClick={()=>setShowDbInput(false)} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,padding:"0 10px",cursor:"pointer",fontSize:12}}>✕</button>
             </div>
           )}
         </div>
       )}
-      <button onClick={onClose} className="btn-muted" style={{marginTop:4}}>ביטול</button>
+      <button onClick={onClose} className="btn-muted" style={{marginTop:4}}>{isHe?"ביטול":"Cancel"}</button>
     </div>
   );
 }
 
 // ── SmartAddPanel ──────────────────────────────────────────────────────────────
-function SmartAddPanel({onAdd,onClose}){
+function SmartAddPanel({onAdd,onClose,lang}){
+  const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en';
   const [query,setQuery]=useState("");
   const [amount,setAmount]=useState("");
   const [unit,setUnit]=useState("g");
@@ -1724,27 +1727,27 @@ function SmartAddPanel({onAdd,onClose}){
         onChange={v=>{setQuery(v);setMatched(null);setCandidates([]);setNotFound(false);setKcal("");setCarbs("");setProtein("");}}
         onSelect={name=>runSearch(name,amount,unit)}
         onSelectFood={food=>applyFood(food, food.defaultAmt||amount||"", food.unit||unit)}
-        placeholder="שם המאכל..."
+        placeholder={isHe?"שם המאכל...":"Food name..."}
         recentFoods={recent}
         onSelectRecent={f=>{onAdd({uid:Date.now()+Math.random(),...f});onClose();}}
       />
       <div style={{display:"flex",gap:8,marginBottom:10}}>
-        <input type="number" value={amount} placeholder="כמות" onChange={e=>{setAmount(e.target.value);recalc(e.target.value,unit);}} className="inp" style={{flex:1,textAlign:"center",padding:"9px 6px"}}/>
+        <input type="number" value={amount} placeholder={isHe?"כמות":"Amount"} onChange={e=>{setAmount(e.target.value);recalc(e.target.value,unit);}} className="inp" style={{flex:1,textAlign:"center",padding:"9px 6px"}}/>
         <select value={unit} onChange={e=>{setUnit(e.target.value);recalc(amount,e.target.value);}} className="inp" style={{flex:1,padding:"9px 6px",cursor:"pointer"}}>
-          <option value="g">גר׳</option><option value="ml">מ״ל</option><option value="יח׳">יח׳</option><option value="מנה">מנה</option><option value="קוביות">קוביות</option><option value="כף">כף (15מ״ל)</option><option value="כפית">כפית (5מ״ל)</option><option value="כוס">כוס (240מ״ל)</option>
+          <option value="g">{isHe?"גר׳":"g"}</option><option value="ml">{isHe?"מ״ל":"ml"}</option><option value="יח׳">{isHe?"יח׳":"pcs"}</option><option value="מנה">{isHe?"מנה":"serving"}</option><option value="קוביות">{isHe?"קוביות":"cubes"}</option><option value="כף">{isHe?"כף (15מ״ל)":"tbsp (15ml)"}</option><option value="כפית">{isHe?"כפית (5מ״ל)":"tsp (5ml)"}</option><option value="כוס">{isHe?"כוס (240מ״ל)":"cup (240ml)"}</option>
         </select>
       </div>
-      <button className="btn-accent" onClick={()=>runSearch(query,amount,unit)} style={{marginBottom:10}}>✦ חשב ערכים</button>
+      <button className="btn-accent" onClick={()=>runSearch(query,amount,unit)} style={{marginBottom:10}}>✦ {isHe?"חשב ערכים":"Calculate"}</button>
 
       {candidates.length>0&&(
         <div className="fade" style={{marginBottom:10,background:"#fff8e1",border:`1px solid ${C.warn}`,borderRadius:10,padding:10}}>
-          <div style={{fontSize:11,color:C.warn,fontWeight:700,marginBottom:8}}>בחרי את הפריט המתאים:</div>
+          <div style={{fontSize:11,color:C.warn,fontWeight:700,marginBottom:8}}>{isHe?"בחרי את הפריט המתאים:":"Select the matching item:"}</div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {candidates.map((f,i)=>(
               <button key={i} onClick={()=>applyFood(f,amount,unit)}
                 style={{background:"#fff",border:`1px solid ${C.border}`,borderRadius:8,padding:"9px 12px",textAlign:"right",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",fontFamily:"inherit"}}>
                 <span style={{fontSize:13,color:C.text}}>{f.label}</span>
-                <span style={{fontSize:10,color:C.muted}}>{f.kcal} קק״ל / 100{f.unit}</span>
+                <span style={{fontSize:10,color:C.muted}}>{f.kcal} kcal / 100{f.unit}</span>
               </button>
             ))}
           </div>
@@ -1753,7 +1756,7 @@ function SmartAddPanel({onAdd,onClose}){
 
       {notFound&&(
         <div className="warn-box" style={{marginBottom:10}}>
-          <div style={{fontSize:12,color:C.warn,fontWeight:600,marginBottom:6}}>לא נמצא במאגר</div>
+          <div style={{fontSize:12,color:C.warn,fontWeight:600,marginBottom:6}}>{isHe?"לא נמצא במאגר":"Not found in database"}</div>
           <AskClaude
             foodName={query} amount={amount} unit={unit}
             onAddToDay={food=>{onAdd(food);onClose();}}
@@ -1761,18 +1764,18 @@ function SmartAddPanel({onAdd,onClose}){
           />
         </div>
       )}
-      {matched&&<div style={{fontSize:12,color:C.accent,background:"#f0fae8",borderRadius:8,padding:"8px 12px",marginBottom:10}}>✦ {matched.label} — ערכים ל-{amount}{unit}</div>}
+      {matched&&<div style={{fontSize:12,color:C.accent,background:"#f0fae8",borderRadius:8,padding:"8px 12px",marginBottom:10}}>✦ {matched.label} — {isHe?`ערכים ל-${amount}${unit}`:`values for ${amount}${unit}`}</div>}
       <div className="g3" style={{marginBottom:12}}>
-        {numField(kcal,setKcal,"קק״ל",C.accent)}
-        {numField(carbs,setCarbs,"פחמ׳ g",C.warn)}
-        {numField(protein,setProtein,"חלבון g",C.blue)}
+        {numField(kcal,setKcal,"kcal",C.accent)}
+        {numField(carbs,setCarbs,"carbs g",C.warn)}
+        {numField(protein,setProtein,"prot g",C.blue)}
       </div>
       <div style={{display:"flex",gap:6,marginBottom:6}}>
-        <button className="btn-muted" onClick={onClose} style={{flex:1}}>ביטול</button>
-        <button onClick={handleAdd} disabled={!kcal} style={{flex:2,background:kcal?C.accent:"#ddd",border:"none",borderRadius:8,color:kcal?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:kcal?"pointer":"default"}}>+ הוסף פריט</button>
+        <button className="btn-muted" onClick={onClose} style={{flex:1}}>{isHe?"ביטול":"Cancel"}</button>
+        <button onClick={handleAdd} disabled={!kcal} style={{flex:2,background:kcal?C.accent:"#ddd",border:"none",borderRadius:8,color:kcal?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:kcal?"pointer":"default"}}>+ {isHe?"הוסף פריט":"Add item"}</button>
       </div>
       <button onClick={handleSaveToDb} disabled={!kcal} style={{width:"100%",background:savedToDb?"rgba(13,148,136,.1)":"transparent",border:`1px solid ${savedToDb?C.accent:kcal?C.border:"#e0e0e5"}`,borderRadius:8,padding:"8px",fontSize:12,fontWeight:600,color:savedToDb?C.accent:kcal?C.muted:"#ccc",cursor:kcal?"pointer":"default"}}>
-        {savedToDb?"✓ נשמר במאגר":"💾 שמור למאגר"}
+        {savedToDb?(isHe?"✓ נשמר במאגר":"✓ Saved"):(isHe?"💾 שמור למאגר":"💾 Save to DB")}
       </button>
     </div>
   );
@@ -3571,12 +3574,15 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
     return!fridgeFlat.some(f=>f.includes(n)||n.includes(f));
   };
   const getMissing=opt=>(opt.ingredients||[]).filter(isMissing);
+  const [cartMsg,setCartMsg]=useState("");
   const addMissingToCart=missing=>{
     if(!missing||!missing.length)return;
     const current=loadShopping();
     const toAdd=missing.filter(m=>!current.some(c=>c.name.toLowerCase()===m.toLowerCase()));
-    if(!toAdd.length)return;
+    if(!toAdd.length){setCartMsg(isHe?"✓ כבר ברשימה":"✓ Already in list");setTimeout(()=>setCartMsg(""),2000);return;}
     saveShopping([...current,...toAdd.map(m=>({id:Date.now()+Math.random(),name:m,qty:'',checked:false,auto:false,addedBy:''}))]);
+    setCartMsg(isHe?`✓ ${toAdd.length} פריטים נוספו לעגלה`:`✓ ${toAdd.length} item${toAdd.length>1?'s':''} added`);
+    setTimeout(()=>setCartMsg(""),2500);
   };
   const fetchOptions=async(refine)=>{
     setLoading(true);setError("");
@@ -3584,7 +3590,7 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
     const fullPrefs=[prefs,fridgeStr?(isHe?`מה במקרר: ${fridgeStr}`:`Fridge: ${fridgeStr}`):""].filter(Boolean).join("\n");
     try{
       const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({mealPlan:{preferences:fullPrefs,people,refine:refine||undefined}})});
+        body:JSON.stringify({mealPlan:{preferences:fullPrefs,people,refine:refine||undefined,lang}})});
       const d=await r.json();
       if(d.error)throw new Error(d.error);
       setOptions(d.options||[]);
@@ -3599,7 +3605,7 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
     setLoading(true);setError("");
     try{
       const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({mealPlan:{selectedMeal:optionName,people}})});
+        body:JSON.stringify({mealPlan:{selectedMeal:optionName,people,lang}})});
       const d=await r.json();
       if(d.error)throw new Error(d.error);
       const rec=d.recipe||d;
@@ -3665,6 +3671,7 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
           <div style={{fontSize:15,fontWeight:700}}>🍳 {isHe?"מה אוכלים?":"What to eat?"}</div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
         </div>
+        {cartMsg&&<div style={{background:"#f0fae8",border:`1px solid ${C.accent}`,borderRadius:8,padding:"7px 12px",fontSize:12,color:C.accent,fontWeight:600,marginBottom:10,textAlign:"center"}}>{cartMsg}</div>}
 
         {/* Step indicator */}
         <div style={{display:"flex",gap:6,marginBottom:20}}>
@@ -4854,9 +4861,9 @@ function App(){
         <button onClick={()=>{setShowPresets(v=>!v);setShowMeal(false);setShowPhoto(false);setPendingPhoto(null);setShowSmart(false);setShowMealPlanner(false);}} style={{flex:1,background:showPresets?"#b45309":"rgba(255,255,255,.75)",border:`1px solid ${showPresets?"#b45309":C.border}`,color:showPresets?"#fff":C.muted,padding:"8px 4px",borderRadius:10,fontSize:11,cursor:"pointer",fontWeight:600}}>{T.presets}</button>
       </div>
 
-      {showPhoto&&<PhotoMealPanel onAdd={addEntry} initialPhoto={pendingPhoto} onClose={()=>{setShowPhoto(false);setPendingPhoto(null);}}/>}
-      {showMeal&&<MealPanel onAdd={addEntry} onClose={()=>setShowMeal(false)}/>}
-      {showSmart&&<SmartAddPanel onAdd={addEntry} onClose={()=>setShowSmart(false)}/>}
+      {showPhoto&&<PhotoMealPanel lang={lang} onAdd={addEntry} initialPhoto={pendingPhoto} onClose={()=>{setShowPhoto(false);setPendingPhoto(null);}}/>}
+      {showMeal&&<MealPanel lang={lang} onAdd={addEntry} onClose={()=>setShowMeal(false)}/>}
+      {showSmart&&<SmartAddPanel lang={lang} onAdd={addEntry} onClose={()=>setShowSmart(false)}/>}
 
       {/* ── PRESETS PANEL ── */}
       {showPresets&&(

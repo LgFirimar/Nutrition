@@ -15,7 +15,7 @@ export default {
     }
 
     try {
-      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, profileData } = await request.json();
+      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, profileData, lang } = await request.json();
 
       let prompt, model, system, max_tokens, messages;
       if (pantryBulkData) {
@@ -82,19 +82,26 @@ Meal: ${mealDescription}
 After your calculation, output ONLY this JSON on the very last line (no markdown):
 {"label":"short Hebrew meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT}`;
       } else if (mealPlan) {
-        const { preferences, people, refine, selectedMeal } = mealPlan;
+        const { preferences, people, refine, selectedMeal, lang: mealLang } = mealPlan;
+        const isHe = (mealLang || lang || 'he') !== 'en';
         if (selectedMeal) {
           model = 'claude-sonnet-4-6';
           max_tokens = 900;
-          system = 'אתה שף ותזונאי ישראלי. ענה בעברית תקנית. הפלט שלך הוא JSON בלבד — ללא הסבר, ללא markdown, ללא טקסט לפני או אחרי.';
-          prompt = `כתוב מתכון עבור "${selectedMeal}" ל-${people} אנשים. עד 6 רכיבים, עד 4 שלבים.
-{"recipe":{"name":"שם בעברית","ingredients":[{"item":"שם חומר","amount":"כמות"}],"steps":["שלב הכנה"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`;
+          system = isHe
+            ? 'אתה שף ותזונאי ישראלי. ענה בעברית תקנית. הפלט שלך הוא JSON בלבד — ללא הסבר, ללא markdown, ללא טקסט לפני או אחרי.'
+            : 'You are a professional chef and nutritionist. Respond in English. Output ONLY valid JSON — no explanation, no markdown, no text before or after.';
+          prompt = isHe
+            ? `כתוב מתכון עבור "${selectedMeal}" ל-${people} אנשים. עד 6 רכיבים, עד 4 שלבים.\n{"recipe":{"name":"שם בעברית","ingredients":[{"item":"שם חומר","amount":"כמות"}],"steps":["שלב הכנה"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`
+            : `Write a recipe for "${selectedMeal}" for ${people} people. Up to 6 ingredients, up to 4 steps.\n{"recipe":{"name":"meal name","ingredients":[{"item":"ingredient","amount":"quantity"}],"steps":["preparation step"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`;
         } else {
           model = 'claude-sonnet-4-6';
           max_tokens = 1100;
-          system = 'אתה שף ותזונאי ישראלי. כתוב בעברית תקנית ונכונה. הפלט הוא JSON בלבד — ללא הסבר, ללא markdown, ללא טקסט לפני או אחרי.';
-          const refineText = refine ? `\nהערות: ${refine}` : '';
-          prompt = `הצע 3 ארוחות שונות ל-${people} אנשים. העדפות: ${preferences || 'ללא הגבלות'}${refineText}
+          system = isHe
+            ? 'אתה שף ותזונאי ישראלי. כתוב בעברית תקנית ונכונה. הפלט הוא JSON בלבד — ללא הסבר, ללא markdown, ללא טקסט לפני או אחרי.'
+            : 'You are a professional chef and nutritionist. Respond in English. Output ONLY valid JSON — no explanation, no markdown, no text before or after.';
+          const refineText = refine ? (isHe ? `\nהערות: ${refine}` : `\nNotes: ${refine}`) : '';
+          prompt = isHe
+            ? `הצע 3 ארוחות שונות ל-${people} אנשים. העדפות: ${preferences || 'ללא הגבלות'}${refineText}
 
 חוקים לשדה ingredients (חובה בכל אפשרות!):
 - רשום בדיוק 4-6 שמות מרכיבים עיקריים — שמות עצם של מצרכים בלבד
@@ -103,7 +110,16 @@ After your calculation, output ONLY this JSON on the very last line (no markdown
 - אל תכלול: כמויות, שיטות בישול, תארים
 
 החזר JSON בלבד, בדיוק בפורמט הזה (ingredients חייב להיות נוכח בכל אפשרות):
-{"options":[{"name":"שם ארוחה","description":"תיאור קצר","ingredients":["מרכיב1","מרכיב2","מרכיב3","מרכיב4"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0}]}`;
+{"options":[{"name":"שם ארוחה","description":"תיאור קצר","ingredients":["מרכיב1","מרכיב2","מרכיב3","מרכיב4"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0}]}`
+            : `Suggest 3 different meals for ${people} people. Preferences: ${preferences || 'none'}${refineText}
+
+Rules for the ingredients field (required in every option!):
+- List exactly 4-6 main ingredient names — nouns only, no quantities or cooking methods
+- Good examples: "chicken breast", "rice", "tomatoes", "cheddar cheese", "salmon", "pasta", "lentils"
+- Do NOT include: oil, salt, pepper, water, garlic, onion, butter, vinegar (base ingredients)
+
+Return ONLY JSON, exactly this format:
+{"options":[{"name":"meal name","description":"short description","ingredients":["ingredient1","ingredient2","ingredient3","ingredient4"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0}]}`;
         }
       } else if (shoppingList) {
         model = 'claude-haiku-4-5-20251001';
