@@ -2228,16 +2228,45 @@ function PantryModal({onClose,lang,syncTick}){
     reader.readAsDataURL(file);
   };
 
+  // Find existing pantry item by name across all categories
+  const findExistingPantryItem=(name)=>{
+    for(const c of FRIDGE_CATS){
+      const arr=pantry[c.key]||[];
+      const idx=arr.findIndex(e=>e.name.toLowerCase()===name.toLowerCase());
+      if(idx>=0) return {cat:c.key,idx,item:arr[idx]};
+    }
+    return null;
+  };
+
   const confirmScan=()=>{
     const newPantry={...pantry};
     const newOpen={...open};
     scanResults.filter(i=>i.checked).forEach(item=>{
-      const cat=FRIDGE_CATS.find(c=>c.key===item.cat)?item.cat:'other';
-      if(!newPantry[cat])newPantry[cat]=[];
-      const idx=newPantry[cat].findIndex(e=>e.name.toLowerCase()===item.name.toLowerCase());
-      if(idx>=0) newPantry[cat][idx]={...newPantry[cat][idx],qty:item.qty||newPantry[cat][idx].qty};
-      else newPantry[cat].push({id:Date.now()+Math.random(),name:item.name,qty:item.qty||"",unit:""});
-      newOpen[cat]=true;
+      const suggestedCat=FRIDGE_CATS.find(c=>c.key===item.cat)?item.cat:'other';
+      const itemUnit=item.unit||"";
+      const found=findExistingPantryItem(item.name);
+      if(found){
+        const {cat:foundCat,idx:foundIdx,item:existing}=found;
+        const existUnit=existing.unit||"";
+        newOpen[foundCat]=true;
+        if(existUnit===itemUnit){
+          // Same unit — add quantities numerically
+          const eq=parseFloat(existing.qty)||0;
+          const nq=parseFloat(item.qty)||0;
+          const merged=eq>0&&nq>0?String(eq+nq):(item.qty||existing.qty||"");
+          newPantry[foundCat]=[...newPantry[foundCat]];
+          newPantry[foundCat][foundIdx]={...existing,qty:merged};
+        }else{
+          // Different units — add as separate item in suggested category
+          if(!newPantry[suggestedCat])newPantry[suggestedCat]=[];
+          newPantry[suggestedCat]=[...newPantry[suggestedCat],{id:Date.now()+Math.random(),name:item.name,qty:item.qty||"",unit:itemUnit}];
+          newOpen[suggestedCat]=true;
+        }
+      }else{
+        if(!newPantry[suggestedCat])newPantry[suggestedCat]=[];
+        newPantry[suggestedCat]=[...newPantry[suggestedCat],{id:Date.now()+Math.random(),name:item.name,qty:item.qty||"",unit:itemUnit}];
+        newOpen[suggestedCat]=true;
+      }
     });
     update(newPantry);
     setOpen(newOpen);
@@ -2301,11 +2330,23 @@ function PantryModal({onClose,lang,syncTick}){
             <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:20,width:"100%",maxHeight:"70vh",overflowY:"auto",boxSizing:"border-box"}}>
               <div style={{fontSize:15,fontWeight:700,marginBottom:4}}>{isHe?`נמצאו ${scanResults.length} פריטים`:`Found ${scanResults.length} items`}</div>
               <div style={{fontSize:11,color:C.muted,marginBottom:12}}>{isHe?"סמן את הפריטים להוספה למזווה:":"Select items to add to pantry:"}</div>
-              {scanResults.map((item,i)=>(
+              {scanResults.map((item,i)=>{
+                const found=findExistingPantryItem(item.name);
+                const sameUnit=found&&(found.item.unit||"")===(item.unit||"");
+                const diffUnit=found&&!sameUnit;
+                const eq=found?parseFloat(found.item.qty)||0:0;
+                const nq=parseFloat(item.qty)||0;
+                const mergedQty=sameUnit&&eq>0&&nq>0?eq+nq:null;
+                return(
                 <div key={item._id} style={{padding:"8px 0",borderBottom:`1px solid ${C.border}`}}>
                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
                     <input type="checkbox" checked={item.checked} onChange={()=>setScanResults(r=>r.map((x,j)=>j===i?{...x,checked:!x.checked}:x))} style={{width:16,height:16,cursor:"pointer",flexShrink:0}}/>
                     <span style={{flex:1,fontSize:13,color:C.text,fontWeight:500}}>{item.name}</span>
+                    {sameUnit&&mergedQty!=null&&<span style={{fontSize:9.5,color:"#16a34a",background:"#f0fae8",borderRadius:6,padding:"2px 7px",flexShrink:0,fontWeight:600}}>
+                      {found.item.qty}→{mergedQty}
+                    </span>}
+                    {sameUnit&&mergedQty==null&&found&&<span style={{fontSize:9.5,color:"#16a34a",background:"#f0fae8",borderRadius:6,padding:"2px 7px",flexShrink:0}}>{isHe?"יתחבר":"merge"}</span>}
+                    {diffUnit&&<span style={{fontSize:9.5,color:"#b45309",background:"#fff8e1",borderRadius:6,padding:"2px 7px",flexShrink:0}}>{isHe?"פריט נפרד":"separate"}</span>}
                   </div>
                   <div style={{display:"flex",gap:6,paddingRight:24}}>
                     <input value={item.qty||""} onChange={e=>setScanResults(r=>r.map((x,j)=>j===i?{...x,qty:e.target.value}:x))}
@@ -2317,7 +2358,8 @@ function PantryModal({onClose,lang,syncTick}){
                     </select>
                   </div>
                 </div>
-              ))}
+                );
+              })}
               <div style={{display:"flex",gap:8,marginTop:16}}>
                 <button onClick={()=>setScanResults(null)} style={{flex:1,background:"transparent",border:`1px solid ${C.border}`,borderRadius:10,padding:"10px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{isHe?"ביטול":"Cancel"}</button>
                 <button onClick={confirmScan} disabled={!scanResults.some(i=>i.checked)}
