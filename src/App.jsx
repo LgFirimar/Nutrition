@@ -2302,11 +2302,20 @@ function PantryModal({onClose,lang,syncTick}){
               <div style={{fontSize:15,fontWeight:700,marginBottom:4}}>{isHe?`נמצאו ${scanResults.length} פריטים`:`Found ${scanResults.length} items`}</div>
               <div style={{fontSize:11,color:C.muted,marginBottom:12}}>{isHe?"סמן את הפריטים להוספה למזווה:":"Select items to add to pantry:"}</div>
               {scanResults.map((item,i)=>(
-                <div key={item._id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:`1px solid ${C.border}`}}>
-                  <input type="checkbox" checked={item.checked} onChange={()=>setScanResults(r=>r.map((x,j)=>j===i?{...x,checked:!x.checked}:x))} style={{width:16,height:16,cursor:"pointer",flexShrink:0}}/>
-                  <span style={{flex:1,fontSize:13,color:C.text}}>{item.name}</span>
-                  {item.qty&&<span style={{fontSize:11,color:C.muted}}>{item.qty}</span>}
-                  <span style={{fontSize:9.5,color:C.muted,background:"#f5f5f7",borderRadius:6,padding:"2px 7px",flexShrink:0}}>{FRIDGE_CATS.find(c=>c.key===item.cat)?.[isHe?'he':'en']||item.cat}</span>
+                <div key={item._id} style={{padding:"8px 0",borderBottom:`1px solid ${C.border}`}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+                    <input type="checkbox" checked={item.checked} onChange={()=>setScanResults(r=>r.map((x,j)=>j===i?{...x,checked:!x.checked}:x))} style={{width:16,height:16,cursor:"pointer",flexShrink:0}}/>
+                    <span style={{flex:1,fontSize:13,color:C.text,fontWeight:500}}>{item.name}</span>
+                  </div>
+                  <div style={{display:"flex",gap:6,paddingRight:24}}>
+                    <input value={item.qty||""} onChange={e=>setScanResults(r=>r.map((x,j)=>j===i?{...x,qty:e.target.value}:x))}
+                      placeholder={isHe?"כמות":"Qty"}
+                      style={{width:68,border:`1px solid ${C.border}`,borderRadius:7,padding:"4px 6px",fontSize:12,textAlign:"center",fontFamily:"inherit"}}/>
+                    <select value={item.cat||"other"} onChange={e=>setScanResults(r=>r.map((x,j)=>j===i?{...x,cat:e.target.value}:x))}
+                      style={{flex:1,border:`1px solid ${C.border}`,borderRadius:7,padding:"4px 6px",fontSize:11,fontFamily:"inherit",background:"#fff",cursor:"pointer"}}>
+                      {FRIDGE_CATS.map(c=><option key={c.key} value={c.key}>{isHe?c.he:c.en}</option>)}
+                    </select>
+                  </div>
                 </div>
               ))}
               <div style={{display:"flex",gap:8,marginTop:16}}>
