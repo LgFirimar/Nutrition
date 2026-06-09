@@ -3074,7 +3074,7 @@ function SetupScreen({onDone,lang,onToggleLang,onRestored}){
         <canvas ref={setupCvRef} style={{position:"absolute",inset:0,width:120,height:120,display:"block"}}/>
       </div>
       <div style={{fontSize:22,fontWeight:900,color:C.accent,marginBottom:4}}>{isHe?"ברוכים הבאים!":"Welcome!"}</div>
-      <div style={{fontSize:13,color:C.muted,marginBottom:28,textAlign:"center"}}>{isHe?"צרי פרופיל ראשון כדי להתחיל":"Create your first profile to get started"}</div>
+      <div style={{fontSize:13,color:C.muted,marginBottom:28,textAlign:"center"}}>{isHe?"בואו ניצור פרופיל":"Create your first profile to get started"}</div>
       <div style={{background:"#fff",borderRadius:16,padding:20,width:"100%",maxWidth:360,boxShadow:"0 2px 12px rgba(0,0,0,0.08)"}}>
         <div style={{fontSize:11,color:C.muted,marginBottom:6,fontWeight:700}}>{isHe?"שם":"Name"}</div>
         <input value={name} onChange={e=>setName(e.target.value)} placeholder={isHe?"שם הפרופיל":"Profile name"} className="inp" style={{marginBottom:14}}/>
