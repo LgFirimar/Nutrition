@@ -3152,6 +3152,8 @@ function EditQuickFoodModal({food,onSave,onClose}){
 function SplashScreen({onDone,lang}){
   const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en';
   const wrapRef=useRef(null);
+  const cvRef=useRef(null);
+  const vidRef=useRef(null);
   useEffect(()=>{
     imgUtilsReady.then(()=>{ if(window._loadSplashImages) window._loadSplashImages(); });
     const t1=setTimeout(()=>{ // start exit at 2.5s
@@ -3164,6 +3166,29 @@ function SplashScreen({onDone,lang}){
     },2500);
     const t2=setTimeout(onDone,3500);
     return()=>{clearTimeout(t1);clearTimeout(t2);};
+  },[]);
+  // Canvas-based white-background removal for the animation video
+  useEffect(()=>{
+    const vid=vidRef.current, cv=cvRef.current;
+    if(!vid||!cv) return;
+    const ctx=cv.getContext('2d',{willReadFrequently:true});
+    let raf;
+    const draw=()=>{
+      raf=requestAnimationFrame(draw);
+      if(vid.readyState<2) return;
+      const w=cv.width, h=cv.height;
+      ctx.clearRect(0,0,w,h);
+      ctx.drawImage(vid,0,0,w,h);
+      const id=ctx.getImageData(0,0,w,h), d=id.data;
+      for(let i=0;i<d.length;i+=4){
+        const mn=Math.min(d[i],d[i+1],d[i+2]);
+        if(mn>230) d[i+3]=0;
+        else if(mn>180) d[i+3]=Math.round(255*(1-(mn-180)/50));
+      }
+      ctx.putImageData(id,0,0);
+    };
+    draw();
+    return()=>cancelAnimationFrame(raf);
   },[]);
   const R=140, DUR=16;
   const icons=[
@@ -3201,10 +3226,10 @@ function SplashScreen({onDone,lang}){
           </div>
         ))}
         {/* Center animation */}
-        <div className="sp-avo-center" style={{mixBlendMode:"multiply"}}>
+        <div className="sp-avo-center">
           <div className="sp-avo-anim">
-            <video src="/Nutrition/avo-animation.mp4" autoPlay loop muted playsInline
-              style={{width:200,height:"auto",display:"block"}}/>
+            <canvas ref={cvRef} width={200} height={200} style={{width:200,height:200,display:"block",filter:"drop-shadow(0 6px 22px rgba(35,90,5,.3))"}}/>
+            <video ref={vidRef} src="/Nutrition/avo-animation.mp4" autoPlay loop muted playsInline style={{display:"none"}}/>
           </div>
         </div>
       </div>
