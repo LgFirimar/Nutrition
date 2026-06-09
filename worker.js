@@ -54,6 +54,7 @@ Include every distinct item you can identify. Use Hebrew names.`}
         model = 'claude-sonnet-4-6';
         max_tokens = 1024;
         system = 'You are a precise nutrition calculator with expert knowledge of food composition databases.';
+        const isHeImg = (lang || 'he') !== 'en';
         const analysisPrompt = `Analyze this food photo carefully.
 
 Step 1 — identify each food item visible.
@@ -63,8 +64,9 @@ Step 4 — calculate total nutrition, then divide by totalGrams×0.01 to get per
 Step 5 — check if the photo shows a nutrition label or packaging with serving size expressed in "pieces" or "pcs" or similar. If so, set piecesCount to that number (e.g. "serving size: 5 pieces" → piecesCount:5, totalGrams = grams for those 5 pieces). Otherwise piecesCount:0.
 
 Output ONLY this JSON on the very last line (no markdown):
-{"label":"Hebrew meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT,"totalGrams":ESTIMATED_TOTAL_GRAMS_INT,"per100g":{"kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT},"portions":"Hebrew list: item ~Xg, e.g: עוף ~160g, אורז ~90g, שמן ~10ml","suggestedAmt":NATURAL_AMOUNT_NUMBER,"suggestedUnit":"natural unit: קוביות if photo shows pieces/pcs count, יח׳ if countable whole items (e.g. 2 cookies), g if weighed, מנות if a full meal","piecesCount":NUMBER}
-For suggestedAmt/suggestedUnit: if photo has a nutrition label saying X pieces, use suggestedUnit=קוביות and suggestedAmt=X and piecesCount=X. For regular countable items use יח׳. For weighed food use g.`;
+{"label":"${isHeImg ? 'Hebrew' : 'English'} meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT,"totalGrams":ESTIMATED_TOTAL_GRAMS_INT,"per100g":{"kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT},"portions":"${isHeImg ? 'Hebrew' : 'English'} list: item ~Xg, e.g: ${isHeImg ? 'עוף ~160g, אורז ~90g' : 'chicken ~160g, rice ~90g'}","suggestedAmt":NATURAL_AMOUNT_NUMBER,"suggestedUnit":"natural unit: קוביות if photo shows pieces/pcs count, יח׳ if countable whole items (e.g. 2 cookies), g if weighed, מנות if a full meal","piecesCount":NUMBER}
+For suggestedAmt/suggestedUnit: if photo has a nutrition label saying X pieces, use suggestedUnit=קוביות and suggestedAmt=X and piecesCount=X. For regular countable items use יח׳. For weighed food use g.
+Write label and portions in ${isHeImg ? 'Hebrew' : 'English'}.`;
         messages = [{role:'user', content:[
           {type:'image', source:{type:'base64', media_type:imageMediaType||'image/jpeg', data:imageData}},
           {type:'text', text:analysisPrompt}

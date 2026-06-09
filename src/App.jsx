@@ -1336,11 +1336,11 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto,lang}){
     try{
       const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{
         method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({imageData:base64,imageMediaType:mediaType})
+        body:JSON.stringify({imageData:base64,imageMediaType:mediaType,lang})
       });
-      if(!res.ok) throw new Error("שגיאת שרת");
+      if(!res.ok) throw new Error(isHe?"שגיאת שרת":"Server error");
       const d=await res.json();
-      if(d.error||!d.kcal) throw new Error(d.error||"לא הצלחתי לנתח את התמונה");
+      if(d.error||!d.kcal) throw new Error(d.error||(isHe?"לא הצלחתי לנתח את התמונה":"Could not analyze the photo"));
       // Derive per100g from totalGrams if server included a sensible weight
       if(!d.per100g && d.totalGrams >= 20){
         d.per100g={
