@@ -453,7 +453,7 @@ function EntryRow({entry,onRemove,onUpdate,lang}){
       <div className="entry-row">
         <div style={{flex:1}}>
           <div className="entry-label">{entry.label}</div>
-          <div className="entry-sub">{Math.round(entry.kcal)} {T.kcal} · {Number(entry.carbs).toFixed(1)}g {T.carbs} · {Number(entry.protein).toFixed(1)}g {T.protein}</div>
+          <div className="entry-sub" style={{direction:'ltr',textAlign:'right'}}>{Math.round(entry.kcal)} {T.kcal} · {Number(entry.carbs).toFixed(1)}g {T.carbs} · {Number(entry.protein).toFixed(1)}g {T.protein}</div>
         </div>
         <div style={{display:"flex",gap:4,alignItems:"center"}}>
           {entry.perUnit&&(
@@ -1412,15 +1412,16 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto,lang}){
       protein:parseFloat(((preview.protein||0)/tg*100).toFixed(1)),
       fat:parseFloat(((preview.fat||0)/tg*100).toFixed(1))
     }:null);
+    const srcText=preview.label+(preview.portions?` — ${preview.portions}`:'');
     const entry=p100g?{
       names:[name.toLowerCase()],label:`📷 ${name}`,
       kcal:p100g.kcal,carbs:p100g.carbs,protein:p100g.protein,fat:p100g.fat,
-      defaultAmt:tg||100,unit:"g"
+      defaultAmt:tg||100,unit:"g",sourceText:srcText
     }:{
       names:[name.toLowerCase()],label:`📷 ${name}`,
       kcal:Math.round(preview.kcal),carbs:parseFloat((preview.carbs||0).toFixed(1)),
       protein:parseFloat((preview.protein||0).toFixed(1)),fat:parseFloat((preview.fat||0).toFixed(1)),
-      defaultAmt:1,unit:"מנה",serving_size:1
+      defaultAmt:1,unit:"מנה",serving_size:1,sourceText:srcText
     };
     const pid=window._activePid||"default";
     const db=loadCustomDB(pid);
@@ -1579,7 +1580,7 @@ function MealPanel({onAdd,onClose,lang}){
     const entry={names:[name.toLowerCase()],label:`🍽 ${name}`,
       kcal:Math.round(preview.kcal/s),carbs:parseFloat(((preview.carbs||0)/s).toFixed(1)),
       protein:parseFloat(((preview.protein||0)/s).toFixed(1)),fat:parseFloat(((preview.fat||0)/s).toFixed(1)),
-      defaultAmt:1,unit:"מנה",serving_size:1};
+      defaultAmt:1,unit:"מנה",serving_size:1,sourceText:text.trim()||name};
     const pid=window._activePid||"default";
     const db=loadCustomDB(pid);
     saveCustomDB([...db.filter(f=>f.label!==entry.label),entry],pid);
@@ -3515,6 +3516,269 @@ function InfoModal({onClose,lang}){
   );
 }
 
+// ── Recipe Book ───────────────────────────────────────────────────────────────
+const loadRecipes=pid=>ls.get(`nutrition_recipes_${pid||'default'}`) || [];
+const saveRecipes=(r,pid)=>ls.set(`nutrition_recipes_${pid||'default'}`,r);
+
+function formatRecipeShare(recipe,isHe){
+  const lines=[`📖 ${recipe.name}`,''];
+  if(recipe.ingredients?.length){
+    lines.push(isHe?'🧂 מצרכים:':'🧂 Ingredients:');
+    recipe.ingredients.forEach(i=>lines.push(`• ${i.amount} ${i.unit} ${i.item}`));
+    lines.push('');
+  }
+  if(recipe.steps?.length){
+    lines.push(isHe?'👨‍🍳 הכנה:':'👨‍🍳 Instructions:');
+    recipe.steps.forEach((s,i)=>lines.push(`${i+1}. ${s}`));
+    lines.push('');
+  }
+  if(recipe.kcalPerPerson) lines.push(`📊 ${isHe?'לכל מנה':'Per serving'}: ${Math.round(recipe.kcalPerPerson)} kcal · ${(recipe.carbsPerPerson||0).toFixed(1)}g carbs · ${(recipe.proteinPerPerson||0).toFixed(1)}g prot`);
+  return lines.join('\n');
+}
+
+function RecipeCard({recipe,isHe,onEdit,onDelete,onShare,onEmail,onAddToDay,open,onToggle}){
+  return(
+    <div style={{background:"#f5f5f7",borderRadius:12,marginBottom:8,overflow:"hidden"}}>
+      <div onClick={onToggle} style={{display:"flex",alignItems:"center",padding:"12px 14px",cursor:"pointer",gap:8}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:13,fontWeight:700,color:C.text}}>{recipe.name}</div>
+          <div style={{fontSize:11,color:C.muted,marginTop:2}}>{Math.round(recipe.kcalPerPerson||0)} kcal · {recipe.servings||1} {isHe?"מנות":"servings"}{recipe.source==='claude'?' · 🤖':''}</div>
+        </div>
+        <span style={{fontSize:10,color:C.muted,transform:open?"rotate(180deg)":"none",transition:"transform .2s",display:"inline-block"}}>▾</span>
+      </div>
+      {open&&(
+        <div className="fade" style={{padding:"0 14px 12px"}}>
+          {recipe.ingredients?.length>0&&(
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:10,fontWeight:700,color:C.muted,letterSpacing:1,marginBottom:5}}>{isHe?"מצרכים":"INGREDIENTS"}</div>
+              {recipe.ingredients.map((ing,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"3px 0",borderBottom:`1px solid ${C.border}`,fontSize:12}}>
+                  <span style={{color:C.text}}>{ing.item}</span>
+                  <span style={{color:C.muted}}>{ing.amount}{ing.unit&&ing.unit!=="יח׳"?" "+ing.unit:""}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {recipe.steps?.length>0&&(
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:10,fontWeight:700,color:C.muted,letterSpacing:1,marginBottom:5}}>{isHe?"הכנה":"INSTRUCTIONS"}</div>
+              {recipe.steps.map((step,i)=>(
+                <div key={i} style={{display:"flex",gap:8,padding:"4px 0",fontSize:12,color:C.text}}>
+                  <span style={{color:C.accent,fontWeight:700,flexShrink:0}}>{i+1}.</span>
+                  <span style={{flex:1}}>{step}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {recipe.kcalPerPerson>0&&(
+            <div style={{display:"flex",gap:6,marginBottom:10,background:"rgba(255,255,255,.75)",borderRadius:8,padding:"8px 10px"}}>
+              {[{l:"kcal",v:Math.round(recipe.kcalPerPerson),c:C.accent},{l:"carbs g",v:(recipe.carbsPerPerson||0).toFixed(1),c:C.warn},{l:"prot g",v:(recipe.proteinPerPerson||0).toFixed(1),c:C.blue}].map(({l,v,c})=>(
+                <div key={l} style={{flex:1,textAlign:"center"}}>
+                  <div style={{fontSize:16,fontWeight:700,color:c}}>{v}</div>
+                  <div style={{fontSize:9,color:C.muted}}>{l}/{isHe?"מנה":"serving"}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+            <button onClick={onAddToDay} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"8px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ {isHe?"הוסף להיום":"Add to day"}</button>
+            <button onClick={onEdit} style={{flex:1,background:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer"}}>✏️</button>
+            <button onClick={onShare} style={{flex:1,background:"rgba(37,211,102,.1)",border:"1px solid rgba(37,211,102,.3)",borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer"}}>📱</button>
+            <button onClick={onEmail} style={{flex:1,background:"rgba(59,130,246,.08)",border:"1px solid rgba(59,130,246,.2)",borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer"}}>✉️</button>
+            <button onClick={onDelete} style={{flex:1,background:"none",border:`1px solid rgba(220,38,38,.2)`,borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer",color:C.danger}}>🗑</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
+  const isHe=(lang||'he')!=='en';
+  const [name,setName]=useState(recipe?.name||'');
+  const [servings,setServings]=useState(recipe?.servings||2);
+  const [ingredients,setIngredients]=useState(recipe?.ingredients?.length?recipe.ingredients:[{item:'',amount:'',unit:'g'}]);
+  const [steps,setSteps]=useState(recipe?.steps?.length?recipe.steps:['']);
+  const [nutrition,setNutrition]=useState(recipe?.kcalPerPerson?{kcal:recipe.kcalPerPerson,carbs:recipe.carbsPerPerson,protein:recipe.proteinPerPerson,fat:recipe.fatPerPerson}:null);
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState('');
+  const stepRefs=useRef([]);
+
+  const addIng=()=>setIngredients(v=>[...v,{item:'',amount:'',unit:'g'}]);
+  const removeIng=i=>setIngredients(v=>v.filter((_,j)=>j!==i));
+  const updateIng=(i,f,v)=>setIngredients(arr=>arr.map((ing,j)=>j===i?{...ing,[f]:v}:ing));
+
+  const handleStepKey=(e,i)=>{
+    if(e.key==='Enter'){e.preventDefault();const s=[...steps];s.splice(i+1,0,'');setSteps(s);setTimeout(()=>stepRefs.current[i+1]?.focus(),40);}
+    if(e.key==='Backspace'&&steps[i]===''&&steps.length>1){e.preventDefault();setSteps(v=>v.filter((_,j)=>j!==i));setTimeout(()=>stepRefs.current[Math.max(0,i-1)]?.focus(),40);}
+  };
+
+  const askClaude=async()=>{
+    const desc=ingredients.filter(i=>i.item.trim()).map(i=>`${i.amount} ${i.unit} ${i.item}`).join(', ');
+    if(!desc) return;
+    setLoading(true);setError('');
+    try{
+      const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({mealDescription:`${isHe?'מתכון':'Recipe'} ${isHe?'ל':'for'}-${servings} ${isHe?'מנות':'servings'}:\n${desc}`})});
+      const d=await r.json();
+      if(d.kcal) setNutrition({kcal:Math.round(d.kcal/servings),carbs:parseFloat(((d.carbs||0)/servings).toFixed(1)),protein:parseFloat(((d.protein||0)/servings).toFixed(1)),fat:parseFloat(((d.fat||0)/servings).toFixed(1))});
+      else setError(isHe?'לא הצלחתי לחשב':'Could not calculate');
+    }catch{setError(isHe?'שגיאה':'Error');}
+    setLoading(false);
+  };
+
+  const handleSave=()=>{
+    onSave({id:recipe?.id||`recipe_${Date.now()}`,name:name.trim()||(isHe?'מתכון חדש':'New Recipe'),servings,source:recipe?.source||'manual',
+      ingredients:ingredients.filter(i=>i.item.trim()),steps:steps.filter(s=>s.trim()),
+      kcalPerPerson:nutrition?.kcal||0,carbsPerPerson:nutrition?.carbs||0,proteinPerPerson:nutrition?.protein||0,fatPerPerson:nutrition?.fat||0,
+      savedAt:recipe?.savedAt||new Date().toISOString()});
+  };
+
+  const handleAddToDay=()=>{
+    if(!nutrition) return;
+    onAddToDay({uid:Date.now()+Math.random(),label:`📖 ${name||'מתכון'} (${servings} ${isHe?'מנות':'srv'})`,
+      kcal:(nutrition.kcal||0)*servings,carbs:parseFloat(((nutrition.carbs||0)*servings).toFixed(1)),
+      protein:parseFloat(((nutrition.protein||0)*servings).toFixed(1)),fat:parseFloat(((nutrition.fat||0)*servings).toFixed(1))});
+    onClose();
+  };
+
+  const UNITS=['g','ml','יח׳','כף','כפית','כוס','ק״ג'];
+
+  return(
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-sheet slide" style={{maxHeight:"92vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontSize:15,fontWeight:700}}>📝 {recipe?(isHe?"עריכת מתכון":"Edit Recipe"):(isHe?"מתכון חדש":"New Recipe")}</div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
+        </div>
+
+        {/* Name */}
+        <input value={name} onChange={e=>setName(e.target.value)} placeholder={isHe?"שם המתכון":"Recipe name"} className="inp" style={{marginBottom:10,fontWeight:600}}/>
+
+        {/* Servings */}
+        <div style={{display:"flex",alignItems:"center",gap:10,background:"#f5f5f7",borderRadius:10,padding:"8px 12px",marginBottom:14}}>
+          <span style={{fontSize:12,color:C.muted,flex:1}}>{isHe?"מספר מנות:":"Servings:"}</span>
+          <button onClick={()=>setServings(v=>Math.max(1,v-1))} style={{width:26,height:26,border:`1px solid ${C.border}`,borderRadius:6,background:"#fff",cursor:"pointer",fontSize:14}}>−</button>
+          <span style={{fontWeight:700,fontSize:14,color:C.accent,minWidth:20,textAlign:"center"}}>{servings}</span>
+          <button onClick={()=>setServings(v=>v+1)} style={{width:26,height:26,border:`1px solid ${C.border}`,borderRadius:6,background:"#fff",cursor:"pointer",fontSize:14}}>+</button>
+        </div>
+
+        {/* Ingredients */}
+        <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1,marginBottom:8}}>{isHe?"מצרכים":"INGREDIENTS"}</div>
+        {ingredients.map((ing,i)=>(
+          <div key={i} style={{display:"flex",gap:5,marginBottom:6,alignItems:"center"}}>
+            <input value={ing.item} onChange={e=>updateIng(i,'item',e.target.value)} placeholder={isHe?"שם מצרך":"Ingredient"} className="inp" style={{flex:2,fontSize:12,padding:"6px 8px"}}/>
+            <input value={ing.amount} onChange={e=>updateIng(i,'amount',e.target.value)} placeholder={isHe?"כמות":"Qty"} className="inp" style={{width:52,fontSize:12,padding:"6px 6px",flexShrink:0}}/>
+            <select value={ing.unit||'g'} onChange={e=>updateIng(i,'unit',e.target.value)} className="inp" style={{width:58,fontSize:11,padding:"6px 4px",flexShrink:0,cursor:"pointer"}}>
+              {UNITS.map(u=><option key={u} value={u}>{u}</option>)}
+            </select>
+            <button onClick={()=>removeIng(i)} style={{background:"none",border:"none",color:C.danger,fontSize:18,cursor:"pointer",padding:"0 4px",flexShrink:0}}>×</button>
+          </div>
+        ))}
+        <button onClick={addIng} style={{width:"100%",background:"transparent",border:`1px dashed ${C.border}`,borderRadius:8,padding:"6px",fontSize:12,color:C.accent,cursor:"pointer",marginBottom:14}}>+ {isHe?"הוסף מצרך":"Add ingredient"}</button>
+
+        {/* Steps */}
+        <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1,marginBottom:4}}>{isHe?"שלבי הכנה":"INSTRUCTIONS"}</div>
+        <div style={{fontSize:10,color:C.muted,marginBottom:8}}>{isHe?"Enter = שלב חדש":"Enter = new step"}</div>
+        {steps.map((step,i)=>(
+          <div key={i} style={{display:"flex",gap:6,marginBottom:6,alignItems:"flex-start"}}>
+            <span style={{color:C.accent,fontWeight:700,fontSize:12,marginTop:8,flexShrink:0,minWidth:16}}>{i+1}.</span>
+            <textarea ref={el=>stepRefs.current[i]=el} id={`step-${i}`} value={step}
+              onChange={e=>setSteps(s=>s.map((x,j)=>j===i?e.target.value:x))}
+              onKeyDown={e=>handleStepKey(e,i)}
+              rows={1} className="inp" style={{flex:1,fontSize:12,resize:"none",padding:"6px 8px",lineHeight:1.4}}/>
+            {steps.length>1&&<button onClick={()=>setSteps(s=>s.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:C.danger,fontSize:16,cursor:"pointer",padding:"6px 4px",flexShrink:0}}>×</button>}
+          </div>
+        ))}
+        <button onClick={()=>setSteps(s=>[...s,''])} style={{width:"100%",background:"transparent",border:`1px dashed ${C.border}`,borderRadius:8,padding:"6px",fontSize:12,color:C.accent,cursor:"pointer",marginBottom:14}}>+ {isHe?"הוסף שלב":"Add step"}</button>
+
+        {/* Claude nutrition */}
+        <div style={{borderTop:`1px solid ${C.border}`,paddingTop:12,marginBottom:8}}>
+          {loading&&<div style={{textAlign:"center",marginBottom:8}}><CalcLoader size={56}/></div>}
+          {nutrition&&(
+            <div className="fade" style={{display:"flex",gap:6,marginBottom:10,background:"#f0fae8",borderRadius:8,padding:"8px 10px"}}>
+              {[{l:"kcal",v:Math.round(nutrition.kcal),c:C.accent},{l:"carbs g",v:(nutrition.carbs||0).toFixed(1),c:C.warn},{l:"prot g",v:(nutrition.protein||0).toFixed(1),c:C.blue}].map(({l,v,c})=>(
+                <div key={l} style={{flex:1,textAlign:"center"}}>
+                  <div style={{fontSize:16,fontWeight:700,color:c}}>{v}</div>
+                  <div style={{fontSize:9,color:C.muted}}>{l}/{isHe?"מנה":"serving"}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {error&&<div style={{fontSize:11,color:C.danger,marginBottom:8,textAlign:"center"}}>{error}</div>}
+          <button onClick={askClaude} disabled={loading||!ingredients.some(i=>i.item.trim())}
+            style={{width:"100%",background:ingredients.some(i=>i.item.trim())&&!loading?"linear-gradient(135deg,#5a9e1e,#7bc42e)":"#ddd",border:"none",borderRadius:10,color:ingredients.some(i=>i.item.trim())&&!loading?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:10}}>
+            {loading?"...":`✨ ${isHe?"שאל את Claude לחישוב ערכים":"Ask Claude to calculate"}`}
+          </button>
+        </div>
+
+        {/* Actions */}
+        <div style={{display:"flex",gap:6}}>
+          <button onClick={onClose} className="btn-muted" style={{flex:1}}>{isHe?"ביטול":"Cancel"}</button>
+          <button onClick={handleAddToDay} disabled={!nutrition} style={{flex:1,background:nutrition?C.accent:"#ddd",border:"none",borderRadius:10,color:nutrition?"#fff":"#aaa",padding:"10px",fontSize:12,fontWeight:700,cursor:nutrition?"pointer":"default"}}>+ {isHe?"להיום":"Today"}</button>
+          <button onClick={handleSave} style={{flex:2,background:C.accent,border:"none",borderRadius:10,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>💾 {isHe?"שמור":"Save"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecipeBookModal({onClose,lang,pid,onAddToDay,initialEdit}){
+  const isHe=(lang||'he')!=='en';
+  const activePid=pid||window._activePid||'default';
+  const [recipes,setRecipes]=useState(()=>loadRecipes(activePid));
+  const [openId,setOpenId]=useState(null);
+  const [search,setSearch]=useState('');
+  const [showAdd,setShowAdd]=useState(false);
+  const [editRecipe,setEditRecipe]=useState(initialEdit||null);
+
+  const save=r=>{setRecipes(r);saveRecipes(r,activePid);};
+  const remove=id=>save(recipes.filter(r=>r.id!==id));
+
+  const share=recipe=>{const msg=formatRecipeShare(recipe,isHe);window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');};
+  const email=recipe=>{const msg=formatRecipeShare(recipe,isHe);window.open(`mailto:?subject=${encodeURIComponent(recipe.name)}&body=${encodeURIComponent(msg)}`,'_blank');};
+
+  const handleAddToDay=recipe=>{
+    onAddToDay({uid:Date.now()+Math.random(),label:`📖 ${recipe.name}`,
+      kcal:(recipe.kcalPerPerson||0)*recipe.servings,carbs:parseFloat(((recipe.carbsPerPerson||0)*recipe.servings).toFixed(1)),
+      protein:parseFloat(((recipe.proteinPerPerson||0)*recipe.servings).toFixed(1)),fat:parseFloat(((recipe.fatPerPerson||0)*recipe.servings).toFixed(1))});
+    onClose();
+  };
+
+  const filtered=search.trim()?recipes.filter(r=>r.name.toLowerCase().includes(search.toLowerCase())):recipes;
+
+  if(showAdd||editRecipe){
+    return <AddEditRecipeModal recipe={editRecipe} lang={lang} onAddToDay={e=>{onAddToDay(e);onClose();}}
+      onClose={()=>{setShowAdd(false);setEditRecipe(null);}}
+      onSave={r=>{const updated=editRecipe?recipes.map(x=>x.id===r.id?r:x):[r,...recipes];save(updated);setShowAdd(false);setEditRecipe(null);}}/>;
+  }
+
+  return(
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-sheet slide" style={{maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontSize:15,fontWeight:700}}>📖 {isHe?"ספר מתכונים":"My Recipes"}</div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
+        </div>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={isHe?"חפש מתכון...":"Search recipes..."} className="inp" style={{marginBottom:10}}/>
+        <button onClick={()=>setShowAdd(true)} style={{width:"100%",background:"transparent",border:`1px dashed ${C.border}`,borderRadius:10,padding:10,fontSize:12,color:C.accent,cursor:"pointer",marginBottom:12,fontWeight:700}}>
+          + {isHe?"הוסף מתכון":"Add Recipe"}
+        </button>
+        {filtered.length===0
+          ?<div style={{textAlign:"center",color:C.muted,padding:30,fontSize:13}}>{isHe?"אין עדיין מתכונים":"No recipes yet"}</div>
+          :filtered.map(recipe=>(
+            <RecipeCard key={recipe.id} recipe={recipe} isHe={isHe}
+              open={openId===recipe.id} onToggle={()=>setOpenId(openId===recipe.id?null:recipe.id)}
+              onEdit={()=>setEditRecipe(recipe)} onDelete={()=>remove(recipe.id)}
+              onShare={()=>share(recipe)} onEmail={()=>email(recipe)}
+              onAddToDay={()=>handleAddToDay(recipe)}/>
+          ))
+        }
+      </div>
+    </div>
+  );
+}
+
 // ── MealPlannerModal ───────────────────────────────────────────────────────────
 const API="https://nutrition-ai.lior0gal.workers.dev";
 const FRIDGE_CATS=[
@@ -3530,7 +3794,7 @@ const FRIDGE_CATS=[
 const loadFridge=()=>{try{return JSON.parse(localStorage.getItem("nutrition_fridge")||"{}");}catch{return {};}};
 const saveFridgeLS=f=>localStorage.setItem("nutrition_fridge",JSON.stringify(f));
 
-function MealPlannerModal({onAdd,onClose,lang,profile}){
+function MealPlannerModal({onAdd,onClose,lang,profile,onSaveRecipe}){
   const T=LANG[lang]||LANG.he;
   const isHe=lang!=='en';
   const [step,setStep]=useState(1);
@@ -3899,10 +4163,20 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
               </div>
               <div style={{display:"flex",gap:6}}>
                 <button onClick={openIngEdit} style={{flex:1,background:"none",border:`1px solid ${C.accent}`,color:C.accent,borderRadius:10,padding:"9px",fontSize:12,fontWeight:600,cursor:"pointer"}}>
-                  {isHe?"✏️ הוסף עם שינויים":"✏️ Add with changes"}
+                  {isHe?"✏️ עם שינויים":"✏️ Modify"}
                 </button>
                 <button onClick={()=>saveToDb()} style={{flex:1,background:savedToDb?"rgba(13,148,136,.12)":"none",border:`1px solid ${savedToDb?C.accent:C.border}`,color:savedToDb?C.accent:C.muted,borderRadius:10,padding:"9px",fontSize:12,fontWeight:600,cursor:"pointer"}}>
-                  {savedToDb?(isHe?"✓ נשמר":"✓ Saved"):(isHe?"💾 שמור למאגר":"💾 Save to DB")}
+                  {savedToDb?(isHe?"✓ נשמר":"✓ Saved"):(isHe?"💾 מאגר":"💾 DB")}
+                </button>
+                <button onClick={()=>{
+                  const r={id:`recipe_${Date.now()}`,name:recipe.name,servings:people,source:'claude',
+                    ingredients:(recipe.ingredients||[]).map(i=>({item:i.item,amount:i.amount,unit:''})),
+                    steps:recipe.steps||[],kcalPerPerson:recipe.kcalPerPerson||0,
+                    carbsPerPerson:recipe.carbsPerPerson||0,proteinPerPerson:recipe.proteinPerPerson||0,
+                    fatPerPerson:recipe.fatPerPerson||0,savedAt:new Date().toISOString()};
+                  onSaveRecipe&&onSaveRecipe(r);
+                }} style={{flex:1,background:"rgba(99,102,241,.08)",border:"1px solid rgba(99,102,241,.3)",color:"#6366f1",borderRadius:10,padding:"9px",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                  📖 {isHe?"ספר":"Book"}
                 </button>
               </div>
             </div>
@@ -4475,6 +4749,7 @@ function App(){
   const [showPantry,setShowPantry]=useState(false);
   const [showShopping,setShowShopping]=useState(false);
   const [showMealPlanner,setShowMealPlanner]=useState(false);
+  const [showRecipeBook,setShowRecipeBook]=useState(false);
   const [showHousehold,setShowHousehold]=useState(false);
   const [hhWelcome,setHhWelcome]=useState(null);
   const [householdCfg,setHouseholdCfg]=useState(()=>ls.get('nutrition_household'));
@@ -4646,7 +4921,9 @@ function App(){
       {showPantry && <PantryModal onClose={()=>setShowPantry(false)} lang={lang} syncTick={syncTick}/>}
       {showShopping && <ShoppingListModal onClose={()=>setShowShopping(false)} lang={lang} pid={pid} syncTick={syncTick}/>}
       {showHousehold && <HouseholdModal householdCfg={householdCfg} onConnect={cfg=>{setHouseholdCfg(cfg);setShowHousehold(false);}} onHouseholdReady={cfg=>setHouseholdCfg(cfg)} onLeave={()=>{setHouseholdCfg(null);setHhSynced(false);setShowHousehold(false);}} onClose={()=>setShowHousehold(false)} onWelcome={data=>{setHouseholdCfg(data.cfg);setHhWelcome(data);setShowHousehold(false);}} lang={lang}/>}
-      {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang} profile={activeProfile}/>}
+      {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang} profile={activeProfile}
+        onSaveRecipe={r=>{const pid2=window._activePid||'default';saveRecipes([r,...loadRecipes(pid2)],pid2);}}/>}
+      {showRecipeBook && <RecipeBookModal onClose={()=>setShowRecipeBook(false)} lang={lang} pid={pid} onAddToDay={addEntry}/>}
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}} lang={lang}/>}
       {showWizard && <ProfileSetupWizard lang={lang} onToggleLang={toggleLang} profile={wizardProfile} onSave={p=>{const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===p.id?p:x));setActiveProfile(p.id===pid?p:activeProfile);setProfiles(loadProfiles());setWizardProfile(null);setShowWizard(false);}} onSkip={()=>{setWizardProfile(null);setShowWizard(false);}}/>}
       {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)} lang={lang} todayEntries={entries} todayDate={activeDate} todayBloodSugar={bloodSugar} todayTotals={totals}/>}
@@ -4680,6 +4957,7 @@ function App(){
             <button onClick={()=>setShowShopping(true)} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",padding:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
               <img src="/Nutrition/shopping-cart.png" style={{width:20,height:20,objectFit:"contain"}} alt="קניות"/>
             </button>
+            <button onClick={()=>setShowRecipeBook(true)} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center"}}>📖</button>
             <button onClick={()=>setShowInfo(true)} style={{width:24,height:24,borderRadius:7,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",color:C.muted,fontWeight:700}}>ℹ</button>
             <button onClick={saveDay} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",transition:"all .3s",animation:saveFlash?"pop .35s ease":"none",boxShadow:"0 2px 8px rgba(80,120,160,.1)"}}>💾</button>
             <button onClick={()=>setShowHousehold(true)} style={{width:26,height:26,borderRadius:8,background:"rgba(255,255,255,.75)",border:"1px solid rgba(255,255,255,.9)",backdropFilter:"blur(12px)",cursor:"pointer",fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}>
