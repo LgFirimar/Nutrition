@@ -453,7 +453,7 @@ function EntryRow({entry,onRemove,onUpdate,lang}){
       <div className="entry-row">
         <div style={{flex:1}}>
           <div className="entry-label">{entry.label}</div>
-          <div className="entry-sub" style={{direction:'ltr',textAlign:'right'}}>{Math.round(entry.kcal)} {T.kcal} · {Number(entry.carbs).toFixed(1)}g {T.carbs} · {Number(entry.protein).toFixed(1)}g {T.protein}</div>
+          <div className="entry-sub" style={(lang||localStorage.getItem('nutrition_lang')||'he')==='en'?{direction:'ltr',textAlign:'left'}:{}}>{Math.round(entry.kcal)} {T.kcal} · {Number(entry.carbs).toFixed(1)}g {T.carbs} · {Number(entry.protein).toFixed(1)}g {T.protein}</div>
         </div>
         <div style={{display:"flex",gap:4,alignItems:"center"}}>
           {entry.perUnit&&(
