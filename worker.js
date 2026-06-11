@@ -15,10 +15,15 @@ export default {
     }
 
     try {
-      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, profileData, lang } = await request.json();
+      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, profileData, lang, translateItems } = await request.json();
 
       let prompt, model, system, max_tokens, messages;
-      if (pantryBulkData) {
+      if (translateItems) {
+        model = 'claude-haiku-4-5-20251001';
+        max_tokens = 400;
+        system = 'You are a translation assistant. Return ONLY valid JSON, no markdown.';
+        prompt = `Translate these food/grocery item names to English. Return {"translations":["english1","english2",...]} same order, same count.\nItems: ${JSON.stringify(translateItems)}`;
+      } else if (pantryBulkData) {
         model = 'claude-sonnet-4-6';
         max_tokens = 1200;
         system = 'You are a pantry and grocery expert. Identify food items in images. Return ONLY valid JSON, no markdown.';
@@ -128,18 +133,22 @@ Rules for the ingredients field (required in every option!):
 - Good examples: "chicken breast", "rice", "tomatoes", "cheddar cheese", "salmon", "pasta", "lentils"
 - Do NOT include: oil, salt, pepper, water, garlic, onion, butter, vinegar (base ingredients)
 
+The fridge items listed in preferences may be in Hebrew. Also return "translatedFridge" — a JSON object mapping each Hebrew fridge item name to its English translation, e.g. {"עגבניות":"tomatoes"}.
+
 Return ONLY JSON, exactly this format:
-{"options":[{"name":"meal name","description":"short description","ingredients":["ingredient1","ingredient2","ingredient3","ingredient4"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0}]}`;
+{"options":[{"name":"meal name","description":"short description","ingredients":["ingredient1","ingredient2","ingredient3","ingredient4"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0}],"translatedFridge":{"hebrewItem":"english",...}}`;
         }
       } else if (shoppingList) {
+        const {pantry, recentFoods, isHe: shIsHe, lang: shLang} = shoppingList;
+        const shHe = shIsHe !== false && (shLang||'he') !== 'en';
         model = 'claude-haiku-4-5-20251001';
         max_tokens = 600;
-        system = 'אתה עוזר לתכנון קניות בסופר. ענה בעברית. החזר JSON בלבד, ללא הסבר.';
-        const {pantry, recentFoods, isHe} = shoppingList;
-        prompt = `המשתמש אכל לאחרונה: ${(recentFoods||[]).join(', ')||'לא ידוע'}.
-במזווה/מקרר יש: ${pantry||'ריק'}.
-הצע 6-10 פריטים לקנות בסופר — עדיפות לפריטים שחסרים במזווה ומופיעים בהרגלי האכילה.
-{"items":[{"name":"שם מוצר","qty":"כמות מומלצת"}]}`;
+        system = shHe
+          ? 'אתה עוזר לתכנון קניות בסופר. ענה בעברית. החזר JSON בלבד, ללא הסבר.'
+          : 'You are a grocery shopping assistant. Respond in English. Return ONLY JSON, no explanation.';
+        prompt = shHe
+          ? `המשתמש אכל לאחרונה: ${(recentFoods||[]).join(', ')||'לא ידוע'}.\nבמזווה/מקרר יש: ${pantry||'ריק'}.\nהצע 6-10 פריטים לקנות בסופר — עדיפות לפריטים שחסרים במזווה ומופיעים בהרגלי האכילה.\n{"items":[{"name":"שם מוצר","qty":"כמות מומלצת"}]}`
+          : `Recently eaten: ${(recentFoods||[]).join(', ')||'unknown'}.\nPantry/fridge has (may be in Hebrew): ${pantry||'empty'}.\nSuggest 6-10 items to buy — prioritize items missing from pantry that match eating habits.\n{"items":[{"name":"product name in English","qty":"recommended quantity"}]}`;
       } else if (profileData) {
         model = 'claude-sonnet-4-6';
         max_tokens = 2000;

@@ -1934,13 +1934,15 @@ function MetricWeekChart({journal,metric,color,label,lang}){
 }
 
 // ── SugarWeekChart ─────────────────────────────────────────────────────────────
-function SugarWeekChart({journal}){
+function SugarWeekChart({journal, lang}){
+  const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en'?true:false;
   const [range,setRange]=useState(7);
   const H=54, W=280, PAD=14, SUGAR_RANGE=80, MIN_V=60;
   const toY=v=>Math.max(2,Math.min(H-2, H-(Number(v)-MIN_V)/SUGAR_RANGE*H));
   const y100=H-(100-MIN_V)/SUGAR_RANGE*H;
   const y86 =H-(86 -MIN_V)/SUGAR_RANGE*H;
   const HE=['א','ב','ג','ד','ה','ו','ש'];
+  const EN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const now=new Date();
   const todayKey=getTodayKey();
   const fmtKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1999,8 +2001,8 @@ function SugarWeekChart({journal}){
     <div style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:"1px solid rgba(255,255,255,.88)",borderRadius:18,padding:"12px 14px 10px",marginBottom:16,boxShadow:"0 4px 20px rgba(80,130,180,.1)",maxWidth:440}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
-          <div style={{fontSize:9.5,color:"#94a3b8",letterSpacing:1.4,textTransform:"uppercase"}}>🩸 סוכר</div>
-          {avg7!=null&&<span style={{fontSize:8.5,color:sugarColor(avg7),background:sugarColor(avg7)+'18',borderRadius:8,padding:"1px 6px",fontWeight:700}}>ממוצע שבוע: {avg7}</span>}
+          <div style={{fontSize:9.5,color:"#94a3b8",letterSpacing:1.4,textTransform:"uppercase"}}>🩸 {isHe?"סוכר":"Sugar"}</div>
+          {avg7!=null&&<span style={{fontSize:8.5,color:sugarColor(avg7),background:sugarColor(avg7)+'18',borderRadius:8,padding:"1px 6px",fontWeight:700}}>{isHe?"ממוצע שבוע":"Week avg"}: {avg7}</span>}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           <div style={{display:"flex",gap:3}}>
@@ -2057,7 +2059,7 @@ function SugarWeekChart({journal}){
         <div style={{display:"flex",direction:"ltr",marginTop:5}}>
           {days.map((d,i)=>(
             <div key={i} style={{flex:1,textAlign:"center"}}>
-              <div style={{fontSize:7.5,color:"#94a3b8"}}>{HE[d.dow]}</div>
+              <div style={{fontSize:7.5,color:"#94a3b8"}}>{isHe?HE[d.dow]:EN[d.dow]}</div>
               {d.v?<div style={{fontSize:8.5,fontWeight:700,color:sugarColor(d.v)}}>{d.v}</div>
                   :<div style={{fontSize:8.5,color:"rgba(148,163,184,.4)"}}>—</div>}
             </div>
@@ -2174,7 +2176,7 @@ function JournalView({onClose,onLoadDay,pid,lang}){
                 })}
               </div>
               {activeChart&&<MetricWeekChart key={activeChart} journal={journal} metric={activeChart} color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:C.blue} label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:T.protein} lang={lang}/>}
-              <SugarWeekChart journal={journal}/>
+              <SugarWeekChart journal={journal} lang={lang}/>
               <div className="card">
                 {weekDays.map((key,i)=>(
                   <div key={key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 16px",borderBottom:i<weekDays.length-1?"1px solid #e0e0e5":"none"}}>
@@ -2436,11 +2438,32 @@ function ShoppingListModal({onClose,lang,pid,syncTick}){
   const isHe=(lang||'he')!=='en';
   const [items,setItems]=useState(loadShopping);
   const [loading,setLoading]=useState(false);
+  const [translating,setTranslating]=useState(false);
   const [newName,setNewName]=useState("");
   const [newQty,setNewQty]=useState("");
   const [error,setError]=useState("");
 
   useEffect(()=>{if(syncTick>0)setItems(loadShopping());},[syncTick]);
+
+  // Auto-translate Hebrew items when in English mode
+  useEffect(()=>{
+    if(isHe) return;
+    const cur=loadShopping();
+    const heItems=cur.filter(i=>/[א-ת]/.test(i.name));
+    if(!heItems.length) return;
+    setTranslating(true);
+    fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({translateItems:heItems.map(i=>i.name)})})
+      .then(r=>r.json()).then(d=>{
+        if(d.translations?.length){
+          const updated=cur.map(item=>{
+            const idx=heItems.findIndex(h=>h.id===item.id);
+            return idx>=0&&d.translations[idx]?{...item,name:d.translations[idx]}:item;
+          });
+          saveShopping(updated);setItems(updated);
+        }
+      }).catch(()=>{}).finally(()=>setTranslating(false));
+  },[isHe]);
 
   const save=list=>{setItems(list);saveShopping(list);};
 
@@ -2460,7 +2483,7 @@ function ShoppingListModal({onClose,lang,pid,syncTick}){
     const pantryStr=FRIDGE_CATS.flatMap(c=>(pantry[c.key]||[]).map(i=>`${i.name}${i.qty?` (${i.qty})`:""}`)).join(', ')||"ריק";
     try{
       const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({shoppingList:{pantry:pantryStr,recentFoods,isHe}})});
+        body:JSON.stringify({shoppingList:{pantry:pantryStr,recentFoods,isHe,lang}})});
       const d=await r.json();
       if(d.error)throw new Error(d.error);
       const newItems=(d.items||[]).map(i=>({id:Date.now()+Math.random(),name:i.name,qty:i.qty||"",checked:false,auto:true,addedBy:_memberName||""}));
@@ -3569,12 +3592,15 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
   const fridgeFlat=FRIDGE_CATS.flatMap(c=>(fridge[c.key]||[]).map(s=>s.toLowerCase()));
   const isMissing=name=>{
     const n=name.toLowerCase();
-    // exact match or "base_ing word" prefix — prevents שמנת matching שמן, שומר matching שום
     if(BASE_INGS.some(b=>n===b||n.startsWith(b+' ')))return false;
-    return!fridgeFlat.some(f=>f.includes(n)||n.includes(f));
+    // Build search list: Hebrew originals + English translations when available
+    const enValues=Object.values(fridgeTrans).map(s=>s.toLowerCase());
+    const searchList=[...fridgeFlat,...enValues];
+    return!searchList.some(f=>f.includes(n)||n.includes(f));
   };
   const getMissing=opt=>(opt.ingredients||[]).filter(isMissing);
   const [cartMsg,setCartMsg]=useState("");
+  const [fridgeTrans,setFridgeTrans]=useState({});
   const addMissingToCart=missing=>{
     if(!missing||!missing.length)return;
     const current=loadShopping();
@@ -3594,6 +3620,7 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
       const d=await r.json();
       if(d.error)throw new Error(d.error);
       setOptions(d.options||[]);
+      if(d.translatedFridge) setFridgeTrans(d.translatedFridge);
       setShowRefine(false);setRefineText("");
       setStep(2);
     }catch(e){setError(isHe?"שגיאה, נסי שוב":"Error, please try again");}
@@ -3757,7 +3784,7 @@ function MealPlannerModal({onAdd,onClose,lang,profile}){
                 <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
                   {(fridge[cat.key]||[]).map(item=>(
                     <span key={item} style={{background:"rgba(13,148,136,.12)",border:"1px solid rgba(13,148,136,.3)",borderRadius:20,padding:"5px 12px 5px 8px",fontSize:12,color:C.accent,display:"inline-flex",alignItems:"center",gap:6,fontWeight:500}}>
-                      {item}
+                      {!isHe&&fridgeTrans[item]?fridgeTrans[item]:item}
                       <button onClick={()=>removeFridgeItem(cat.key,item)}
                         style={{background:"rgba(13,148,136,.2)",border:"none",borderRadius:"50%",color:C.accent,cursor:"pointer",fontSize:11,padding:0,width:16,height:16,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,flexShrink:0}}>×</button>
                     </span>
