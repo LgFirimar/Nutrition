@@ -111,6 +111,21 @@ function migrateOldData() {
 }
 migrateOldData();
 
+// ── Analytics device ping ─────────────────────────────────────────────────────
+(()=>{
+  try{
+    let did=localStorage.getItem('_nutrition_did');
+    if(!did){
+      did='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+        const r=crypto.getRandomValues(new Uint8Array(1))[0]%16;
+        return(c==='x'?r:(r&0x3|0x8)).toString(16);
+      });
+      localStorage.setItem('_nutrition_did',did);
+    }
+    fetch('https://nutrition-ai.lior0gal.workers.dev/ping',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deviceId:did})}).catch(()=>{});
+  }catch(_){}
+})();
+
 // ── Pantry & Shopping helpers ─────────────────────────────────────────────────
 const loadPantry=()=>{try{return JSON.parse(localStorage.getItem("nutrition_pantry")||"{}");}catch{return {};}};
 const loadShopping=()=>{try{return JSON.parse(localStorage.getItem("nutrition_shopping")||"[]");}catch{return [];}};

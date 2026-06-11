@@ -10,6 +10,65 @@ export default {
       return new Response(null, { headers: cors });
     }
 
+    // ── Analytics ───────────────────────────────────────────────────────────────
+    const url = new URL(request.url);
+
+    if (url.pathname === '/ping' && request.method === 'POST') {
+      if (env.ANALYTICS_KV) {
+        try {
+          const { deviceId } = await request.json();
+          if (deviceId && deviceId.length >= 8) {
+            const key = `device:${deviceId}`;
+            const now = Date.now();
+            const existing = await env.ANALYTICS_KV.getWithMetadata(key);
+            const firstSeen = existing.value ? Number(existing.value) : now;
+            if (!existing.value) {
+              const cur = (await env.ANALYTICS_KV.get('__total', 'json')) || 0;
+              await env.ANALYTICS_KV.put('__total', JSON.stringify(cur + 1));
+            }
+            await env.ANALYTICS_KV.put(key, String(firstSeen), {
+              expirationTtl: 730 * 24 * 3600,
+              metadata: { lastSeen: now },
+            });
+          }
+        } catch (_) {}
+      }
+      return new Response('{}', { headers: { ...cors, 'Content-Type': 'application/json' } });
+    }
+
+    if (url.pathname === '/stats') {
+      if (!env.ANALYTICS_KV) {
+        return new Response('KV not configured', { status: 500, headers: cors });
+      }
+      const total = (await env.ANALYTICS_KV.get('__total', 'json')) || 0;
+      const now = Date.now();
+      const week = now - 7 * 24 * 3600 * 1000;
+      const month = now - 30 * 24 * 3600 * 1000;
+      let activeWeek = 0, activeMonth = 0;
+      let cursor, listComplete = false;
+      while (!listComplete) {
+        const res = await env.ANALYTICS_KV.list({ prefix: 'device:', limit: 1000, cursor });
+        for (const k of res.keys) {
+          const ls = k.metadata?.lastSeen || 0;
+          if (ls > week) activeWeek++;
+          if (ls > month) activeMonth++;
+        }
+        listComplete = res.list_complete;
+        cursor = res.cursor;
+      }
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nutrition — Stats</title>
+<style>body{font-family:system-ui,sans-serif;max-width:420px;margin:60px auto;padding:0 20px;background:#f8fafc;color:#0f172a}h1{font-size:1.3rem;margin-bottom:4px}sub{color:#64748b;font-size:.8rem;font-weight:400}.stat{background:white;border-radius:16px;padding:20px 24px;margin:14px 0;box-shadow:0 1px 4px rgba(0,0,0,.08)}.num{font-size:2.6rem;font-weight:700;color:#0d9488;line-height:1}.label{font-size:.85rem;color:#64748b;margin-top:6px}footer{font-size:.72rem;color:#94a3b8;margin-top:20px}</style>
+</head><body>
+<h1>📊 Nutrition App <sub>usage stats</sub></h1>
+<div class="stat"><div class="num">${total}</div><div class="label">Total unique devices (ever)</div></div>
+<div class="stat"><div class="num">${activeWeek}</div><div class="label">Active last 7 days</div></div>
+<div class="stat"><div class="num">${activeMonth}</div><div class="label">Active last 30 days</div></div>
+<footer>As of ${new Date().toLocaleString('he-IL',{timeZone:'Asia/Jerusalem'})}</footer>
+</body></html>`;
+      return new Response(html, { headers: { ...cors, 'Content-Type': 'text/html; charset=utf-8' } });
+    }
+    // ───────────────────────────────────────────────────────────────────────────
+
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405, headers: cors });
     }
