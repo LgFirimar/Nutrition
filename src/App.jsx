@@ -3821,6 +3821,10 @@ function MealPlannerModal({onAdd,onClose,lang,profile,onSaveRecipe}){
   const [recipe,setRecipe]=useState(null);
   const [showRefine,setShowRefine]=useState(false);
   const [refineText,setRefineText]=useState("");
+  const [notes,setNotes]=useState("");
+  const [showJsonInput,setShowJsonInput]=useState(false);
+  const [jsonText,setJsonText]=useState("");
+  const [jsonError,setJsonError]=useState("");
   const [error,setError]=useState("");
   const syncFridgeFromPantry=(base)=>{
     const p=loadPantry();
@@ -3892,7 +3896,7 @@ function MealPlannerModal({onAdd,onClose,lang,profile,onSaveRecipe}){
   const fetchOptions=async(refine)=>{
     setLoading(true);setError("");
     const fridgeStr=buildFridgeStr();
-    const fullPrefs=[prefs,fridgeStr?(isHe?`מה במקרר: ${fridgeStr}`:`Fridge: ${fridgeStr}`):""].filter(Boolean).join("\n");
+    const fullPrefs=[prefs,notes?(isHe?`הערות: ${notes}`:`Notes: ${notes}`):"",fridgeStr?(isHe?`מה במקרר: ${fridgeStr}`:`Fridge: ${fridgeStr}`):""].filter(Boolean).join("\n");
     try{
       const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({mealPlan:{preferences:fullPrefs,people,refine:refine||undefined,lang}})});
@@ -4079,11 +4083,47 @@ function MealPlannerModal({onAdd,onClose,lang,profile,onSaveRecipe}){
             <span style={{flex:1,textAlign:"center",fontSize:16,fontWeight:700,color:C.text}}>{people} {isHe?"אנשים":"people"}</span>
             <button onClick={()=>setPeople(v=>v+1)} style={{width:28,height:28,border:`1px solid ${C.border}`,borderRadius:6,background:"rgba(255,255,255,.7)",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
           </div>
+          {/* Notes field */}
+          <div style={{fontSize:11,color:C.muted,marginBottom:4,marginTop:4}}>{isHe?"הערות והארות לקלוד (רשות)":"Notes for Claude (optional)"}</div>
+          <textarea value={notes} onChange={e=>setNotes(e.target.value)}
+            placeholder={isHe?"למשל: לא יכולה לאכול בשר היום, משהו קל וקצר הכנה...":"e.g. no meat today, something quick to prepare..."}
+            rows={2} className="inp" style={{resize:"none",marginBottom:16,fontSize:12}}/>
+
           {error&&<div style={{color:C.danger,fontSize:12,marginBottom:8}}>{error}</div>}
           {loading&&<div style={{textAlign:'center',marginBottom:8}}><CalcLoader size={64}/></div>}
           <button onClick={()=>fetchOptions()} disabled={loading} className="btn-accent" style={{borderRadius:12}}>
             {loading?(isHe?"מחפש...":"Searching..."):(isHe?"✨ קבל הצעות":"✨ Get suggestions")}
           </button>
+
+          {/* Manual JSON input */}
+          <button onClick={()=>{setShowJsonInput(v=>!v);setJsonError("");}}
+            style={{background:"none",border:"none",color:C.muted,fontSize:11,cursor:"pointer",marginTop:10,padding:0,fontFamily:"inherit",textDecoration:"underline"}}>
+            {isHe?"📋 הזן JSON ידנית מקלוד":"📋 Paste Claude JSON manually"}
+          </button>
+          {showJsonInput&&<>
+            <textarea value={jsonText} onChange={e=>setJsonText(e.target.value)}
+              placeholder={isHe?'הדבק כאן JSON מקלוד\n{"options":[...]} או {"recipe":{...}}':'Paste Claude JSON here\n{"options":[...]} or {"recipe":{...}}'}
+              rows={5} className="inp" style={{resize:"vertical",marginTop:6,fontSize:11,fontFamily:"monospace"}}/>
+            {jsonError&&<div style={{color:C.danger,fontSize:11,marginTop:4}}>{jsonError}</div>}
+            <button onClick={()=>{
+              setJsonError("");
+              try{
+                const d=JSON.parse(jsonText.trim());
+                if(d.options&&Array.isArray(d.options)){
+                  setOptions(d.options);
+                  if(d.translatedFridge) setFridgeTrans(d.translatedFridge);
+                  setStep(2);setShowJsonInput(false);
+                }else if(d.recipe){
+                  setRecipe(d.recipe);
+                  setStep(3);setShowJsonInput(false);
+                }else{
+                  setJsonError(isHe?"JSON לא תקין — צפוי {options:[...]} או {recipe:{...}}":"Invalid JSON — expected {options:[...]} or {recipe:{...}}");
+                }
+              }catch(e){setJsonError((isHe?"שגיאת JSON: ":"JSON error: ")+e.message);}
+            }} className="btn-accent" style={{borderRadius:12,marginTop:6}}>
+              {isHe?"📥 טען":"📥 Load"}
+            </button>
+          </>}
         </>);})()}
 
         {/* Step 2 — Options */}
