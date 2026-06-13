@@ -1880,7 +1880,7 @@ function NewButtonModal({onClose,onSave}){
 
 // ── MetricWeekChart ────────────────────────────────────────────────────────────
 function MetricWeekChart({journal,metric,color,label,lang}){
-  const H=54,W=280,PAD=14;
+  const H=54,W=280,PAD=14,TOP=14;
   const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en';
   const DAY_LABELS=isHe?['א','ב','ג','ד','ה','ו','ש']:['Su','Mo','Tu','We','Th','Fr','Sa'];
   const xs=Array.from({length:7},(_,i)=>Math.round(PAD+i*(W-2*PAD)/6));
@@ -1907,7 +1907,7 @@ function MetricWeekChart({journal,metric,color,label,lang}){
   const minV=Math.min(...vals),maxV=Math.max(...vals);
   const pad=Math.max(maxV-minV,10)*0.2;
   const lo=Math.max(0,minV-pad),hi=maxV+pad,range=hi-lo;
-  const toY=v=>Math.max(2,Math.min(H-2,H-(v-lo)/range*H));
+  const toY=v=>Math.max(TOP+2,Math.min(TOP+H-2,TOP+H-(v-lo)/range*H));
 
   const pts=days.map((d,i)=>d.v!==null&&d.v>0?{x:xs[i],y:toY(d.v),v:d.v}:null);
   const known=pts.filter(Boolean);
@@ -1927,9 +1927,9 @@ function MetricWeekChart({journal,metric,color,label,lang}){
     <div ref={ref} style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:`1px solid ${color}33`,borderRadius:16,padding:"10px 12px 8px",marginBottom:12,boxShadow:"0 3px 14px rgba(80,130,180,.08)",maxWidth:440}}>
       <div style={{fontSize:9,color,letterSpacing:1.4,textTransform:"uppercase",marginBottom:6,fontWeight:700}}>{label} — {isHe?"7 ימים אחרונים":"last 7 days"}</div>
       <div style={{overflow:"hidden",borderRadius:8}}>
-        <svg width="100%" viewBox={`0 0 ${W} ${H+14}`} style={{display:"block"}}>
+        <svg width="100%" viewBox={`0 0 ${W} ${TOP+H+14}`} style={{display:"block"}}>
           {lp&&<>
-            <path d={`${lp} L ${known[known.length-1].x},${H} L ${known[0].x},${H} Z`} fill={color} fillOpacity={0.1}/>
+            <path d={`${lp} L ${known[known.length-1].x},${TOP+H} L ${known[0].x},${TOP+H} Z`} fill={color} fillOpacity={0.1}/>
             <path d={lp} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </>}
           {known.map((p,i)=>(
@@ -1941,7 +1941,7 @@ function MetricWeekChart({journal,metric,color,label,lang}){
             </g>
           ))}
           {days.map((d,i)=>(
-            <text key={i} x={xs[i]} y={H+11} textAnchor="middle" fontSize="8" fill="#94a3b8">{DAY_LABELS[d.dow]}</text>
+            <text key={i} x={xs[i]} y={TOP+H+11} textAnchor="middle" fontSize="8" fill="#94a3b8">{DAY_LABELS[d.dow]}</text>
           ))}
         </svg>
       </div>
@@ -3332,17 +3332,30 @@ function SplashScreen({onDone,lang}){
   const wrapRef=useRef(null);
   const cvRef=useRef(null);
   const vidRef=useRef(null);
+  const skipRef=useRef(false);
+
+  const doSkip=()=>{
+    if(skipRef.current)return;
+    skipRef.current=true;
+    const el=wrapRef.current; if(!el)return;
+    el.style.animation='splashExitContent .4s ease-in forwards';
+    const burst=document.createElement('div');
+    burst.style.cssText='position:absolute;top:50%;left:50%;width:70px;height:70px;border-radius:50%;background:rgba(170,240,90,.9);pointer-events:none;z-index:10;transform:translate(-50%,-50%) scale(0);animation:splashBurst .4s cubic-bezier(.15,.6,.3,1) forwards;';
+    el.appendChild(burst);
+    setTimeout(onDone,400);
+  };
+
   useEffect(()=>{
     imgUtilsReady.then(()=>{ if(window._loadSplashImages) window._loadSplashImages(); });
-    const t1=setTimeout(()=>{ // start exit at 2.5s
+    const t1=setTimeout(()=>{
+      if(skipRef.current)return;
       const el=wrapRef.current; if(!el)return;
-      // Direct DOM manipulation guarantees animation trigger
       el.style.animation='splashExitContent .95s ease-in forwards';
       const burst=document.createElement('div');
       burst.style.cssText='position:absolute;top:50%;left:50%;width:70px;height:70px;border-radius:50%;background:rgba(170,240,90,.9);pointer-events:none;z-index:10;transform:translate(-50%,-50%) scale(0);animation:splashBurst .95s cubic-bezier(.15,.6,.3,1) forwards;';
       el.appendChild(burst);
     },2500);
-    const t2=setTimeout(onDone,3500);
+    const t2=setTimeout(()=>{if(!skipRef.current)onDone();},3500);
     return()=>{clearTimeout(t1);clearTimeout(t2);};
   },[]);
   // Canvas-based white-background removal for the animation video
@@ -3386,7 +3399,7 @@ function SplashScreen({onDone,lang}){
     {id:'sp-heart',delay:-(DUR/6*5)},
   ];
   return (
-    <div ref={wrapRef} style={{position:'fixed',top:0,left:0,right:0,bottom:0,zIndex:9999,overflow:'hidden',
+    <div ref={wrapRef} onClick={doSkip} style={{position:'fixed',top:0,left:0,right:0,bottom:0,zIndex:9999,overflow:'hidden',cursor:'pointer',
       background:'linear-gradient(150deg,#edfad5 0%,#bde890 52%,#92d045 100%)',
       display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
       {/* bg circles */}
