@@ -1569,6 +1569,9 @@ function MealPanel({onAdd,onClose,lang}){
   const [savedToDb,setSavedToDb]=useState(false);
   const [showDbInput,setShowDbInput]=useState(false);
   const [dbName,setDbName]=useState("");
+  const [showJsonInput,setShowJsonInput]=useState(false);
+  const [jsonText,setJsonText]=useState("");
+  const [jsonError,setJsonError]=useState("");
 
   const addToDay=()=>{
     if(!preview)return;
@@ -1623,6 +1626,26 @@ function MealPanel({onAdd,onClose,lang}){
             style={{width:"100%",background:text.trim()?"linear-gradient(135deg,#5a9e1e,#7bc42e)":"#ddd",border:"none",borderRadius:8,color:text.trim()?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:text.trim()?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",gap:6,marginBottom:8}}>
             {loading?(isHe?"מנתח ארוחה...":"Analyzing meal..."):(isHe?"✨ שאל את Claude":"✨ Ask Claude")}
           </button>
+          <button onClick={()=>{setShowJsonInput(v=>!v);setJsonError("");}}
+            style={{background:"none",border:"none",color:C.muted,fontSize:11,cursor:"pointer",padding:0,fontFamily:"inherit",textDecoration:"underline",marginBottom:showJsonInput?4:0}}>
+            {isHe?"📋 הדבק JSON מקלוד":"📋 Paste Claude JSON"}
+          </button>
+          {showJsonInput&&<>
+            <textarea value={jsonText} onChange={e=>setJsonText(e.target.value)}
+              placeholder='{"label":"...","kcal":0,"carbs":0,"protein":0,"fat":0}'
+              rows={3} className="inp" style={{resize:"none",marginTop:4,marginBottom:4,fontSize:11,fontFamily:"monospace"}}/>
+            {jsonError&&<div style={{color:C.danger,fontSize:11,marginBottom:4}}>{jsonError}</div>}
+            <button onClick={()=>{
+              setJsonError("");
+              try{
+                const d=JSON.parse(jsonText.trim());
+                if(!d.kcal)throw new Error(isHe?"חסר שדה kcal":"missing kcal field");
+                setPreview(d);setShowJsonInput(false);setJsonText("");
+              }catch(e){setJsonError((isHe?"שגיאת JSON: ":"JSON error: ")+e.message);}
+            }} className="btn-accent" style={{borderRadius:8,marginBottom:8}}>
+              {isHe?"📥 טען":"📥 Load"}
+            </button>
+          </>}
         </>
       )}
       {error&&(
@@ -1676,6 +1699,9 @@ function SmartAddPanel({onAdd,onClose,lang}){
   const [fat,setFat]=useState("");
   const [notFound,setNotFound]=useState(false);
   const [savedToDb,setSavedToDb]=useState(false);
+  const [showJsonInput,setShowJsonInput]=useState(false);
+  const [jsonText,setJsonText]=useState("");
+  const [jsonError,setJsonError]=useState("");
 
   const handleSaveToDb=()=>{
     if(!kcal)return;
@@ -1753,7 +1779,38 @@ function SmartAddPanel({onAdd,onClose,lang}){
           <option value="g">{isHe?"גר׳":"g"}</option><option value="ml">{isHe?"מ״ל":"ml"}</option><option value="יח׳">{isHe?"יח׳":"pcs"}</option><option value="מנה">{isHe?"מנה":"serving"}</option><option value="קוביות">{isHe?"קוביות":"cubes"}</option><option value="כף">{isHe?"כף (15מ״ל)":"tbsp (15ml)"}</option><option value="כפית">{isHe?"כפית (5מ״ל)":"tsp (5ml)"}</option><option value="כוס">{isHe?"כוס (240מ״ל)":"cup (240ml)"}</option>
         </select>
       </div>
-      <button className="btn-accent" onClick={()=>runSearch(query,amount,unit)} style={{marginBottom:10}}>✦ {isHe?"חשב ערכים":"Calculate"}</button>
+      <button className="btn-accent" onClick={()=>runSearch(query,amount,unit)} style={{marginBottom:8}}>✦ {isHe?"חשב ערכים":"Calculate"}</button>
+      <button onClick={()=>{setShowJsonInput(v=>!v);setJsonError("");}}
+        style={{background:"none",border:"none",color:C.muted,fontSize:11,cursor:"pointer",padding:0,fontFamily:"inherit",textDecoration:"underline",marginBottom:showJsonInput?4:10}}>
+        {isHe?"📋 הדבק JSON מקלוד":"📋 Paste Claude JSON"}
+      </button>
+      {showJsonInput&&<div style={{marginBottom:10}}>
+        <textarea value={jsonText} onChange={e=>setJsonText(e.target.value)}
+          placeholder='{"label":"...","kcal":0,"carbs":0,"protein":0,"fat":0}'
+          rows={3} className="inp" style={{resize:"none",marginBottom:4,fontSize:11,fontFamily:"monospace"}}/>
+        {jsonError&&<div style={{color:C.danger,fontSize:11,marginBottom:4}}>{jsonError}</div>}
+        <button onClick={()=>{
+          setJsonError("");
+          try{
+            const d=JSON.parse(jsonText.trim());
+            if(!d.kcal)throw new Error(isHe?"חסר שדה kcal":"missing kcal field");
+            const amt=parseFloat(amount)||d.defaultAmt||100;
+            const divisor=d.cubes_per_bar?d.cubes_per_bar:d.serving_size?d.serving_size:100;
+            const isDbFmt=!!(d.names||d.defaultAmt||d.unit);
+            const r=isDbFmt?amt/divisor:1;
+            setKcal(String(Math.round(d.kcal*r)));
+            setCarbs(String(parseFloat(((d.carbs||0)*r).toFixed(1))));
+            setProtein(String(parseFloat(((d.protein||0)*r).toFixed(1))));
+            setFat(String(parseFloat(((d.fat||0)*r).toFixed(1))));
+            if(d.label||d.name)setQuery(d.label||d.name);
+            if(isDbFmt)setMatched({...d,names:(d.names||[d.name||''].map(s=>s.toLowerCase())).filter(Boolean)});
+            setNotFound(false);setCandidates([]);
+            setShowJsonInput(false);setJsonText("");
+          }catch(e){setJsonError((isHe?"שגיאת JSON: ":"JSON error: ")+e.message);}
+        }} className="btn-accent" style={{borderRadius:8}}>
+          {isHe?"📥 טען":"📥 Load"}
+        </button>
+      </div>}
 
       {candidates.length>0&&(
         <div className="fade" style={{marginBottom:10,background:"#fff8e1",border:`1px solid ${C.warn}`,borderRadius:10,padding:10}}>
@@ -1880,7 +1937,7 @@ function NewButtonModal({onClose,onSave}){
 
 // ── MetricWeekChart ────────────────────────────────────────────────────────────
 function MetricWeekChart({journal,metric,color,label,lang}){
-  const H=54,W=280,PAD=14,TOP=14;
+  const H=54,W=280,PAD=14,TOP=20;
   const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en';
   const DAY_LABELS=isHe?['א','ב','ג','ד','ה','ו','ש']:['Su','Mo','Tu','We','Th','Fr','Sa'];
   const xs=Array.from({length:7},(_,i)=>Math.round(PAD+i*(W-2*PAD)/6));
@@ -2587,8 +2644,19 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
   const fileInputRef=useRef(null);
 
   const exportData=()=>{
+    // Persist live state to LS before reading, so the backup is always current
+    if(todayEntries?.length||todayBloodSugar){
+      const liveKey=todayDate||getTodayKey();
+      const j=loadJournal(pid);
+      j[liveKey]={
+        entries:(todayEntries||[]).map(e=>({label:e.label,kcal:e.kcal,carbs:e.carbs,protein:e.protein,fat:e.fat||0,...(e.count&&{count:e.count}),...(e.perUnit&&{perUnit:e.perUnit})})),
+        totals:todayTotals||{kcal:0,carbs:0,protein:0,fat:0},
+        ...(todayBloodSugar?{bloodSugar:parseFloat(todayBloodSugar)}:{}),
+      };
+      saveJournal(j,pid);
+    }
     const allProfiles=loadProfiles();
-    // Collect data for ALL profiles
+    // Collect data for ALL profiles (LS is now up to date)
     const profilesData={};
     allProfiles.forEach(p=>{
       profilesData[p.id]={
@@ -2598,14 +2666,7 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
         quickFoods:loadQuickFoods(p.id),
       };
     });
-    // Patch live today data into current pid
     const journal=profilesData[pid]?.journal||loadJournal(pid);
-    const exportKey=todayDate||getTodayKey();
-    journal[exportKey]={
-      entries:(todayEntries||[]).map(e=>({label:e.label,kcal:e.kcal,carbs:e.carbs,protein:e.protein,fat:e.fat||0,...(e.count&&{count:e.count}),...(e.perUnit&&{perUnit:e.perUnit})})),
-      totals:todayTotals||{kcal:0,carbs:0,protein:0,fat:0},
-      ...(todayBloodSugar?{bloodSugar:parseFloat(todayBloodSugar)}:{}),
-    };
     if(profilesData[pid]) profilesData[pid].journal=journal;
     const data={
       version:5,
@@ -3906,13 +3967,13 @@ function MealPlannerModal({onAdd,onClose,lang,profile,onSaveRecipe}){
     setCartMsg(isHe?`✓ ${toAdd.length} פריטים נוספו לעגלה`:`✓ ${toAdd.length} item${toAdd.length>1?'s':''} added`);
     setTimeout(()=>setCartMsg(""),2500);
   };
-  const fetchOptions=async(refine)=>{
+  const fetchOptions=async(refine, exclude=[])=>{
     setLoading(true);setError("");
     const fridgeStr=buildFridgeStr();
     const fullPrefs=[prefs,notes?(isHe?`הערות: ${notes}`:`Notes: ${notes}`):"",fridgeStr?(isHe?`מה במקרר: ${fridgeStr}`:`Fridge: ${fridgeStr}`):""].filter(Boolean).join("\n");
     try{
       const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({mealPlan:{preferences:fullPrefs,people,refine:refine||undefined,lang}})});
+        body:JSON.stringify({mealPlan:{preferences:fullPrefs,people,refine:refine||undefined,exclude:exclude.length?exclude:undefined,lang}})});
       const d=await r.json();
       if(d.error)throw new Error(d.error);
       setOptions(d.options||[]);
@@ -4186,16 +4247,23 @@ function MealPlannerModal({onAdd,onClose,lang,profile,onSaveRecipe}){
             </div>
             );
           })}
-          {/* Refine */}
-          <button onClick={()=>setShowRefine(v=>!v)} style={{width:"100%",background:"none",border:`1px solid ${C.border}`,borderRadius:10,padding:"8px",fontSize:12,color:C.muted,cursor:"pointer",marginBottom:showRefine?8:0}}>
-            {isHe?"לא מדויק? דייקי":"Not accurate? Refine"} ↕
-          </button>
+          {/* More ideas + Refine */}
+          <div style={{display:"flex",gap:8,marginBottom:8}}>
+            <button onClick={()=>fetchOptions(undefined,options.map(o=>o.name))} disabled={loading}
+              style={{flex:1,background:"rgba(13,148,136,.08)",border:`1px solid rgba(13,148,136,.3)`,borderRadius:10,padding:"8px",fontSize:12,color:C.accent,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+              {loading?(isHe?"מחפש...":"Searching..."):(isHe?"💡 עוד רעיונות":"💡 More ideas")}
+            </button>
+            <button onClick={()=>setShowRefine(v=>!v)}
+              style={{flex:1,background:showRefine?"rgba(148,163,184,.1)":"none",border:`1px solid ${C.border}`,borderRadius:10,padding:"8px",fontSize:12,color:C.muted,cursor:"pointer",fontFamily:"inherit"}}>
+              {isHe?"🔍 דייקי":"🔍 Refine"} {showRefine?"↑":"↓"}
+            </button>
+          </div>
           {showRefine&&<>
             <textarea value={refineText} onChange={e=>setRefineText(e.target.value)}
               placeholder={isHe?"מה לשנות? למשל: משהו קל יותר, ללא בשר...":"What to change? e.g. something lighter, no meat..."}
               rows={2} className="inp" style={{marginBottom:8,resize:"none"}}/>
             {loading&&<div style={{textAlign:'center',marginBottom:8}}><CalcLoader size={64}/></div>}
-            <button onClick={()=>fetchOptions(refineText)} disabled={loading} className="btn-accent" style={{borderRadius:10}}>
+            <button onClick={()=>fetchOptions(refineText,options.map(o=>o.name))} disabled={loading} className="btn-accent" style={{borderRadius:10}}>
               {loading?(isHe?"מחפש...":"Searching..."):(isHe?"✨ עדכן הצעות":"✨ Update")}
             </button>
           </>}

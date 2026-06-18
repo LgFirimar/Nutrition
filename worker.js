@@ -156,7 +156,7 @@ Meal: ${mealDescription}
 After your calculation, output ONLY this JSON on the very last line (no markdown):
 {"label":"short Hebrew meal name","kcal":TOTAL_INT,"carbs":TOTAL_FLOAT,"protein":TOTAL_FLOAT,"fat":TOTAL_FLOAT}`;
       } else if (mealPlan) {
-        const { preferences, people, refine, selectedMeal, lang: mealLang } = mealPlan;
+        const { preferences, people, refine, selectedMeal, lang: mealLang, exclude } = mealPlan;
         const isHe = (mealLang || lang || 'he') !== 'en';
         if (selectedMeal) {
           model = 'claude-sonnet-4-6';
@@ -174,8 +174,9 @@ After your calculation, output ONLY this JSON on the very last line (no markdown
             ? 'אתה שף ותזונאי ישראלי. כתוב בעברית תקנית ונכונה. הפלט הוא JSON בלבד — ללא הסבר, ללא markdown, ללא טקסט לפני או אחרי.'
             : 'You are a professional chef and nutritionist. Respond in English. Output ONLY valid JSON — no explanation, no markdown, no text before or after.';
           const refineText = refine ? (isHe ? `\nהערות: ${refine}` : `\nNotes: ${refine}`) : '';
+          const excludeText = exclude?.length ? (isHe ? `\nאל תציע את הארוחות הבאות (כבר הוצעו): ${exclude.join(', ')}` : `\nDo NOT suggest these meals (already shown): ${exclude.join(', ')}`) : '';
           prompt = isHe
-            ? `הצע 3 ארוחות שונות ל-${people} אנשים. העדפות: ${preferences || 'ללא הגבלות'}${refineText}
+            ? `הצע 3 ארוחות שונות ל-${people} אנשים. העדפות: ${preferences || 'ללא הגבלות'}${refineText}${excludeText}
 
 חוקים לשדה ingredients (חובה בכל אפשרות!):
 - רשום בדיוק 4-6 שמות מרכיבים עיקריים — שמות עצם של מצרכים בלבד
@@ -185,7 +186,7 @@ After your calculation, output ONLY this JSON on the very last line (no markdown
 
 החזר JSON בלבד, בדיוק בפורמט הזה (ingredients חייב להיות נוכח בכל אפשרות):
 {"options":[{"name":"שם ארוחה","description":"תיאור קצר","ingredients":["מרכיב1","מרכיב2","מרכיב3","מרכיב4"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0}]}`
-            : `Suggest 3 different meals for ${people} people. Preferences: ${preferences || 'none'}${refineText}
+            : `Suggest 3 different meals for ${people} people. Preferences: ${preferences || 'none'}${refineText}${excludeText}
 
 Rules for the ingredients field (required in every option!):
 - List exactly 4-6 main ingredient names — nouns only, no quantities or cooking methods
