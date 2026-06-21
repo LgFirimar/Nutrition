@@ -1936,37 +1936,38 @@ function NewButtonModal({onClose,onSave}){
 }
 
 // ── MetricWeekChart ────────────────────────────────────────────────────────────
-function MetricWeekChart({journal,metric,color,label,lang}){
+function MetricWeekChart({journal,metric,color,label,lang,range=7}){
   const H=54,W=280,PAD=14,TOP=20;
   const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en';
   const DAY_LABELS=isHe?['א','ב','ג','ד','ה','ו','ש']:['Su','Mo','Tu','We','Th','Fr','Sa'];
-  const xs=Array.from({length:7},(_,i)=>Math.round(PAD+i*(W-2*PAD)/6));
+  const xs=Array.from({length:range},(_,i)=>Math.round(PAD+i*(W-2*PAD)/Math.max(range-1,1)));
   const ref=useRef(null);
   useEffect(()=>{ref.current?.scrollIntoView({behavior:"smooth",block:"nearest"});},[]);
 
+  const now=new Date();
+  const fmtKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const days=[];
-  for(let i=6;i>=0;i--){
-    const d=new Date();d.setDate(d.getDate()-i);
-    const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  for(let i=range-1;i>=0;i--){
+    const d=new Date(now);d.setDate(d.getDate()-i);
+    const k=fmtKey(d);
     const tot=journal[k]?.totals;
-    // Only count days with actual food entries (totals > 0)
     const v=(tot&&journal[k]?.entries?.length)?Number(tot[metric]||0):null;
-    days.push({k,v,dow:d.getDay()});
+    days.push({k,v,dow:d.getDay(),date:new Date(d)});
   }
   const vals=days.filter(d=>d.v!==null&&d.v>0).map(d=>d.v);
   if(!vals.length) return(
     <div ref={ref} style={{background:"rgba(255,255,255,.68)",border:`1px solid ${color}33`,borderRadius:16,padding:"12px 14px",marginBottom:12,maxWidth:440}}>
       <div style={{fontSize:9,color,letterSpacing:1.4,textTransform:"uppercase",marginBottom:6,fontWeight:700}}>{label}</div>
-      <div style={{fontSize:12,color:C.muted,textAlign:"center",padding:"10px 0"}}>{isHe?"אין נתונים שמורים לשבוע זה":"No saved data for this week"}</div>
+      <div style={{fontSize:12,color:C.muted,textAlign:"center",padding:"10px 0"}}>{isHe?"אין נתונים שמורים":"No saved data"}</div>
     </div>
   );
 
   const minV=Math.min(...vals),maxV=Math.max(...vals);
-  const pad=Math.max(maxV-minV,10)*0.2;
-  const lo=Math.max(0,minV-pad),hi=maxV+pad,range=hi-lo;
-  const toY=v=>Math.max(TOP+2,Math.min(TOP+H-2,TOP+H-(v-lo)/range*H));
+  const vpad=Math.max(maxV-minV,10)*0.2;
+  const lo=Math.max(0,minV-vpad),hi=maxV+vpad,vrange=hi-lo;
+  const toY=v=>Math.max(TOP+2,Math.min(TOP+H-2,TOP+H-(v-lo)/vrange*H));
 
-  const pts=days.map((d,i)=>d.v!==null&&d.v>0?{x:xs[i],y:toY(d.v),v:d.v}:null);
+  const pts=days.map((d,i)=>d.v!=null&&d.v>0?{x:xs[i],y:toY(d.v),v:d.v}:null);
   const known=pts.filter(Boolean);
 
   const crPath=ps=>{
@@ -1980,16 +1981,29 @@ function MetricWeekChart({journal,metric,color,label,lang}){
   };
   const lp=known.length>=2?crPath(known):null;
 
+  const svgLabels=[];
+  if(range===7){
+    days.forEach((d,i)=>svgLabels.push({x:xs[i],txt:DAY_LABELS[d.dow]}));
+  } else if(range===30){
+    days.forEach((d,i)=>{if(i%7===0)svgLabels.push({x:xs[i],txt:`${d.date.getDate()}/${d.date.getMonth()+1}`});});
+  } else {
+    const mNames=isHe?['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ']:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    let lastM=-1;
+    days.forEach((d,i)=>{const m=d.date.getMonth();if(m!==lastM){lastM=m;svgLabels.push({x:xs[i],txt:mNames[m]});}});
+  }
+  const svgH=TOP+H+(range===7?14:16);
+  const rangeLabel=range===7?(isHe?"7 ימים":"7 days"):range===30?(isHe?"חודש":"Month"):(isHe?"3 חודשים":"3 Months");
+
   return(
     <div ref={ref} style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:`1px solid ${color}33`,borderRadius:16,padding:"10px 12px 8px",marginBottom:12,boxShadow:"0 3px 14px rgba(80,130,180,.08)",maxWidth:440}}>
-      <div style={{fontSize:9,color,letterSpacing:1.4,textTransform:"uppercase",marginBottom:6,fontWeight:700}}>{label} — {isHe?"7 ימים אחרונים":"last 7 days"}</div>
+      <div style={{fontSize:9,color,letterSpacing:1.4,textTransform:"uppercase",marginBottom:6,fontWeight:700}}>{label} — {rangeLabel}</div>
       <div style={{overflow:"hidden",borderRadius:8}}>
-        <svg width="100%" viewBox={`0 0 ${W} ${TOP+H+14}`} style={{display:"block"}}>
+        <svg width="100%" viewBox={`0 0 ${W} ${svgH}`} style={{display:"block"}}>
           {lp&&<>
             <path d={`${lp} L ${known[known.length-1].x},${TOP+H} L ${known[0].x},${TOP+H} Z`} fill={color} fillOpacity={0.1}/>
             <path d={lp} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </>}
-          {known.map((p,i)=>(
+          {range===7&&known.map((p,i)=>(
             <g key={i}>
               <circle cx={p.x} cy={p.y} r="3.5" fill="white" stroke={color} strokeWidth="2"/>
               <text x={p.x} y={p.y-7} textAnchor="middle" fontSize="7.5" fill={color} fontWeight="700">
@@ -1997,8 +2011,11 @@ function MetricWeekChart({journal,metric,color,label,lang}){
               </text>
             </g>
           ))}
-          {days.map((d,i)=>(
-            <text key={i} x={xs[i]} y={TOP+H+11} textAnchor="middle" fontSize="8" fill="#94a3b8">{DAY_LABELS[d.dow]}</text>
+          {range>7&&known.map((p,i)=>(
+            <circle key={i} cx={p.x} cy={p.y} r="2" fill={color} fillOpacity="0.7"/>
+          ))}
+          {svgLabels.map((lbl,i)=>(
+            <text key={i} x={lbl.x} y={svgH-2} textAnchor="middle" fontSize="8" fill="#94a3b8">{lbl.txt}</text>
           ))}
         </svg>
       </div>
@@ -2254,7 +2271,7 @@ function JournalView({onClose,onLoadDay,pid,lang}){
                   );
                 })}
               </div>
-              {activeChart&&weekRange===7&&<MetricWeekChart key={activeChart} journal={journal} metric={activeChart} color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:C.blue} label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:T.protein} lang={lang}/>}
+              {activeChart&&<MetricWeekChart key={activeChart+weekRange} journal={journal} metric={activeChart} color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:C.blue} label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:T.protein} lang={lang} range={weekRange}/>}
               <SugarWeekChart journal={journal} lang={lang}/>
               <div className="card">
                 {weekDays.map((key,i)=>(
