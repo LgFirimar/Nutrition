@@ -2066,9 +2066,10 @@ function JournalView({onClose,onLoadDay,pid,lang}){
   const [detailMode,setDetailMode]=useState("full");
   const [view,setView]=useState("list");
   const [activeChart,setActiveChart]=useState(null);
+  const [weekRange,setWeekRange]=useState(7);
   const todayKey=getTodayKey();
   const days=Object.keys(journal).sort((a,b)=>b.localeCompare(a));
-  const weekDays=days.filter(k=>k!==todayKey).slice(0,7);
+  const weekDays=days.filter(k=>k!==todayKey).slice(0,weekRange);
   const wt=weekDays.reduce((acc,k)=>{const d=journal[k];return{kcal:acc.kcal+d.totals.kcal,carbs:acc.carbs+d.totals.carbs,protein:acc.protein+d.totals.protein,n:acc.n+1};},{kcal:0,carbs:0,protein:0,n:0});
   const deleteDay=key=>{const j={...journal};delete j[key];saveJournal(j,pid||'default');setJournal(j);if(selected===key)setSelected(null);};
 
@@ -2149,7 +2150,14 @@ function JournalView({onClose,onLoadDay,pid,lang}){
           <div style={{padding:20}}>
             {weekDays.length===0 && <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:30}}>{T.noData}</div>}
             {weekDays.length>0 && <>
-              <div style={{fontSize:11,color:C.muted,letterSpacing:1.5,marginBottom:12}}>{T.avgDaily} ({weekDays.length} {T.days})</div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                <div style={{fontSize:11,color:C.muted,letterSpacing:1.5}}>{T.avgDaily} ({weekDays.length} {T.days})</div>
+                <div style={{display:"flex",gap:4}}>
+                  {[[7,"7ד"],[30,"חודש"],[90,"3ח"]].map(([r,l])=>(
+                    <button key={r} onClick={()=>{setWeekRange(r);setActiveChart(null);}} style={{background:weekRange===r?"rgba(148,163,184,.25)":"transparent",border:`1px solid ${weekRange===r?"rgba(148,163,184,.5)":"rgba(148,163,184,.2)"}`,color:weekRange===r?"#475569":"#94a3b8",borderRadius:5,padding:"2px 7px",fontSize:9,cursor:"pointer",fontFamily:"inherit",fontWeight:weekRange===r?700:400}}>{l}</button>
+                  ))}
+                </div>
+              </div>
               <div className="g3" style={{marginBottom:12}}>
                 {[{l:T.kcal,v:Math.round(wt.kcal/wt.n),c:C.accent,m:"kcal"},{l:T.carbsFull,v:(wt.carbs/wt.n).toFixed(1)+"g",c:C.warn,m:"carbs"},{l:T.protein,v:(wt.protein/wt.n).toFixed(1)+"g",c:C.blue,m:"protein"}].map(({l,v,c,m})=>{
                   const isActive=activeChart===m;
@@ -2163,7 +2171,7 @@ function JournalView({onClose,onLoadDay,pid,lang}){
                   );
                 })}
               </div>
-              {activeChart&&<MetricWeekChart key={activeChart} journal={journal} metric={activeChart} color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:C.blue} label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:T.protein} lang={lang}/>}
+              {activeChart&&weekRange===7&&<MetricWeekChart key={activeChart} journal={journal} metric={activeChart} color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:C.blue} label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:T.protein} lang={lang}/>}
               <SugarWeekChart journal={journal}/>
               <div className="card">
                 {weekDays.map((key,i)=>(
