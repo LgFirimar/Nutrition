@@ -2235,14 +2235,12 @@ function JournalView({onClose,onLoadDay,pid,lang}){
           <div style={{padding:20}}>
             {weekDays.length===0 && <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:30}}>{T.noData}</div>}
             {weekDays.length>0 && <>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-                <div style={{fontSize:11,color:C.muted,letterSpacing:1.5}}>{T.avgDaily} ({weekDays.length} {T.days})</div>
-                <div style={{display:"flex",gap:4}}>
-                  {[[7,"7ד"],[30,"חודש"],[90,"3ח"]].map(([r,l])=>(
-                    <button key={r} onClick={()=>{setWeekRange(r);setActiveChart(null);}} style={{background:weekRange===r?"rgba(148,163,184,.25)":"transparent",border:`1px solid ${weekRange===r?"rgba(148,163,184,.5)":"rgba(148,163,184,.2)"}`,color:weekRange===r?"#475569":"#94a3b8",borderRadius:5,padding:"2px 7px",fontSize:9,cursor:"pointer",fontFamily:"inherit",fontWeight:weekRange===r?700:400}}>{l}</button>
-                  ))}
-                </div>
+              <div style={{display:"flex",background:"rgba(148,163,184,.13)",borderRadius:10,padding:3,marginBottom:14,gap:2}}>
+                {[[7,lang==="en"?"7 days":"7 ימים"],[30,lang==="en"?"Month":"חודש"],[90,lang==="en"?"3 Months":"3 חודשים"]].map(([r,l])=>(
+                  <button key={r} onClick={()=>{setWeekRange(r);setActiveChart(null);}} style={{flex:1,background:weekRange===r?"#fff":"transparent",border:"none",borderRadius:7,padding:"7px 4px",fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:weekRange===r?700:400,color:weekRange===r?C.text:"#94a3b8",boxShadow:weekRange===r?"0 1px 4px rgba(0,0,0,.10)":"none",transition:"all .15s"}}>{l}</button>
+                ))}
               </div>
+              <div style={{fontSize:11,color:C.muted,letterSpacing:1.5,marginBottom:10}}>{T.avgDaily} ({weekDays.length} {T.days})</div>
               <div className="g3" style={{marginBottom:12}}>
                 {[{l:T.kcal,v:Math.round(wt.kcal/wt.n),c:C.accent,m:"kcal"},{l:T.carbsFull,v:(wt.carbs/wt.n).toFixed(1)+"g",c:C.warn,m:"carbs"},{l:T.protein,v:(wt.protein/wt.n).toFixed(1)+"g",c:C.blue,m:"protein"}].map(({l,v,c,m})=>{
                   const isActive=activeChart===m;
