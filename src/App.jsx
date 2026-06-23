@@ -388,6 +388,23 @@ const goalGrad=(consumed,max)=>{
   if(p>=0.35) return ["#ca8a04","#fbbf24"];
   return ["#166534","#22c55e"];
 };
+// Protein: inverted scale — red when low, green when at/near goal
+const goalColorInv=(consumed,max)=>{
+  if(!max||isNaN(consumed)) return "#dc2626";
+  const p=consumed/max;
+  if(p>=0.85) return "#166534";
+  if(p>=0.6) return "#ca8a04";
+  if(p>=0.35) return "#ea580c";
+  return "#dc2626";
+};
+const goalGradInv=(consumed,max)=>{
+  if(!max) return ["#dc2626","#f87171"];
+  const p=consumed/max;
+  if(p>=0.85) return ["#166534","#22c55e"];
+  if(p>=0.6) return ["#ca8a04","#fbbf24"];
+  if(p>=0.35) return ["#ea580c","#fb923c"];
+  return ["#dc2626","#f87171"];
+};
 const MAX_KCAL=1800, MAX_CARBS=80;
 const QUICK_FOODS = [
   {id:"cheese",label:"🧀 אצבע גבינה",labelEn:"🧀 Cheese Finger",kcal:60,carbs:1,protein:6,fat:3.5},
@@ -5203,8 +5220,8 @@ function App(){
         };
         const rc=ringCfg[activeRing];
         const pct=rc.max?Math.min(rc.consumed/rc.max,1):0;
-        const rcColor=goalColor(rc.consumed,rc.max);
-        const [rcG0,rcG1]=goalGrad(rc.consumed,rc.max);
+        const rcColor=activeRing==='protein'?goalColorInv(rc.consumed,rc.max):goalColor(rc.consumed,rc.max);
+        const [rcG0,rcG1]=activeRing==='protein'?goalGradInv(rc.consumed,rc.max):goalGrad(rc.consumed,rc.max);
         return (
           <div className="card" style={{margin:"12px 16px 0",padding:20}}>
             <div style={{display:"flex",alignItems:"center",gap:18}}>
@@ -5289,8 +5306,8 @@ function App(){
                 );
               }
               const {lk,val,max}=card;
-              const mColor=goalColor(parseFloat(val),max);
-              const [mg0,mg1]=goalGrad(parseFloat(val),max);
+              const mColor=lk==='protein'?goalColorInv(parseFloat(val),max):goalColor(parseFloat(val),max);
+              const [mg0,mg1]=lk==='protein'?goalGradInv(parseFloat(val),max):goalGrad(parseFloat(val),max);
               return (
                 <div key={lk} className="card" style={{padding:"13px 12px",borderRadius:16,cursor:"pointer"}} onClick={()=>setActiveRing(lk)}>
                   <div style={{fontSize:9,letterSpacing:1.2,textTransform:"uppercase",color:C.muted}}>{T[lk]}</div>
