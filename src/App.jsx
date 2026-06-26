@@ -3554,7 +3554,7 @@ function SplashScreen({onDone,lang}){
 // ── i18n ───────────────────────────────────────────────────────────────────────
 const LANG={
   he:{greeting:"שלום",calories:"קלוריות היום",consumed:"נאכל",target:"עד",sugar:"סוכר",left:"נותרו",
-      kcal:"קק״ל",mgdl:"mg/dL",goal:"עד",
+      kcal:"קק״ל",mgdl:"mg/dL",goal:"עד",goalLabel:"יעד",
       carbs:"פחמ׳",carbsFull:"פחמימות",protein:"חלבון",fat:"שומן",noLimit:"ללא הגבלה",
       quickAdd:"הוספה מהירה",edit:"✏️ ערוך",done:"✓ סיום",reset:"↺ אפס",newBtn:"+ חדש",presets:"⭐ קבועים",
       todayLog:"יומן היום",items:"פריטים",allLog:"הכל ›",addItem:"הוסף פריט",
@@ -3572,7 +3572,7 @@ const LANG={
       dbTitle:"🗂 מאגר מאכלים אישי",search:"חיפוש...",
       dbEmpty:"המאגר ריק עדיין",noResults:"לא נמצאו תוצאות"},
   en:{greeting:"Hello",calories:"Today's Calories",consumed:"Eaten",target:"Goal",sugar:"Sugar",left:"Left",
-      kcal:"kcal",mgdl:"mg/dL",goal:"Goal",
+      kcal:"kcal",mgdl:"mg/dL",goal:"Limit",goalLabel:"Goal",
       carbs:"Carbs",carbsFull:"Carbs",protein:"Protein",fat:"Fat",noLimit:"No limit",
       quickAdd:"Quick Add",edit:"✏️ Edit",done:"✓ Done",reset:"↺ Reset",newBtn:"+ New",presets:"⭐ Presets",
       todayLog:"Today's Log",items:"items",allLog:"All ›",addItem:"Add Item",
@@ -5253,7 +5253,7 @@ function App(){
                   )}
                   {rc.max&&(
                     <div style={{display:"flex",justifyContent:"space-between"}}>
-                      <span style={{fontSize:12,color:"#475569"}}>{T.target}</span>
+                      <span style={{fontSize:12,color:"#475569"}}>{activeRing==='protein'?T.goalLabel:T.goal}</span>
                       <span style={{fontSize:14,fontWeight:700,color:C.text}}>{rc.max} <span style={{fontSize:10,fontWeight:400,color:C.muted}}>{rc.unit}</span></span>
                     </div>
                   )}
@@ -5315,7 +5315,7 @@ function App(){
                   <div style={{height:4,borderRadius:3,background:"rgba(148,163,184,.2)",overflow:"hidden",marginTop:7}}>
                     {max&&<div style={{height:"100%",borderRadius:3,background:`linear-gradient(90deg,${mg0},${mg1})`,width:`${Math.min(100,parseFloat(val)/max*100)}%`}}></div>}
                   </div>
-                  <div style={{fontSize:9,color:C.muted,marginTop:5}}>{max?`${lk==="protein"?"יעד":T.goal} ${max}g`:T.noLimit}</div>
+                  <div style={{fontSize:9,color:C.muted,marginTop:5}}>{max?`${lk==="protein"?T.goalLabel:T.goal} ${max}g`:T.noLimit}</div>
                 </div>
               );
             })}
