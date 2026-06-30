@@ -3726,25 +3726,52 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
   const isHe=(lang||'he')!=='en';
   const [name,setName]=useState(recipe?.name||'');
   const [servings,setServings]=useState(recipe?.servings||2);
-  const [ingredients,setIngredients]=useState(recipe?.ingredients?.length?recipe.ingredients:[{item:'',amount:'',unit:'g'}]);
+  const [ingText,setIngText]=useState(()=>{
+    if(!recipe?.ingredients?.length) return '';
+    return recipe.ingredients.map(i=>[i.amount,i.unit&&i.unit!=='יח׳'&&i.unit!=="יח'"?i.unit:null,i.item].filter(Boolean).join(' ')).join(', ');
+  });
   const [steps,setSteps]=useState(recipe?.steps?.length?recipe.steps:['']);
   const [nutrition,setNutrition]=useState(recipe?.kcalPerPerson?{kcal:recipe.kcalPerPerson,carbs:recipe.carbsPerPerson,protein:recipe.proteinPerPerson,fat:recipe.fatPerPerson}:null);
   const [loading,setLoading]=useState(false);
+  const [loadingRecipe,setLoadingRecipe]=useState(false);
   const [error,setError]=useState('');
   const stepRefs=useRef([]);
 
-  const addIng=()=>setIngredients(v=>[...v,{item:'',amount:'',unit:'g'}]);
-  const removeIng=i=>setIngredients(v=>v.filter((_,j)=>j!==i));
-  const updateIng=(i,f,v)=>setIngredients(arr=>arr.map((ing,j)=>j===i?{...ing,[f]:v}:ing));
+  const parseIngText=text=>text.split(',').map(s=>s.trim()).filter(Boolean).map(part=>{
+    const m=part.match(/^(\d+(?:[.,]\d+)?)\s*(g|ml|kg|ק"ג|ק״ג|כף|כפות|כפית|כפיות|כוס|כוסות|יח׳|יח'|יחידות?)?\s+(.+)$/i);
+    if(m) return{amount:m[1],unit:m[2]||'g',item:m[3].trim()};
+    const m2=part.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*(g|ml|kg|ק"ג|ק״ג|כף|כפות|כפית|כפיות|כוס|כוסות|יח׳|יח'|יחידות?)?$/i);
+    if(m2) return{amount:m2[2],unit:m2[3]||'g',item:m2[1].trim()};
+    return{item:part,amount:'',unit:"יח׳"};
+  });
+
+  const parsedIngredients=parseIngText(ingText);
 
   const handleStepKey=(e,i)=>{
     if(e.key==='Enter'){e.preventDefault();const s=[...steps];s.splice(i+1,0,'');setSteps(s);setTimeout(()=>stepRefs.current[i+1]?.focus(),40);}
     if(e.key==='Backspace'&&steps[i]===''&&steps.length>1){e.preventDefault();setSteps(v=>v.filter((_,j)=>j!==i));setTimeout(()=>stepRefs.current[Math.max(0,i-1)]?.focus(),40);}
   };
 
+  const loadFromClaude=async()=>{
+    if(!name.trim()) return;
+    setLoadingRecipe(true);setError('');
+    try{
+      const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({mealPlan:{selectedMeal:name,people:servings,lang}})});
+      const d=await r.json();
+      if(d.recipe){
+        const rec=d.recipe;
+        if(rec.ingredients?.length) setIngText(rec.ingredients.map(i=>i.amount?`${i.amount} ${i.item}`:i.item).join(', '));
+        if(rec.steps?.length) setSteps(rec.steps.filter(Boolean));
+        if(rec.kcalPerPerson) setNutrition({kcal:Math.round(rec.kcalPerPerson),carbs:parseFloat((rec.carbsPerPerson||0).toFixed(1)),protein:parseFloat((rec.proteinPerPerson||0).toFixed(1)),fat:parseFloat((rec.fatPerPerson||0).toFixed(1))});
+      } else setError(isHe?'לא הצלחתי לטעון מתכון':'Could not load recipe');
+    }catch{setError(isHe?'שגיאה':'Error');}
+    setLoadingRecipe(false);
+  };
+
   const askClaude=async()=>{
-    const desc=ingredients.filter(i=>i.item.trim()).map(i=>`${i.amount} ${i.unit} ${i.item}`).join(', ');
-    if(!desc) return;
+    if(!parsedIngredients.length) return;
+    const desc=parsedIngredients.map(i=>[i.amount,i.unit,i.item].filter(Boolean).join(' ')).join(', ');
     setLoading(true);setError('');
     try{
       const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -3758,7 +3785,7 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
 
   const handleSave=()=>{
     onSave({id:recipe?.id||`recipe_${Date.now()}`,name:name.trim()||(isHe?'מתכון חדש':'New Recipe'),servings,source:recipe?.source||'manual',
-      ingredients:ingredients.filter(i=>i.item.trim()),steps:steps.filter(s=>s.trim()),
+      ingredients:parsedIngredients,steps:steps.filter(s=>s.trim()),
       kcalPerPerson:nutrition?.kcal||0,carbsPerPerson:nutrition?.carbs||0,proteinPerPerson:nutrition?.protein||0,fatPerPerson:nutrition?.fat||0,
       savedAt:recipe?.savedAt||new Date().toISOString()});
   };
@@ -3782,7 +3809,13 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
         </div>
 
         {/* Name */}
-        <input value={name} onChange={e=>setName(e.target.value)} placeholder={isHe?"שם המתכון":"Recipe name"} className="inp" style={{marginBottom:10,fontWeight:600}}/>
+        <input value={name} onChange={e=>setName(e.target.value)} placeholder={isHe?"שם המתכון":"Recipe name"} className="inp" style={{marginBottom:8,fontWeight:600}}/>
+
+        {/* Load from Claude */}
+        <button onClick={loadFromClaude} disabled={loadingRecipe||!name.trim()}
+          style={{width:"100%",background:name.trim()&&!loadingRecipe?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#ddd",border:"none",borderRadius:10,color:name.trim()&&!loadingRecipe?"#fff":"#aaa",padding:"9px",fontSize:13,fontWeight:700,cursor:name.trim()&&!loadingRecipe?"pointer":"default",marginBottom:12}}>
+          {loadingRecipe?"...":`🤖 ${isHe?"טען מתכון מלא מ-Claude":"Load full recipe from Claude"}`}
+        </button>
 
         {/* Servings */}
         <div style={{display:"flex",alignItems:"center",gap:10,background:"#f5f5f7",borderRadius:10,padding:"8px 12px",marginBottom:14}}>
@@ -3792,19 +3825,22 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
           <button onClick={()=>setServings(v=>v+1)} style={{width:26,height:26,border:`1px solid ${C.border}`,borderRadius:6,background:"#fff",cursor:"pointer",fontSize:14}}>+</button>
         </div>
 
-        {/* Ingredients */}
-        <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1,marginBottom:8}}>{isHe?"מצרכים":"INGREDIENTS"}</div>
-        {ingredients.map((ing,i)=>(
-          <div key={i} style={{display:"flex",gap:5,marginBottom:6,alignItems:"center"}}>
-            <input value={ing.item} onChange={e=>updateIng(i,'item',e.target.value)} placeholder={isHe?"שם מצרך":"Ingredient"} className="inp" style={{flex:2,fontSize:12,padding:"6px 8px"}}/>
-            <input value={ing.amount} onChange={e=>updateIng(i,'amount',e.target.value)} placeholder={isHe?"כמות":"Qty"} className="inp" style={{width:52,fontSize:12,padding:"6px 6px",flexShrink:0}}/>
-            <select value={ing.unit||'g'} onChange={e=>updateIng(i,'unit',e.target.value)} className="inp" style={{width:58,fontSize:11,padding:"6px 4px",flexShrink:0,cursor:"pointer"}}>
-              {UNITS.map(u=><option key={u} value={u}>{u}</option>)}
-            </select>
-            <button onClick={()=>removeIng(i)} style={{background:"none",border:"none",color:C.danger,fontSize:18,cursor:"pointer",padding:"0 4px",flexShrink:0}}>×</button>
+        {/* Ingredients — free text */}
+        <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1,marginBottom:4}}>{isHe?"מצרכים":"INGREDIENTS"}</div>
+        <div style={{fontSize:10,color:C.muted,marginBottom:6}}>{isHe?"הפרד בין מצרכים עם פסיק — לדוגמה: 200g עוף, 3 בצלים, כף שמן":"Separate with commas — e.g.: 200g chicken, 3 onions, 1 tbsp oil"}</div>
+        <textarea value={ingText} onChange={e=>setIngText(e.target.value)}
+          placeholder={isHe?"200g עוף, בצל, כף שמן זית, 100g גבינה...":"200g chicken, onion, 1 tbsp olive oil, 100g cheese..."}
+          className="inp" rows={3} style={{marginBottom:6,fontSize:12,resize:"vertical",lineHeight:1.5}}/>
+        {parsedIngredients.length>0&&(
+          <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:14}}>
+            {parsedIngredients.map((ing,i)=>(
+              <span key={i} style={{background:"rgba(90,158,30,.1)",border:"1px solid rgba(90,158,30,.25)",borderRadius:20,padding:"3px 10px",fontSize:11,color:"#166534",display:"inline-flex",alignItems:"center",gap:5}}>
+                {[ing.amount,ing.unit&&ing.unit!=="יח׳"?ing.unit:null,ing.item].filter(Boolean).join(' ')}
+                <button onClick={()=>{const arr=[...ingText.split(',')];arr.splice(i,1);setIngText(arr.map(s=>s.trim()).filter(Boolean).join(', '));}} style={{background:"none",border:"none",color:"#166534",cursor:"pointer",padding:0,fontSize:12,lineHeight:1}}>×</button>
+              </span>
+            ))}
           </div>
-        ))}
-        <button onClick={addIng} style={{width:"100%",background:"transparent",border:`1px dashed ${C.border}`,borderRadius:8,padding:"6px",fontSize:12,color:C.accent,cursor:"pointer",marginBottom:14}}>+ {isHe?"הוסף מצרך":"Add ingredient"}</button>
+        )}
 
         {/* Steps */}
         <div style={{fontSize:11,fontWeight:700,color:C.muted,letterSpacing:1,marginBottom:4}}>{isHe?"שלבי הכנה":"INSTRUCTIONS"}</div>
@@ -3835,8 +3871,8 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
             </div>
           )}
           {error&&<div style={{fontSize:11,color:C.danger,marginBottom:8,textAlign:"center"}}>{error}</div>}
-          <button onClick={askClaude} disabled={loading||!ingredients.some(i=>i.item.trim())}
-            style={{width:"100%",background:ingredients.some(i=>i.item.trim())&&!loading?"linear-gradient(135deg,#5a9e1e,#7bc42e)":"#ddd",border:"none",borderRadius:10,color:ingredients.some(i=>i.item.trim())&&!loading?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:10}}>
+          <button onClick={askClaude} disabled={loading||!parsedIngredients.length}
+            style={{width:"100%",background:parsedIngredients.length&&!loading?"linear-gradient(135deg,#5a9e1e,#7bc42e)":"#ddd",border:"none",borderRadius:10,color:parsedIngredients.length&&!loading?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:10}}>
             {loading?"...":`✨ ${isHe?"שאל את Claude לחישוב ערכים":"Ask Claude to calculate"}`}
           </button>
         </div>
