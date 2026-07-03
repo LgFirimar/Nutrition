@@ -3793,20 +3793,28 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
     setLoadingFile(true);setError('');
     const reader=new FileReader();
     reader.onload=async ev=>{
-      const text=ev.target.result||'';
       e.target.value='';
-      if(!text.trim()){setError(isHe?'הקובץ ריק או לא נתמך':'File is empty or unsupported');setLoadingFile(false);return;}
+      const raw=ev.target.result||'';
+      // Detect binary content (null bytes = not plain text)
+      if(raw.includes('\x00')){
+        setError(isHe?'הקובץ אינו טקסט רגיל — שמרי אותו כ-.txt ונסי שוב':'File is not plain text — save as .txt and try again');
+        setLoadingFile(false);return;
+      }
+      const text=raw.trim();
+      if(!text){setError(isHe?'הקובץ ריק':'File is empty');setLoadingFile(false);return;}
       try{
         const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
           body:JSON.stringify({recipeText:text.slice(0,8000),lang})});
+        if(!r.ok){setError(`Server error ${r.status}`);setLoadingFile(false);return;}
         const d=await r.json();
         if(d.recipe) applyRecipe(d.recipe);
-        else setError(isHe?'לא הצלחתי לקרוא את הקובץ':'Could not parse file');
-      }catch(err){setError(isHe?`שגיאה: ${err.message||''}`:(`Error: ${err.message||''}`));}
+        else if(d.error) setError(d.error);
+        else setError(isHe?'לא הצלחתי לפרסר את המתכון':'Could not parse recipe');
+      }catch(err){setError(`Error: ${err.message||'unknown'}`);}
       setLoadingFile(false);
     };
     reader.onerror=()=>{setError(isHe?'שגיאה בקריאת הקובץ':'File read error');setLoadingFile(false);};
-    reader.readAsText(file,'UTF-8');
+    reader.readAsText(file);
   };
 
   const askClaude=async()=>{
