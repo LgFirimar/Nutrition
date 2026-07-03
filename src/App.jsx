@@ -2028,17 +2028,20 @@ function MetricWeekChart({journal,metric,color,label,lang}){
             <path d={`${lp} L ${known[known.length-1].x},${TOP+H} L ${known[0].x},${TOP+H} Z`} fill={color} fillOpacity={0.1}/>
             <path d={lp} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </>}
-          {range===7&&known.map((p,i)=>(
-            <g key={i}>
-              <circle cx={p.x} cy={p.y} r="3.5" fill="white" stroke={color} strokeWidth="2"/>
-              <text x={p.x} y={p.y-7} textAnchor="middle" fontSize="7.5" fill={color} fontWeight="700">
-                {metric==='kcal'?Math.round(p.v):Number(p.v).toFixed(1)}
-              </text>
-            </g>
-          ))}
-          {range>7&&known.map((p,i)=>(
-            <circle key={i} cx={p.x} cy={p.y} r="2" fill={color} fillOpacity="0.7"/>
-          ))}
+          {(()=>{
+            const step=range===7?1:range===30?5:13;
+            return known.map((p,i)=>{
+              const showLabel=i%step===0||i===known.length-1;
+              return(
+                <g key={i}>
+                  <circle cx={p.x} cy={p.y} r={showLabel?3.5:1.8} fill="white" stroke={color} strokeWidth={showLabel?2:1.2}/>
+                  {showLabel&&<text x={p.x} y={p.y-7} textAnchor="middle" fontSize={range===7?"7.5":"7"} fill={color} fontWeight="700">
+                    {metric==='kcal'?Math.round(p.v):Number(p.v).toFixed(1)}
+                  </text>}
+                </g>
+              );
+            });
+          })()}
           {svgLabels.map((lbl,i)=>(
             <text key={i} x={lbl.x} y={svgH-2} textAnchor="middle" fontSize="8" fill="#94a3b8">{lbl.txt}</text>
           ))}
