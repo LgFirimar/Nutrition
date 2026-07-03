@@ -3790,21 +3790,23 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
 
   const loadFromFile=e=>{
     const file=e.target.files[0];if(!file)return;
-    e.target.value='';
+    setLoadingFile(true);setError('');
     const reader=new FileReader();
     reader.onload=async ev=>{
-      const text=ev.target.result;
-      setLoadingFile(true);setError('');
+      const text=ev.target.result||'';
+      e.target.value='';
+      if(!text.trim()){setError(isHe?'הקובץ ריק או לא נתמך':'File is empty or unsupported');setLoadingFile(false);return;}
       try{
         const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({recipeText:text,lang})});
+          body:JSON.stringify({recipeText:text.slice(0,8000),lang})});
         const d=await r.json();
         if(d.recipe) applyRecipe(d.recipe);
         else setError(isHe?'לא הצלחתי לקרוא את הקובץ':'Could not parse file');
-      }catch{setError(isHe?'שגיאה':'Error');}
+      }catch(err){setError(isHe?`שגיאה: ${err.message||''}`:(`Error: ${err.message||''}`));}
       setLoadingFile(false);
     };
-    reader.readAsText(file);
+    reader.onerror=()=>{setError(isHe?'שגיאה בקריאת הקובץ':'File read error');setLoadingFile(false);};
+    reader.readAsText(file,'UTF-8');
   };
 
   const askClaude=async()=>{
@@ -3861,6 +3863,7 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
           style={{width:"100%",background:!loadingFile&&!loadingRecipe?"#f0f4ff":"#ddd",border:`1px solid ${!loadingFile&&!loadingRecipe?"#c7d2fe":"#e0e0e5"}`,borderRadius:10,color:!loadingFile&&!loadingRecipe?"#4f46e5":"#aaa",padding:"9px",fontSize:13,fontWeight:700,cursor:!loadingFile&&!loadingRecipe?"pointer":"default",marginBottom:12}}>
           {loadingFile?"...":`📄 ${isHe?"טען מתכון מקובץ":"Load recipe from file"}`}
         </button>
+        {error&&!loadingFile&&<div style={{fontSize:11,color:C.danger,textAlign:"center",marginTop:-8,marginBottom:8,padding:"4px 8px",background:"rgba(220,38,38,.07)",borderRadius:6}}>{error}</div>}
 
         {/* Servings */}
         <div style={{display:"flex",alignItems:"center",gap:10,background:"#f5f5f7",borderRadius:10,padding:"8px 12px",marginBottom:14}}>
