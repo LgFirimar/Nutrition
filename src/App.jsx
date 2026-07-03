@@ -1953,10 +1953,11 @@ function NewButtonModal({onClose,onSave}){
 }
 
 // ── MetricWeekChart ────────────────────────────────────────────────────────────
-function MetricWeekChart({journal,metric,color,label,lang,range=7}){
+function MetricWeekChart({journal,metric,color,label,lang}){
   const H=54,W=280,PAD=14,TOP=20;
   const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en';
   const DAY_LABELS=isHe?['א','ב','ג','ד','ה','ו','ש']:['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const [range,setRange]=useState(7);
   const xs=Array.from({length:range},(_,i)=>Math.round(PAD+i*(W-2*PAD)/Math.max(range-1,1)));
   const ref=useRef(null);
   useEffect(()=>{ref.current?.scrollIntoView({behavior:"smooth",block:"nearest"});},[]);
@@ -2013,7 +2014,14 @@ function MetricWeekChart({journal,metric,color,label,lang,range=7}){
 
   return(
     <div ref={ref} style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:`1px solid ${color}33`,borderRadius:16,padding:"10px 12px 8px",marginBottom:12,boxShadow:"0 3px 14px rgba(80,130,180,.08)",maxWidth:440}}>
-      <div style={{fontSize:9,color,letterSpacing:1.4,textTransform:"uppercase",marginBottom:6,fontWeight:700}}>{label} — {rangeLabel}</div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+        <div style={{fontSize:9.5,color,letterSpacing:1.4,textTransform:"uppercase",fontWeight:700}}>{label}</div>
+        <div style={{display:"flex",gap:3}}>
+          {[[7,isHe?"שבוע":"Week"],[30,isHe?"חודש":"Month"],[90,isHe?"3ח":"3M"]].map(([r,l])=>(
+            <button key={r} onClick={()=>setRange(r)} style={{background:range===r?"rgba(148,163,184,.25)":"transparent",border:`1px solid ${range===r?"rgba(148,163,184,.5)":"rgba(148,163,184,.2)"}`,color:range===r?"#475569":"#94a3b8",borderRadius:5,padding:"2px 5px",fontSize:8,cursor:"pointer",fontFamily:"inherit",fontWeight:range===r?700:400}}>{l}</button>
+          ))}
+        </div>
+      </div>
       <div style={{overflow:"hidden",borderRadius:8}}>
         <svg width="100%" viewBox={`0 0 ${W} ${svgH}`} style={{display:"block"}}>
           {lp&&<>
@@ -2185,10 +2193,9 @@ function JournalView({onClose,onLoadDay,pid,lang}){
   const [detailMode,setDetailMode]=useState("full");
   const [view,setView]=useState("list");
   const [activeChart,setActiveChart]=useState(null);
-  const [weekRange,setWeekRange]=useState(7);
   const todayKey=getTodayKey();
   const days=Object.keys(journal).sort((a,b)=>b.localeCompare(a));
-  const weekDays=days.filter(k=>k!==todayKey).slice(0,weekRange);
+  const weekDays=days.filter(k=>k!==todayKey).slice(0,7);
   const wt=weekDays.reduce((acc,k)=>{const d=journal[k];return{kcal:acc.kcal+d.totals.kcal,carbs:acc.carbs+d.totals.carbs,protein:acc.protein+d.totals.protein,n:acc.n+1};},{kcal:0,carbs:0,protein:0,n:0});
   const deleteDay=key=>{const j={...journal};delete j[key];saveJournal(j,pid||'default');setJournal(j);if(selected===key)setSelected(null);};
 
@@ -2269,11 +2276,6 @@ function JournalView({onClose,onLoadDay,pid,lang}){
           <div style={{padding:20}}>
             {weekDays.length===0 && <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:30}}>{T.noData}</div>}
             {weekDays.length>0 && <>
-              <div style={{display:"flex",background:"rgba(148,163,184,.13)",borderRadius:10,padding:3,marginBottom:14,gap:2}}>
-                {[[7,lang==="en"?"7 days":"7 ימים"],[30,lang==="en"?"Month":"חודש"],[90,lang==="en"?"3 Months":"3 חודשים"]].map(([r,l])=>(
-                  <button key={r} onClick={()=>{setWeekRange(r);setActiveChart(null);}} style={{flex:1,background:weekRange===r?"#fff":"transparent",border:"none",borderRadius:7,padding:"7px 4px",fontSize:12,cursor:"pointer",fontFamily:"inherit",fontWeight:weekRange===r?700:400,color:weekRange===r?C.text:"#94a3b8",boxShadow:weekRange===r?"0 1px 4px rgba(0,0,0,.10)":"none",transition:"all .15s"}}>{l}</button>
-                ))}
-              </div>
               <div style={{fontSize:11,color:C.muted,letterSpacing:1.5,marginBottom:10}}>{T.avgDaily} ({weekDays.length} {T.days})</div>
               <div className="g3" style={{marginBottom:12}}>
                 {[{l:T.kcal,v:Math.round(wt.kcal/wt.n),c:C.accent,m:"kcal"},{l:T.carbsFull,v:(wt.carbs/wt.n).toFixed(1)+"g",c:C.warn,m:"carbs"},{l:T.protein,v:(wt.protein/wt.n).toFixed(1)+"g",c:C.blue,m:"protein"}].map(({l,v,c,m})=>{
@@ -2288,7 +2290,7 @@ function JournalView({onClose,onLoadDay,pid,lang}){
                   );
                 })}
               </div>
-              {activeChart&&<MetricWeekChart key={activeChart+weekRange} journal={journal} metric={activeChart} color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:C.blue} label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:T.protein} lang={lang} range={weekRange}/>}
+              {activeChart&&<MetricWeekChart key={activeChart} journal={journal} metric={activeChart} color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:C.blue} label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:T.protein} lang={lang}/>}
               <SugarWeekChart journal={journal} lang={lang}/>
               <div className="card">
                 {weekDays.map((key,i)=>(
