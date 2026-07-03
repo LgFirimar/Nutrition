@@ -3856,7 +3856,7 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
         </button>
 
         {/* Load from file */}
-        <input ref={recipeFileRef} type="file" accept=".txt,.md,text/plain,text/*" style={{display:"none"}} onChange={loadFromFile}/>
+        <input ref={recipeFileRef} type="file" style={{display:"none"}} onChange={loadFromFile}/>
         <button onClick={()=>recipeFileRef.current?.click()} disabled={loadingFile||loadingRecipe}
           style={{width:"100%",background:!loadingFile&&!loadingRecipe?"#f0f4ff":"#ddd",border:`1px solid ${!loadingFile&&!loadingRecipe?"#c7d2fe":"#e0e0e5"}`,borderRadius:10,color:!loadingFile&&!loadingRecipe?"#4f46e5":"#aaa",padding:"9px",fontSize:13,fontWeight:700,cursor:!loadingFile&&!loadingRecipe?"pointer":"default",marginBottom:12}}>
           {loadingFile?"...":`📄 ${isHe?"טען מתכון מקובץ":"Load recipe from file"}`}
