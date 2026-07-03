@@ -3736,8 +3736,10 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
   const [nutrition,setNutrition]=useState(recipe?.kcalPerPerson?{kcal:recipe.kcalPerPerson,carbs:recipe.carbsPerPerson,protein:recipe.proteinPerPerson,fat:recipe.fatPerPerson}:null);
   const [loading,setLoading]=useState(false);
   const [loadingRecipe,setLoadingRecipe]=useState(false);
+  const [loadingFile,setLoadingFile]=useState(false);
   const [error,setError]=useState('');
   const stepRefs=useRef([]);
+  const recipeFileRef=useRef(null);
 
   const parseIngText=text=>text.split(',').map(s=>s.trim()).filter(Boolean).map(part=>{
     const m=part.match(/^(\d+(?:[.,]\d+)?)\s*(g|ml|kg|ק"ג|ק״ג|כף|כפות|כפית|כפיות|כוס|כוסות|יח׳|יח'|יחידות?)?\s+(.+)$/i);
@@ -3761,14 +3763,37 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
       const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({mealPlan:{selectedMeal:name,people:servings,lang}})});
       const d=await r.json();
-      if(d.recipe){
-        const rec=d.recipe;
-        if(rec.ingredients?.length) setIngText(rec.ingredients.map(i=>i.amount?`${i.amount} ${i.item}`:i.item).join(', '));
-        if(rec.steps?.length) setSteps(rec.steps.filter(Boolean));
-        if(rec.kcalPerPerson) setNutrition({kcal:Math.round(rec.kcalPerPerson),carbs:parseFloat((rec.carbsPerPerson||0).toFixed(1)),protein:parseFloat((rec.proteinPerPerson||0).toFixed(1)),fat:parseFloat((rec.fatPerPerson||0).toFixed(1))});
-      } else setError(isHe?'לא הצלחתי לטעון מתכון':'Could not load recipe');
+      if(d.recipe) applyRecipe(d.recipe);
+      else setError(isHe?'לא הצלחתי לטעון מתכון':'Could not load recipe');
     }catch{setError(isHe?'שגיאה':'Error');}
     setLoadingRecipe(false);
+  };
+
+  const applyRecipe=rec=>{
+    if(rec.name&&!name.trim()) setName(rec.name);
+    if(rec.servings) setServings(rec.servings);
+    if(rec.ingredients?.length) setIngText(rec.ingredients.map(i=>i.amount?`${i.amount} ${i.item}`:i.item).join(', '));
+    if(rec.steps?.length) setSteps(rec.steps.filter(Boolean));
+    if(rec.kcalPerPerson) setNutrition({kcal:Math.round(rec.kcalPerPerson),carbs:parseFloat((rec.carbsPerPerson||0).toFixed(1)),protein:parseFloat((rec.proteinPerPerson||0).toFixed(1)),fat:parseFloat((rec.fatPerPerson||0).toFixed(1))});
+  };
+
+  const loadFromFile=e=>{
+    const file=e.target.files[0];if(!file)return;
+    e.target.value='';
+    const reader=new FileReader();
+    reader.onload=async ev=>{
+      const text=ev.target.result;
+      setLoadingFile(true);setError('');
+      try{
+        const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({recipeText:text,lang})});
+        const d=await r.json();
+        if(d.recipe) applyRecipe(d.recipe);
+        else setError(isHe?'לא הצלחתי לקרוא את הקובץ':'Could not parse file');
+      }catch{setError(isHe?'שגיאה':'Error');}
+      setLoadingFile(false);
+    };
+    reader.readAsText(file);
   };
 
   const askClaude=async()=>{
@@ -3814,9 +3839,16 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
         <input value={name} onChange={e=>setName(e.target.value)} placeholder={isHe?"שם המתכון":"Recipe name"} className="inp" style={{marginBottom:8,fontWeight:600}}/>
 
         {/* Load from Claude */}
-        <button onClick={loadFromClaude} disabled={loadingRecipe||!name.trim()}
-          style={{width:"100%",background:name.trim()&&!loadingRecipe?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#ddd",border:"none",borderRadius:10,color:name.trim()&&!loadingRecipe?"#fff":"#aaa",padding:"9px",fontSize:13,fontWeight:700,cursor:name.trim()&&!loadingRecipe?"pointer":"default",marginBottom:12}}>
+        <button onClick={loadFromClaude} disabled={loadingRecipe||loadingFile||!name.trim()}
+          style={{width:"100%",background:name.trim()&&!loadingRecipe&&!loadingFile?"linear-gradient(135deg,#6366f1,#8b5cf6)":"#ddd",border:"none",borderRadius:10,color:name.trim()&&!loadingRecipe&&!loadingFile?"#fff":"#aaa",padding:"9px",fontSize:13,fontWeight:700,cursor:name.trim()&&!loadingRecipe&&!loadingFile?"pointer":"default",marginBottom:6}}>
           {loadingRecipe?"...":`🤖 ${isHe?"טען מתכון מלא מ-Claude":"Load full recipe from Claude"}`}
+        </button>
+
+        {/* Load from file */}
+        <input ref={recipeFileRef} type="file" accept=".txt,.md,text/plain,text/*" style={{display:"none"}} onChange={loadFromFile}/>
+        <button onClick={()=>recipeFileRef.current?.click()} disabled={loadingFile||loadingRecipe}
+          style={{width:"100%",background:!loadingFile&&!loadingRecipe?"#f0f4ff":"#ddd",border:`1px solid ${!loadingFile&&!loadingRecipe?"#c7d2fe":"#e0e0e5"}`,borderRadius:10,color:!loadingFile&&!loadingRecipe?"#4f46e5":"#aaa",padding:"9px",fontSize:13,fontWeight:700,cursor:!loadingFile&&!loadingRecipe?"pointer":"default",marginBottom:12}}>
+          {loadingFile?"...":`📄 ${isHe?"טען מתכון מקובץ":"Load recipe from file"}`}
         </button>
 
         {/* Servings */}

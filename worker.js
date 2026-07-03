@@ -74,10 +74,20 @@ export default {
     }
 
     try {
-      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, profileData, lang, translateItems } = await request.json();
+      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, profileData, lang, translateItems, recipeText } = await request.json();
 
       let prompt, model, system, max_tokens, messages;
-      if (translateItems) {
+      if (recipeText) {
+        const isHeR = (lang || 'he') !== 'en';
+        model = 'claude-sonnet-4-6';
+        max_tokens = 1400;
+        system = isHeR
+          ? 'אתה שף ותזונאי מנוסה. קרא מתכונים וחלץ את המבנה שלהם. החזר JSON בלבד, ללא markdown.'
+          : 'You are an experienced chef and nutritionist. Parse recipe text and extract its structure. Return ONLY JSON, no markdown.';
+        prompt = isHeR
+          ? `קרא את המתכון הבא וחלץ ממנו את כל המידע:\n\n${recipeText}\n\nהחזר JSON בלבד בפורמט הזה (kcal/carbs/protein/fat לכל מנה, 0 אם לא ידוע):\n{"recipe":{"name":"שם המתכון","servings":2,"ingredients":[{"item":"שם מצרך","amount":"כמות"}],"steps":["שלב הכנה בזה אחר זה"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`
+          : `Parse this recipe and extract all information:\n\n${recipeText}\n\nReturn ONLY JSON (kcal/carbs/protein/fat per serving, 0 if unknown):\n{"recipe":{"name":"recipe name","servings":2,"ingredients":[{"item":"ingredient name","amount":"quantity"}],"steps":["preparation step in order"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`;
+      } else if (translateItems) {
         model = 'claude-haiku-4-5-20251001';
         max_tokens = 400;
         system = 'You are a translation assistant. Return ONLY valid JSON, no markdown.';
