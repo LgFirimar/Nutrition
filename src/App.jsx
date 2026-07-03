@@ -2024,6 +2024,14 @@ function MetricWeekChart({journal,metric,color,label,lang}){
       </div>
       <div style={{overflow:"hidden",borderRadius:8}}>
         <svg width="100%" viewBox={`0 0 ${W} ${svgH}`} style={{display:"block"}}>
+          {[minV,(minV+maxV)/2,maxV].map((v,i)=>{
+            const ry=toY(v);
+            const rl=metric==='kcal'?Math.round(v):v.toFixed(1);
+            return(<g key={i}>
+              <line x1={PAD} y1={ry} x2={W-PAD-18} y2={ry} stroke={color} strokeWidth="0.6" strokeDasharray="3,3" opacity="0.22"/>
+              <text x={W-1} y={ry+(i===2?-2:3)} textAnchor="end" fontSize="6" fill={color} opacity="0.65" fontWeight="700">{rl}</text>
+            </g>);
+          })}
           {lp&&<>
             <path d={`${lp} L ${known[known.length-1].x},${TOP+H} L ${known[0].x},${TOP+H} Z`} fill={color} fillOpacity={0.1}/>
             <path d={lp} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
