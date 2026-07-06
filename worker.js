@@ -80,7 +80,7 @@ export default {
       if (recipeText) {
         const isHeR = (lang || 'he') !== 'en';
         model = 'claude-sonnet-4-6';
-        max_tokens = 1400;
+        max_tokens = 2500;
         system = isHeR
           ? 'אתה שף ותזונאי מנוסה. קרא מתכונים וחלץ את המבנה שלהם. החזר JSON בלבד, ללא markdown.'
           : 'You are an experienced chef and nutritionist. Parse recipe text and extract its structure. Return ONLY JSON, no markdown.';

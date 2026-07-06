@@ -3778,6 +3778,7 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
       const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({mealPlan:{selectedMeal:name,people:servings,lang}})});
       const d=await r.json();
+      if(!r.ok){setError(d.error||`Server error ${r.status}`);setLoadingRecipe(false);return;}
       if(d.recipe) applyRecipe(d.recipe);
       else setError(isHe?'לא הצלחתי לטעון מתכון':'Could not load recipe');
     }catch{setError(isHe?'שגיאה':'Error');}
@@ -3809,7 +3810,7 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
       try{
         const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
           body:JSON.stringify({recipeText:text.slice(0,8000),lang})});
-        if(!r.ok){setError(`Server error ${r.status}`);setLoadingFile(false);return;}
+        if(!r.ok){const eb=await r.json().catch(()=>({}));setError(eb.error||`Server error ${r.status}`);setLoadingFile(false);return;}
         const d=await r.json();
         if(d.recipe) applyRecipe(d.recipe);
         else if(d.error) setError(d.error);
