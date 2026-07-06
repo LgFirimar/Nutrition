@@ -2717,6 +2717,7 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
         customBtns:loadCustomBtns(p.id),
         customDB:loadCustomDB(p.id),
         quickFoods:loadQuickFoods(p.id),
+        recipes:loadRecipes(p.id),
       };
     });
     const journal=profilesData[pid]?.journal||loadJournal(pid);
@@ -2737,6 +2738,7 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
       shopping:loadShopping(),
       savedPrefs:JSON.parse(localStorage.getItem("nutrition_saved_prefs")||"[]"),
       quickFoods:loadQuickFoods(pid),
+      recipes:loadRecipes(pid),
     };
     const json=JSON.stringify(data,null,2);
     const fname=(filename.trim()||`nutrition-backup-${pid}`).replace(/\.json$/,"")+".json";
@@ -2771,6 +2773,7 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
           if(pd.customBtns) saveCustomBtns(pd.customBtns,profileId);
           if(pd.customDB) saveCustomDB(pd.customDB,profileId);
           if(pd.quickFoods) saveQuickFoods(pd.quickFoods,profileId);
+          if(pd.recipes) saveRecipes(pd.recipes,profileId);
         });
       } else if(data.journal) {
         // v4 fallback: single profile
@@ -2780,6 +2783,7 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
         if(data.customBtns) saveCustomBtns(data.customBtns,targetPid);
         if(data.customDB) saveCustomDB(data.customDB,targetPid);
         if(data.quickFoods) saveQuickFoods(data.quickFoods,targetPid);
+        if(data.recipes) saveRecipes(data.recipes,targetPid);
       }
       if(data.fridge) saveFridgeLS(data.fridge);
       if(data.pantry) savePantryLS(data.pantry);
