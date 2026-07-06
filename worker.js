@@ -74,7 +74,7 @@ export default {
     }
 
     try {
-      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, dbEditImageHint, profileData, lang, translateItems, recipeText } = await request.json();
+      const { foodName, mealDescription, imageData, imageMediaType, imageHint, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, dbEditImageHint, profileData, lang, translateItems, recipeText } = await request.json();
 
       let prompt, model, system, max_tokens, messages;
       if (recipeText) {
@@ -130,7 +130,8 @@ Include every distinct item you can identify. Use Hebrew names.`}
         max_tokens = 1024;
         system = 'You are a precise nutrition calculator with expert knowledge of food composition databases.';
         const isHeImg = (lang || 'he') !== 'en';
-        const analysisPrompt = isHeImg ? `נתח את תמונת האוכל הזו.
+        const imgHintLine = imageHint ? (isHeImg ? `\nהערת המשתמש: ${imageHint}` : `\nUser note: ${imageHint}`) : '';
+        const analysisPrompt = isHeImg ? `נתח את תמונת האוכל הזו.${imgHintLine}
 
 שלב 1 — זהה כל פריט אוכל גלוי.
 שלב 2 — העריך משקל בגרמים לפי רמזים ויזואליים (קוטר צלחת, עובי, צפיפות, גודל סטנדרטי).
@@ -140,7 +141,7 @@ Include every distinct item you can identify. Use Hebrew names.`}
 
 פלט JSON בלבד בשורה האחרונה:
 {"label":"שם ארוחה בעברית","kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT,"totalGrams":INT,"per100g":{"kcal":INT,"carbs":FLOAT,"protein":FLOAT,"fat":FLOAT},"portions":"רשימה בעברית: פריט ~Xg","suggestedAmt":NUMBER,"suggestedUnit":"יח׳ או g או מנות או קוביות","piecesCount":NUMBER}`
-        : `Analyze this food photo carefully.
+        : `Analyze this food photo carefully.${imgHintLine}
 
 Step 1 — identify each food item visible.
 Step 2 — estimate each item's weight in grams (use visual cues: plate size, food thickness, standard portions: chicken breast ≈ 180g, cup rice ≈ 180g, apple ≈ 180g, bread slice ≈ 30g).

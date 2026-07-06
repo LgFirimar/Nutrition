@@ -977,7 +977,7 @@ function DBManagerModal({onClose,pid,lang}){
         </button>
         {showAdd&&(
           <div className="fade" style={{background:"#f5f5f7",borderRadius:10,padding:12,marginBottom:12,display:"flex",flexDirection:"column",gap:8}}>
-            <div style={{fontSize:11,color:C.muted,marginBottom:2}}>{isHe?"תאר את הפריט או צלם אותו":"Describe the item or take a photo"}</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:2}}>{isHe?"תאר את הפריט ו/או צלם אותו":"Describe the item and/or take a photo"}</div>
             <div style={{display:"flex",gap:6}}>
               <textarea value={addText} onChange={e=>setAddText(e.target.value)}
                 placeholder={isHe?"למשל: 100g חזה עוף מבושל, כוס אורז מבושל...":"e.g. 100g cooked chicken breast, 1 cup cooked rice..."}
@@ -1298,10 +1298,13 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto,lang}){
   const [savedToDb,setSavedToDb]=useState(false);
   const [showDbInput,setShowDbInput]=useState(false);
   const [dbName,setDbName]=useState("");
+  const [imgHint,setImgHint]=useState('');
+  const [storedB64,setStoredB64]=useState(initialPhoto?.base64||null);
+  const [storedMime,setStoredMime]=useState(initialPhoto?.mediaType||'image/jpeg');
   const fileRef=useRef(null);
 
   useEffect(()=>{
-    if(initialPhoto?.base64) analyze(initialPhoto.base64,initialPhoto.mediaType);
+    if(initialPhoto?.base64) analyze(initialPhoto.base64,initialPhoto.mediaType,'');
   },[]);
 
   const unitToG=(amt,unit)=>{
@@ -1362,15 +1365,15 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto,lang}){
     return {kcal:0,carbs:0,protein:0,fat:0};
   };
 
-  const analyze=async(base64,mediaType)=>{
+  const analyze=async(base64,mediaType,hint)=>{
     setLoading(true);setPreview(null);setCalcVals(null);setError(null);
     setServings(1);setLocalAmt("1");setQtyUnit("יח׳");setMealWeight("");setTotalUnits(0);
     try{
       const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{
         method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({imageData:base64,imageMediaType:mediaType,lang})
+        body:JSON.stringify({imageData:base64,imageMediaType:mediaType,lang,...(hint?{imageHint:hint}:{})})
       });
-      if(!res.ok) throw new Error(isHe?"שגיאת שרת":"Server error");
+      if(!res.ok){const eb=await res.json().catch(()=>({}));throw new Error(eb.error||(isHe?"שגיאת שרת":"Server error"));}
       const d=await res.json();
       if(d.error||!d.kcal) throw new Error(d.error||(isHe?"לא הצלחתי לנתח את התמונה":"Could not analyze the photo"));
       // Derive per100g from totalGrams if server included a sensible weight
@@ -1412,9 +1415,11 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto,lang}){
     const reader=new FileReader();
     reader.onload=ev=>{
       const b64=ev.target.result.split(',')[1];
+      const mime=file.type||'image/jpeg';
       setImgSrc(ev.target.result);
+      setStoredB64(b64);setStoredMime(mime);
       setPreview(null);setCalcVals(null);setError(null);
-      analyze(b64,file.type||'image/jpeg');
+      analyze(b64,mime,imgHint.trim());
     };
     reader.readAsDataURL(file);
   };
@@ -1477,6 +1482,16 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto,lang}){
           <div style={{fontSize:12,color:C.muted}}>{isHe?"בחרי תמונה":"Choose a photo"}</div>
         </button>
       ))}
+      {/* Optional description field */}
+      <textarea value={imgHint} onChange={e=>setImgHint(e.target.value)}
+        placeholder={isHe?"תיאור אופציונלי: כמות, אופן הכנה, מוצר ספציפי...":"Optional: quantity, preparation, specific product..."}
+        className="inp" rows={2} style={{fontSize:12,resize:"none",marginBottom:8}}/>
+      {storedB64&&imgHint.trim()&&!loading&&(
+        <button onClick={()=>analyze(storedB64,storedMime,imgHint.trim())}
+          style={{width:"100%",background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"7px",fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:8}}>
+          🔄 {isHe?"נתח מחדש עם התיאור":"Re-analyze with description"}
+        </button>
+      )}
       {loading&&<div style={{textAlign:"center",padding:"14px 0",color:C.muted,fontSize:13}}><CalcLoader size={64}/><div style={{marginTop:6}}>{isHe?"מנתח תמונה...":"Analyzing photo..."}</div></div>}
       {error&&<div style={{background:"#fff0f0",border:`1px solid ${C.danger}`,borderRadius:8,padding:"8px 12px",fontSize:11,color:C.danger,marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <span>⚠ {error}</span>
