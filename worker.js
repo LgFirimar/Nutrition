@@ -74,7 +74,7 @@ export default {
     }
 
     try {
-      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, profileData, lang, translateItems, recipeText } = await request.json();
+      const { foodName, mealDescription, imageData, imageMediaType, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, dbEditImageHint, profileData, lang, translateItems, recipeText } = await request.json();
 
       let prompt, model, system, max_tokens, messages;
       if (recipeText) {
@@ -115,9 +115,10 @@ Include every distinct item you can identify. Use Hebrew names.`}
         model = 'claude-sonnet-4-6';
         max_tokens = 512;
         system = 'You are a precise nutrition calculator with expert knowledge of food composition databases.';
+        const hintLine = dbEditImageHint ? `\nUser description: ${dbEditImageHint}` : '';
         messages = [{role:'user', content:[
           {type:'image', source:{type:'base64', media_type:dbEditImageMediaType||'image/jpeg', data:dbEditImageData}},
-          {type:'text', text:'Calculate nutritional values for the total food visible in this image as 1 serving.\nReturn ONLY this JSON on the last line: {"label":"emoji + שם בעברית","kcal":0,"carbs":0,"protein":0,"fat":0}'}
+          {type:'text', text:`Calculate nutritional values for the total food visible in this image as 1 serving.${hintLine}\nReturn ONLY this JSON on the last line: {"label":"emoji + שם בעברית","kcal":0,"carbs":0,"protein":0,"fat":0}`}
         ]}];
       } else if (dbEditText) {
         model = 'claude-sonnet-4-6';

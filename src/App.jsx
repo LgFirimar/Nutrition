@@ -860,7 +860,7 @@ function DBManagerModal({onClose,pid,lang}){
     try{
       const body=textOrImg.type==='text'
         ?{dbEditText:textOrImg.val}
-        :{dbEditImageData:textOrImg.b64,dbEditImageMediaType:textOrImg.mime};
+        :{dbEditImageData:textOrImg.b64,dbEditImageMediaType:textOrImg.mime,...(textOrImg.hint?{dbEditImageHint:textOrImg.hint}:{})};
       const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       const d=await res.json();
       if(!d.kcal)throw new Error();
@@ -874,7 +874,7 @@ function DBManagerModal({onClose,pid,lang}){
   const handleAddImage=e=>{
     const file=e.target.files[0];if(!file)return;e.target.value="";
     const reader=new FileReader();
-    reader.onload=ev=>askClaudeAdd({type:'img',b64:ev.target.result.split(',')[1],mime:file.type||'image/jpeg'});
+    reader.onload=ev=>askClaudeAdd({type:'img',b64:ev.target.result.split(',')[1],mime:file.type||'image/jpeg',hint:addText.trim()});
     reader.readAsDataURL(file);
   };
 
