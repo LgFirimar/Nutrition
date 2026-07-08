@@ -2224,6 +2224,7 @@ function JournalView({onClose,onLoadDay,pid,lang}){
   const todayKey=getTodayKey();
   const days=Object.keys(journal).sort((a,b)=>b.localeCompare(a));
   const weekDays=days.filter(k=>k!==todayKey).slice(0,7);
+  const wt=weekDays.reduce((acc,k)=>{const d=journal[k];return{kcal:acc.kcal+d.totals.kcal,carbs:acc.carbs+d.totals.carbs,protein:acc.protein+d.totals.protein,n:acc.n+1};},{kcal:0,carbs:0,protein:0,n:0});
   const now=new Date();
   const fmtK=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const calcAvgMetric=(metric,nDays)=>{let sum=0,cnt=0;for(let i=nDays-1;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);const k=fmtK(d);if(journal[k]&&k!==todayKey){sum+=journal[k].totals[metric];cnt++;}}return cnt?sum/cnt:0;};
