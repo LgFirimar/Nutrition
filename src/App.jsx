@@ -1968,10 +1968,11 @@ function NewButtonModal({onClose,onSave}){
 }
 
 // ── MetricWeekChart ────────────────────────────────────────────────────────────
-function MetricWeekChart({journal,metric,color,label,lang,range}){
+function MetricWeekChart({journal,metric,color,label,lang,initRange}){
   const H=54,W=280,PAD=14,TOP=20;
   const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en';
   const DAY_LABELS=isHe?['א','ב','ג','ד','ה','ו','ש']:['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const [range,setRange]=useState(initRange||7);
   const xs=Array.from({length:range},(_,i)=>Math.round(PAD+i*(W-2*PAD)/Math.max(range-1,1)));
   const ref=useRef(null);
   useEffect(()=>{ref.current?.scrollIntoView({behavior:"smooth",block:"nearest"});},[]);
@@ -2028,8 +2029,13 @@ function MetricWeekChart({journal,metric,color,label,lang,range}){
 
   return(
     <div ref={ref} style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:`1px solid ${color}33`,borderRadius:16,padding:"10px 12px 8px",marginBottom:12,boxShadow:"0 3px 14px rgba(80,130,180,.08)",maxWidth:440}}>
-      <div style={{display:"flex",alignItems:"center",marginBottom:6}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
         <div style={{fontSize:9.5,color,letterSpacing:1.4,textTransform:"uppercase",fontWeight:700}}>{label}</div>
+        <div style={{display:"flex",gap:3}}>
+          {[[7,isHe?"שבוע":"Week"],[30,isHe?"חודש":"Month"],[90,isHe?"3ח":"3M"]].map(([r,l])=>(
+            <button key={r} onClick={()=>setRange(r)} style={{background:range===r?"rgba(148,163,184,.25)":"transparent",border:`1px solid ${range===r?"rgba(148,163,184,.5)":"rgba(148,163,184,.2)"}`,color:range===r?"#475569":"#94a3b8",borderRadius:5,padding:"2px 5px",fontSize:8,cursor:"pointer",fontFamily:"inherit",fontWeight:range===r?700:400}}>{l}</button>
+          ))}
+        </div>
       </div>
       <div style={{overflow:"hidden",borderRadius:8}}>
         <svg width="100%" viewBox={`0 0 ${W} ${svgH}`} style={{display:"block"}}>
@@ -2069,8 +2075,9 @@ function MetricWeekChart({journal,metric,color,label,lang,range}){
 }
 
 // ── SugarWeekChart ─────────────────────────────────────────────────────────────
-function SugarWeekChart({journal,lang,range}){
+function SugarWeekChart({journal,lang}){
   const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en'?true:false;
+  const [range,setRange]=useState(7);
   const H=54, W=280, PAD=14, SUGAR_RANGE=80, MIN_V=60;
   const toY=v=>Math.max(2,Math.min(H-2, H-(Number(v)-MIN_V)/SUGAR_RANGE*H));
   const y100=H-(100-MIN_V)/SUGAR_RANGE*H;
@@ -2138,12 +2145,19 @@ function SugarWeekChart({journal,lang,range}){
           <div style={{fontSize:9.5,color:"#94a3b8",letterSpacing:1.4,textTransform:"uppercase"}}>🩸 {isHe?"סוכר":"Sugar"}</div>
           {avg7!=null&&<span style={{fontSize:8.5,color:sugarColor(avg7),background:sugarColor(avg7)+'18',borderRadius:8,padding:"1px 6px",fontWeight:700}}>{isHe?"ממוצע שבוע":"Week avg"}: {avg7}</span>}
         </div>
-        <div style={{display:"flex",gap:8}}>
-          {[["≤85","#0d9488"],["86–99","#f59e0b"],["≥100","#dc2626"]].map(([l,c])=>(
-            <span key={l} style={{fontSize:7.5,color:c,display:"inline-flex",alignItems:"center",gap:2}}>
-              <span style={{width:6,height:2,borderRadius:1,background:"currentColor",display:"inline-block"}}></span>{l}
-            </span>
-          ))}
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <div style={{display:"flex",gap:3}}>
+            {[[7,isHe?"שבוע":"Week"],[30,isHe?"חודש":"Month"],[90,isHe?"3ח":"3M"]].map(([r,l])=>(
+              <button key={r} onClick={()=>setRange(r)} style={{background:range===r?"rgba(148,163,184,.25)":"transparent",border:`1px solid ${range===r?"rgba(148,163,184,.5)":"rgba(148,163,184,.2)"}`,color:range===r?"#475569":"#94a3b8",borderRadius:5,padding:"2px 5px",fontSize:8,cursor:"pointer",fontFamily:"inherit",fontWeight:range===r?700:400}}>{l}</button>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            {[["≤85","#0d9488"],["86–99","#f59e0b"],["≥100","#dc2626"]].map(([l,c])=>(
+              <span key={l} style={{fontSize:7.5,color:c,display:"inline-flex",alignItems:"center",gap:2}}>
+                <span style={{width:6,height:2,borderRadius:1,background:"currentColor",display:"inline-block"}}></span>{l}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -2205,17 +2219,15 @@ function JournalView({onClose,onLoadDay,pid,lang}){
   const [detailMode,setDetailMode]=useState("full");
   const [view,setView]=useState("list");
   const [activeChart,setActiveChart]=useState(null);
-  const [range,setRange]=useState(7);
+  const [metricRanges,setMetricRanges]=useState({kcal:7,carbs:7,protein:7});
   const isHe=(lang||'he')!=='en';
   const todayKey=getTodayKey();
   const days=Object.keys(journal).sort((a,b)=>b.localeCompare(a));
   const weekDays=days.filter(k=>k!==todayKey).slice(0,7);
-  const wt=weekDays.reduce((acc,k)=>{const d=journal[k];return{kcal:acc.kcal+d.totals.kcal,carbs:acc.carbs+d.totals.carbs,protein:acc.protein+d.totals.protein,n:acc.n+1};},{kcal:0,carbs:0,protein:0,n:0});
   const now=new Date();
   const fmtK=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  const rangeDays=[];
-  for(let i=range-1;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);const k=fmtK(d);if(journal[k]&&k!==todayKey)rangeDays.push(k);}
-  const rt=rangeDays.reduce((acc,k)=>{const d=journal[k];return{kcal:acc.kcal+d.totals.kcal,carbs:acc.carbs+d.totals.carbs,protein:acc.protein+d.totals.protein,n:acc.n+1};},{kcal:0,carbs:0,protein:0,n:0});
+  const calcAvgMetric=(metric,nDays)=>{let sum=0,cnt=0;for(let i=nDays-1;i>=0;i--){const d=new Date(now);d.setDate(d.getDate()-i);const k=fmtK(d);if(journal[k]&&k!==todayKey){sum+=journal[k].totals[metric];cnt++;}}return cnt?sum/cnt:0;};
+  const setMR=(m,r)=>setMetricRanges(prev=>({...prev,[m]:r}));
   const deleteDay=key=>{const j={...journal};delete j[key];saveJournal(j,pid||'default');setJournal(j);if(selected===key)setSelected(null);};
 
   return (
@@ -2295,29 +2307,28 @@ function JournalView({onClose,onLoadDay,pid,lang}){
           <div style={{padding:20}}>
             {weekDays.length===0 && <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:30}}>{T.noData}</div>}
             {weekDays.length>0 && <>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                <div style={{fontSize:11,color:C.muted,letterSpacing:1.5}}>{T.avgDaily} ({rangeDays.length} {T.days})</div>
-                <div style={{display:"flex",gap:3}}>
-                  {[[7,isHe?"שבוע":"Week"],[30,isHe?"חודש":"Month"],[90,isHe?"3ח":"3M"]].map(([r,l])=>(
-                    <button key={r} onClick={()=>{setRange(r);setActiveChart(null);}} style={{background:range===r?"rgba(148,163,184,.25)":"transparent",border:`1px solid ${range===r?"rgba(148,163,184,.5)":"rgba(148,163,184,.2)"}`,color:range===r?"#475569":"#94a3b8",borderRadius:5,padding:"2px 7px",fontSize:9,cursor:"pointer",fontFamily:"inherit",fontWeight:range===r?700:400}}>{l}</button>
-                  ))}
-                </div>
-              </div>
+              <div style={{fontSize:11,color:C.muted,letterSpacing:1.5,marginBottom:10}}>{T.avgDaily}</div>
               <div className="g3" style={{marginBottom:12}}>
-                {[{l:T.kcal,v:rt.n?Math.round(rt.kcal/rt.n):0,c:C.accent,m:"kcal"},{l:T.carbsFull,v:rt.n?(rt.carbs/rt.n).toFixed(1)+"g":"0g",c:C.warn,m:"carbs"},{l:T.protein,v:rt.n?(rt.protein/rt.n).toFixed(1)+"g":"0g",c:C.blue,m:"protein"}].map(({l,v,c,m})=>{
+                {[{l:T.kcal,vFn:()=>Math.round(calcAvgMetric('kcal',metricRanges.kcal)),c:C.accent,m:"kcal"},{l:T.carbsFull,vFn:()=>calcAvgMetric('carbs',metricRanges.carbs).toFixed(1)+"g",c:C.warn,m:"carbs"},{l:T.protein,vFn:()=>calcAvgMetric('protein',metricRanges.protein).toFixed(1)+"g",c:C.blue,m:"protein"}].map(({l,vFn,c,m})=>{
                   const isActive=activeChart===m;
+                  const rl=[[7,"7"],[30,"30"],[90,"90"]];
                   return(
                     <div key={l} onClick={()=>setActiveChart(isActive?null:m)}
-                      style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(14px)",WebkitBackdropFilter:"blur(14px)",borderRadius:16,padding:"14px 10px",textAlign:"center",border:`${isActive?"2":"1"}px solid ${isActive?c:"rgba(255,255,255,.88)"}`,boxShadow:"0 3px 14px rgba(80,130,180,.08)",cursor:"pointer",transition:"border .15s"}}>
-                      <div style={{fontSize:22,fontWeight:900,color:c}}>{v}</div>
-                      <div style={{fontSize:10,color:C.muted,marginTop:4}}>{l}</div>
+                      style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(14px)",WebkitBackdropFilter:"blur(14px)",borderRadius:16,padding:"12px 8px 8px",textAlign:"center",border:`${isActive?"2":"1"}px solid ${isActive?c:"rgba(255,255,255,.88)"}`,boxShadow:"0 3px 14px rgba(80,130,180,.08)",cursor:"pointer",transition:"border .15s"}}>
+                      <div style={{fontSize:21,fontWeight:900,color:c}}>{vFn()}</div>
+                      <div style={{fontSize:10,color:C.muted,marginTop:3}}>{l}</div>
+                      <div style={{display:"flex",justifyContent:"center",gap:2,marginTop:5}} onClick={e=>e.stopPropagation()}>
+                        {rl.map(([r,rl2])=>(
+                          <button key={r} onClick={()=>setMR(m,r)} style={{background:metricRanges[m]===r?c+'22':"transparent",border:`1px solid ${metricRanges[m]===r?c:"rgba(148,163,184,.25)"}`,color:metricRanges[m]===r?c:"#94a3b8",borderRadius:4,padding:"1px 4px",fontSize:7.5,cursor:"pointer",fontFamily:"inherit",fontWeight:metricRanges[m]===r?700:400,lineHeight:1.4}}>{rl2}</button>
+                        ))}
+                      </div>
                       <div style={{fontSize:8,color:isActive?c:"#cbd5e1",marginTop:3}}>{isActive?"▲":"▼"}</div>
                     </div>
                   );
                 })}
               </div>
-              {activeChart&&<MetricWeekChart key={activeChart} journal={journal} metric={activeChart} color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:C.blue} label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:T.protein} lang={lang} range={range}/>}
-              <SugarWeekChart journal={journal} lang={lang} range={range}/>
+              {activeChart&&<MetricWeekChart key={activeChart} journal={journal} metric={activeChart} color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:C.blue} label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:T.protein} lang={lang} initRange={metricRanges[activeChart]}/>}
+              <SugarWeekChart journal={journal} lang={lang}/>
               <div className="card">
                 {weekDays.map((key,i)=>(
                   <div key={key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"11px 16px",borderBottom:i<weekDays.length-1?"1px solid #e0e0e5":"none"}}>
