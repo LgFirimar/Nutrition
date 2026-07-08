@@ -2217,7 +2217,7 @@ function JournalView({onClose,onLoadDay,pid,lang}){
   const [selected,setSelected]=useState(null);
   const [detailMode,setDetailMode]=useState("full");
   const [view,setView]=useState("list");
-  const [activeChart,setActiveChart]=useState(null);
+  const [activeChart,setActiveChart]=useState("kcal");
   const [metricRanges,setMetricRanges]=useState({kcal:7,carbs:7,protein:7});
   const isHe=(lang||'he')!=='en';
   const todayKey=getTodayKey();
