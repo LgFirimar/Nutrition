@@ -1968,11 +1968,10 @@ function NewButtonModal({onClose,onSave}){
 }
 
 // ── MetricWeekChart ────────────────────────────────────────────────────────────
-function MetricWeekChart({journal,metric,color,label,lang,initRange}){
+function MetricWeekChart({journal,metric,color,label,lang,range,setRange}){
   const H=54,W=280,PAD=14,TOP=20;
   const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en';
   const DAY_LABELS=isHe?['א','ב','ג','ד','ה','ו','ש']:['Su','Mo','Tu','We','Th','Fr','Sa'];
-  const [range,setRange]=useState(initRange||7);
   const xs=Array.from({length:range},(_,i)=>Math.round(PAD+i*(W-2*PAD)/Math.max(range-1,1)));
   const ref=useRef(null);
   useEffect(()=>{ref.current?.scrollIntoView({behavior:"smooth",block:"nearest"});},[]);
@@ -2312,23 +2311,17 @@ function JournalView({onClose,onLoadDay,pid,lang}){
               <div className="g3" style={{marginBottom:12}}>
                 {[{l:T.kcal,vFn:()=>Math.round(calcAvgMetric('kcal',metricRanges.kcal)),c:C.accent,m:"kcal"},{l:T.carbsFull,vFn:()=>calcAvgMetric('carbs',metricRanges.carbs).toFixed(1)+"g",c:C.warn,m:"carbs"},{l:T.protein,vFn:()=>calcAvgMetric('protein',metricRanges.protein).toFixed(1)+"g",c:C.blue,m:"protein"}].map(({l,vFn,c,m})=>{
                   const isActive=activeChart===m;
-                  const rl=[[7,"7"],[30,"30"],[90,"90"]];
                   return(
                     <div key={l} onClick={()=>setActiveChart(isActive?null:m)}
-                      style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(14px)",WebkitBackdropFilter:"blur(14px)",borderRadius:16,padding:"12px 8px 8px",textAlign:"center",border:`${isActive?"2":"1"}px solid ${isActive?c:"rgba(255,255,255,.88)"}`,boxShadow:"0 3px 14px rgba(80,130,180,.08)",cursor:"pointer",transition:"border .15s"}}>
-                      <div style={{fontSize:21,fontWeight:900,color:c}}>{vFn()}</div>
-                      <div style={{fontSize:10,color:C.muted,marginTop:3}}>{l}</div>
-                      <div style={{display:"flex",justifyContent:"center",gap:2,marginTop:5}} onClick={e=>e.stopPropagation()}>
-                        {rl.map(([r,rl2])=>(
-                          <button key={r} onClick={()=>setMR(m,r)} style={{background:metricRanges[m]===r?c+'22':"transparent",border:`1px solid ${metricRanges[m]===r?c:"rgba(148,163,184,.25)"}`,color:metricRanges[m]===r?c:"#94a3b8",borderRadius:4,padding:"1px 4px",fontSize:7.5,cursor:"pointer",fontFamily:"inherit",fontWeight:metricRanges[m]===r?700:400,lineHeight:1.4}}>{rl2}</button>
-                        ))}
-                      </div>
+                      style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(14px)",WebkitBackdropFilter:"blur(14px)",borderRadius:16,padding:"14px 10px",textAlign:"center",border:`${isActive?"2":"1"}px solid ${isActive?c:"rgba(255,255,255,.88)"}`,boxShadow:"0 3px 14px rgba(80,130,180,.08)",cursor:"pointer",transition:"border .15s"}}>
+                      <div style={{fontSize:22,fontWeight:900,color:c}}>{vFn()}</div>
+                      <div style={{fontSize:10,color:C.muted,marginTop:4}}>{l}</div>
                       <div style={{fontSize:8,color:isActive?c:"#cbd5e1",marginTop:3}}>{isActive?"▲":"▼"}</div>
                     </div>
                   );
                 })}
               </div>
-              {activeChart&&<MetricWeekChart key={activeChart} journal={journal} metric={activeChart} color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:C.blue} label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:T.protein} lang={lang} initRange={metricRanges[activeChart]}/>}
+              {activeChart&&<MetricWeekChart key={activeChart} journal={journal} metric={activeChart} color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:C.blue} label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:T.protein} lang={lang} range={metricRanges[activeChart]} setRange={r=>setMR(activeChart,r)}/>}
               <SugarWeekChart journal={journal} lang={lang}/>
               <div className="card">
                 {weekDays.map((key,i)=>(
