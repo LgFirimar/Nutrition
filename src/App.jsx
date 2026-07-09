@@ -4039,7 +4039,7 @@ function RecipeBookModal({onClose,lang,pid,onAddToDay,initialEdit}){
               open={openId===recipe.id} onToggle={()=>setOpenId(openId===recipe.id?null:recipe.id)}
               onEdit={()=>setEditRecipe(recipe)} onDelete={()=>remove(recipe.id)}
               onShare={()=>share(recipe)} onEmail={()=>email(recipe)}
-              onAddToDay={()=>handleAddToDay(recipe)}/>
+              onAddToDay={(qty,unit)=>handleAddToDay(recipe,qty,unit)}/>
           ))
         }
       </div>
