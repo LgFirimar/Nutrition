@@ -3703,11 +3703,34 @@ function formatRecipeShare(recipe,isHe){
 }
 
 function RecipeCard({recipe,isHe,onEdit,onDelete,onShare,onEmail,onAddToDay,open,onToggle}){
-  const [qty,setQty]=useState(1);
+  const [showPicker,setShowPicker]=useState(false);
+  const [qty,setQty]=useState('1');
   const [unit,setUnit]=useState("מנות");
-  const changeQty=delta=>setQty(q=>Math.max(0.5,parseFloat((q+delta).toFixed(1))));
+  const confirmAdd=()=>{onAddToDay(parseFloat(qty)||1,unit);setShowPicker(false);setQty('1');setUnit("מנות");};
   return(
     <div style={{background:"#f5f5f7",borderRadius:12,marginBottom:8,overflow:"hidden"}}>
+      {showPicker&&(
+        <div onClick={e=>{if(e.target===e.currentTarget)setShowPicker(false);}} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.35)",zIndex:9999,display:"flex",alignItems:"flex-end"}}>
+          <div style={{width:"100%",background:"#fff",borderRadius:"18px 18px 0 0",padding:"20px 20px 34px"}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:16}}>📖 {recipe.name}</div>
+            <div style={{display:"flex",gap:8,marginBottom:14}}>
+              <input autoFocus type="number" inputMode="decimal" value={qty} onChange={e=>setQty(e.target.value)}
+                placeholder="1" style={{flex:1,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"10px 12px",fontSize:16,fontFamily:"inherit",outline:"none"}}/>
+              <select value={unit} onChange={e=>setUnit(e.target.value)}
+                style={{flex:1,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"10px 8px",fontSize:14,fontFamily:"inherit",background:"#fff"}}>
+                <option value="מנות">{isHe?"מנות":"servings"}</option>
+                <option value="יח׳">{isHe?"יח׳":"units"}</option>
+                <option value="גר׳">{isHe?"גר׳":"g"}</option>
+                <option value="מ״ל">{isHe?"מ״ל":"ml"}</option>
+              </select>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setShowPicker(false)} style={{flex:1,background:"none",border:`1px solid ${C.border}`,borderRadius:10,padding:"11px",fontSize:14,cursor:"pointer",color:C.muted}}>{isHe?"ביטול":"Cancel"}</button>
+              <button onClick={confirmAdd} style={{flex:2,background:C.accent,border:"none",borderRadius:10,padding:"11px",fontSize:14,fontWeight:700,color:"#fff",cursor:"pointer"}}>+ {isHe?"הוסף":"Add"}</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div onClick={onToggle} style={{display:"flex",alignItems:"center",padding:"12px 14px",cursor:"pointer",gap:8}}>
         <div style={{flex:1}}>
           <div style={{fontSize:13,fontWeight:700,color:C.text}}>{recipe.name}</div>
@@ -3749,22 +3772,8 @@ function RecipeCard({recipe,isHe,onEdit,onDelete,onShare,onEmail,onAddToDay,open
               ))}
             </div>
           )}
-          <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:8,background:"rgba(255,255,255,.75)",borderRadius:8,padding:"7px 10px"}}>
-            <span style={{fontSize:11,color:C.muted,flexShrink:0}}>{isHe?"כמות:":"Qty:"}</span>
-            <button onClick={()=>changeQty(-0.5)} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:6,width:24,height:24,fontSize:14,lineHeight:1,cursor:"pointer",color:C.muted,flexShrink:0}}>−</button>
-            <input type="number" value={qty} min={0.5} step={0.5} onChange={e=>setQty(Math.max(0.5,parseFloat(e.target.value)||1))}
-              style={{width:44,textAlign:"center",border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 4px",fontSize:12,fontFamily:"inherit"}}/>
-            <button onClick={()=>changeQty(0.5)} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:6,width:24,height:24,fontSize:14,lineHeight:1,cursor:"pointer",color:C.muted,flexShrink:0}}>+</button>
-            <select value={unit} onChange={e=>setUnit(e.target.value)}
-              style={{flex:1,border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 6px",fontSize:12,fontFamily:"inherit",background:"#fff",minWidth:0}}>
-              <option value="מנות">{isHe?"מנות":"servings"}</option>
-              <option value="יח׳">{isHe?"יח׳":"units"}</option>
-              <option value="גר׳">{isHe?"גר׳":"g"}</option>
-              <option value="מ״ל">{isHe?"מ״ל":"ml"}</option>
-            </select>
-          </div>
           <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-            <button onClick={()=>onAddToDay(qty,unit)} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"8px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ {isHe?"הוסף להיום":"Add to day"}</button>
+            <button onClick={()=>setShowPicker(true)} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"8px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ {isHe?"הוסף להיום":"Add to day"}</button>
             <button onClick={onEdit} style={{flex:1,background:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer"}}>✏️</button>
             <button onClick={onShare} style={{flex:1,background:"rgba(37,211,102,.1)",border:"1px solid rgba(37,211,102,.3)",borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer"}}>📱</button>
             <button onClick={onEmail} style={{flex:1,background:"rgba(59,130,246,.08)",border:"1px solid rgba(59,130,246,.2)",borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer"}}>✉️</button>
