@@ -3703,6 +3703,9 @@ function formatRecipeShare(recipe,isHe){
 }
 
 function RecipeCard({recipe,isHe,onEdit,onDelete,onShare,onEmail,onAddToDay,open,onToggle}){
+  const [qty,setQty]=useState(1);
+  const [unit,setUnit]=useState("מנות");
+  const changeQty=delta=>setQty(q=>Math.max(0.5,parseFloat((q+delta).toFixed(1))));
   return(
     <div style={{background:"#f5f5f7",borderRadius:12,marginBottom:8,overflow:"hidden"}}>
       <div onClick={onToggle} style={{display:"flex",alignItems:"center",padding:"12px 14px",cursor:"pointer",gap:8}}>
@@ -3746,8 +3749,22 @@ function RecipeCard({recipe,isHe,onEdit,onDelete,onShare,onEmail,onAddToDay,open
               ))}
             </div>
           )}
+          <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:8,background:"rgba(255,255,255,.75)",borderRadius:8,padding:"7px 10px"}}>
+            <span style={{fontSize:11,color:C.muted,flexShrink:0}}>{isHe?"כמות:":"Qty:"}</span>
+            <button onClick={()=>changeQty(-0.5)} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:6,width:24,height:24,fontSize:14,lineHeight:1,cursor:"pointer",color:C.muted,flexShrink:0}}>−</button>
+            <input type="number" value={qty} min={0.5} step={0.5} onChange={e=>setQty(Math.max(0.5,parseFloat(e.target.value)||1))}
+              style={{width:44,textAlign:"center",border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 4px",fontSize:12,fontFamily:"inherit"}}/>
+            <button onClick={()=>changeQty(0.5)} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:6,width:24,height:24,fontSize:14,lineHeight:1,cursor:"pointer",color:C.muted,flexShrink:0}}>+</button>
+            <select value={unit} onChange={e=>setUnit(e.target.value)}
+              style={{flex:1,border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 6px",fontSize:12,fontFamily:"inherit",background:"#fff",minWidth:0}}>
+              <option value="מנות">{isHe?"מנות":"servings"}</option>
+              <option value="יח׳">{isHe?"יח׳":"units"}</option>
+              <option value="גר׳">{isHe?"גר׳":"g"}</option>
+              <option value="מ״ל">{isHe?"מ״ל":"ml"}</option>
+            </select>
+          </div>
           <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-            <button onClick={onAddToDay} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"8px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ {isHe?"הוסף להיום":"Add to day"}</button>
+            <button onClick={()=>onAddToDay(qty,unit)} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"8px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ {isHe?"הוסף להיום":"Add to day"}</button>
             <button onClick={onEdit} style={{flex:1,background:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer"}}>✏️</button>
             <button onClick={onShare} style={{flex:1,background:"rgba(37,211,102,.1)",border:"1px solid rgba(37,211,102,.3)",borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer"}}>📱</button>
             <button onClick={onEmail} style={{flex:1,background:"rgba(59,130,246,.08)",border:"1px solid rgba(59,130,246,.2)",borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer"}}>✉️</button>
@@ -3865,9 +3882,9 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
 
   const handleAddToDay=()=>{
     if(!nutrition) return;
-    onAddToDay({uid:Date.now()+Math.random(),label:`📖 ${name||'מתכון'} (${servings} ${isHe?'מנות':'srv'})`,
-      kcal:(nutrition.kcal||0)*servings,carbs:parseFloat(((nutrition.carbs||0)*servings).toFixed(1)),
-      protein:parseFloat(((nutrition.protein||0)*servings).toFixed(1)),fat:parseFloat(((nutrition.fat||0)*servings).toFixed(1))});
+    onAddToDay({uid:Date.now()+Math.random(),label:`📖 ${name||'מתכון'} (${isHe?'מנה':'serving'})`,
+      kcal:nutrition.kcal||0,carbs:parseFloat((nutrition.carbs||0).toFixed(1)),
+      protein:parseFloat((nutrition.protein||0).toFixed(1)),fat:parseFloat((nutrition.fat||0).toFixed(1))});
     onClose();
   };
 
@@ -3984,10 +4001,15 @@ function RecipeBookModal({onClose,lang,pid,onAddToDay,initialEdit}){
   const share=recipe=>{const msg=formatRecipeShare(recipe,isHe);window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');};
   const email=recipe=>{const msg=formatRecipeShare(recipe,isHe);window.open(`mailto:?subject=${encodeURIComponent(recipe.name)}&body=${encodeURIComponent(msg)}`,'_blank');};
 
-  const handleAddToDay=recipe=>{
-    onAddToDay({uid:Date.now()+Math.random(),label:`📖 ${recipe.name}`,
-      kcal:(recipe.kcalPerPerson||0)*recipe.servings,carbs:parseFloat(((recipe.carbsPerPerson||0)*recipe.servings).toFixed(1)),
-      protein:parseFloat(((recipe.proteinPerPerson||0)*recipe.servings).toFixed(1)),fat:parseFloat(((recipe.fatPerPerson||0)*recipe.servings).toFixed(1))});
+  const handleAddToDay=(recipe,qty=1,unit="מנות")=>{
+    const isByServing=unit==="מנות"||unit==="יח׳";
+    const factor=isByServing?qty:qty/100;
+    const unitLabel=isByServing?(qty===1?(isHe?"מנה":"serving"):`${qty} ${unit}`):`${qty}${unit}`;
+    onAddToDay({uid:Date.now()+Math.random(),label:`📖 ${recipe.name} (${unitLabel})`,
+      kcal:Math.round((recipe.kcalPerPerson||0)*factor),
+      carbs:parseFloat(((recipe.carbsPerPerson||0)*factor).toFixed(1)),
+      protein:parseFloat(((recipe.proteinPerPerson||0)*factor).toFixed(1)),
+      fat:parseFloat(((recipe.fatPerPerson||0)*factor).toFixed(1))});
     onClose();
   };
 
