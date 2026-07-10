@@ -3702,11 +3702,13 @@ function formatRecipeShare(recipe,isHe){
   return lines.join('\n');
 }
 
-function RecipeCard({recipe,isHe,onEdit,onDelete,onShare,onEmail,onAddToDay,open,onToggle}){
+function RecipeCard({recipe,isHe,onEdit,onDelete,onShare,onEmail,onAddToDay,onSaveQuickFood,open,onToggle}){
   const [showPicker,setShowPicker]=useState(false);
   const [qty,setQty]=useState('1');
   const [unit,setUnit]=useState("מנות");
+  const [savedQF,setSavedQF]=useState(false);
   const confirmAdd=()=>{onAddToDay(parseFloat(qty)||1,unit);setShowPicker(false);setQty('1');setUnit("מנות");};
+  const handleSaveQF=()=>{const ok=onSaveQuickFood?.();if(ok){setSavedQF(true);setTimeout(()=>setSavedQF(false),2000);}};
   return(
     <div style={{background:"#f5f5f7",borderRadius:12,marginBottom:8,overflow:"hidden"}}>
       {showPicker&&(
@@ -3774,6 +3776,7 @@ function RecipeCard({recipe,isHe,onEdit,onDelete,onShare,onEmail,onAddToDay,open
           )}
           <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
             <button onClick={()=>setShowPicker(true)} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"8px",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ {isHe?"הוסף להיום":"Add to day"}</button>
+            <button onClick={handleSaveQF} title={isHe?"שמור לפריטים קבועים":"Save as preset"} style={{flex:1,background:savedQF?"rgba(245,158,11,.12)":"none",border:`1px solid ${savedQF?"#f59e0b":"rgba(245,158,11,.35)"}`,borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer",color:savedQF?"#f59e0b":C.muted,transition:"all .2s"}}>{savedQF?"✓":"⭐"}</button>
             <button onClick={onEdit} style={{flex:1,background:"none",border:`1px solid ${C.border}`,borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer"}}>✏️</button>
             <button onClick={onShare} style={{flex:1,background:"rgba(37,211,102,.1)",border:"1px solid rgba(37,211,102,.3)",borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer"}}>📱</button>
             <button onClick={onEmail} style={{flex:1,background:"rgba(59,130,246,.08)",border:"1px solid rgba(59,130,246,.2)",borderRadius:8,padding:"8px",fontSize:13,cursor:"pointer"}}>✉️</button>
@@ -3995,7 +3998,7 @@ function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
   );
 }
 
-function RecipeBookModal({onClose,lang,pid,onAddToDay,initialEdit}){
+function RecipeBookModal({onClose,lang,pid,onAddToDay,onSaveQuickFood,initialEdit}){
   const isHe=(lang||'he')!=='en';
   const activePid=pid||window._activePid||'default';
   const [recipes,setRecipes]=useState(()=>loadRecipes(activePid));
@@ -4006,6 +4009,15 @@ function RecipeBookModal({onClose,lang,pid,onAddToDay,initialEdit}){
 
   const save=r=>{setRecipes(r);saveRecipes(r,activePid);};
   const remove=id=>save(recipes.filter(r=>r.id!==id));
+
+  const saveAsQuickFood=recipe=>{
+    if(!recipe.kcalPerPerson) return false;
+    const food={id:`qf_recipe_${recipe.id}`,label:`📖 ${recipe.name}`,
+      kcal:Math.round(recipe.kcalPerPerson||0),carbs:parseFloat((recipe.carbsPerPerson||0).toFixed(1)),
+      protein:parseFloat((recipe.proteinPerPerson||0).toFixed(1)),fat:parseFloat((recipe.fatPerPerson||0).toFixed(1))};
+    onSaveQuickFood?.(food);
+    return true;
+  };
 
   const share=recipe=>{const msg=formatRecipeShare(recipe,isHe);window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');};
   const email=recipe=>{const msg=formatRecipeShare(recipe,isHe);window.open(`mailto:?subject=${encodeURIComponent(recipe.name)}&body=${encodeURIComponent(msg)}`,'_blank');};
@@ -4048,7 +4060,8 @@ function RecipeBookModal({onClose,lang,pid,onAddToDay,initialEdit}){
               open={openId===recipe.id} onToggle={()=>setOpenId(openId===recipe.id?null:recipe.id)}
               onEdit={()=>setEditRecipe(recipe)} onDelete={()=>remove(recipe.id)}
               onShare={()=>share(recipe)} onEmail={()=>email(recipe)}
-              onAddToDay={(qty,unit)=>handleAddToDay(recipe,qty,unit)}/>
+              onAddToDay={(qty,unit)=>handleAddToDay(recipe,qty,unit)}
+              onSaveQuickFood={()=>saveAsQuickFood(recipe)}/>
           ))
         }
       </div>
@@ -5212,6 +5225,7 @@ function App(){
   const removeBtn=id=>{const u=customBtns.filter(b=>b.id!==id);setCustomBtns(u);saveCustomBtns(u,pid);};
   const updateQuickFood=(id,changes)=>{const u=quickFoods.map(f=>f.id===id?{...f,...changes}:f);setQuickFoods(u);saveQuickFoods(u,pid);};
   const removeQuickFood=(id)=>{const u=quickFoods.filter(f=>f.id!==id);setQuickFoods(u);saveQuickFoods(u,pid);};
+  const addQuickFood=food=>{const u=[...quickFoods.filter(f=>f.id!==food.id),food];setQuickFoods(u);saveQuickFoods(u,pid);};
   const resetQuickFoods=()=>{setQuickFoods(QUICK_FOODS);saveQuickFoods(QUICK_FOODS,pid);ls.set("nutrition_hidden_special",[]);ls.set("nutrition_special_edits",{});};
   const kcalLeft=MAX_KCAL-totals.kcal, carbsLeft=MAX_CARBS-totals.carbs;
   const maxProtein=activeProfile?.maxProtein||120;
@@ -5247,7 +5261,7 @@ function App(){
       {showHousehold && <HouseholdModal householdCfg={householdCfg} onConnect={cfg=>{setHouseholdCfg(cfg);setShowHousehold(false);}} onHouseholdReady={cfg=>setHouseholdCfg(cfg)} onLeave={()=>{setHouseholdCfg(null);setHhSynced(false);setShowHousehold(false);}} onClose={()=>setShowHousehold(false)} onWelcome={data=>{setHouseholdCfg(data.cfg);setHhWelcome(data);setShowHousehold(false);}} lang={lang}/>}
       {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang} profile={activeProfile}
         onSaveRecipe={r=>{const pid2=window._activePid||'default';saveRecipes([r,...loadRecipes(pid2)],pid2);}}/>}
-      {showRecipeBook && <RecipeBookModal onClose={()=>setShowRecipeBook(false)} lang={lang} pid={pid} onAddToDay={addEntry}/>}
+      {showRecipeBook && <RecipeBookModal onClose={()=>setShowRecipeBook(false)} lang={lang} pid={pid} onAddToDay={addEntry} onSaveQuickFood={addQuickFood}/>}
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}} lang={lang}/>}
       {showWizard && <ProfileSetupWizard lang={lang} onToggleLang={toggleLang} profile={wizardProfile} onSave={p=>{const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===p.id?p:x));setActiveProfile(p.id===pid?p:activeProfile);setProfiles(loadProfiles());setWizardProfile(null);setShowWizard(false);}} onSkip={()=>{setWizardProfile(null);setShowWizard(false);}}/>}
       {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)} lang={lang} todayEntries={entries} todayDate={activeDate} todayBloodSugar={bloodSugar} todayTotals={totals}/>}
