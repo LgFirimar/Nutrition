@@ -1298,6 +1298,7 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto,lang}){
   const [savedToDb,setSavedToDb]=useState(false);
   const [showDbInput,setShowDbInput]=useState(false);
   const [dbName,setDbName]=useState("");
+  const [savedToFav,setSavedToFav]=useState(false);
   const [imgHint,setImgHint]=useState('');
   const [storedB64,setStoredB64]=useState(initialPhoto?.base64||null);
   const [storedMime,setStoredMime]=useState(initialPhoto?.mediaType||'image/jpeg');
@@ -1467,6 +1468,16 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto,lang}){
     setTimeout(()=>setSavedToDb(false),2000);
   };
 
+  const saveToFavorites=()=>{
+    if(!preview||!calcVals)return;
+    const pid=window._activePid||"default";
+    const food={id:`qf_photo_${Date.now()}`,label:`📷 ${preview.label||"ארוחה"}`,
+      kcal:calcVals.kcal,carbs:calcVals.carbs,protein:calcVals.protein,fat:calcVals.fat};
+    const existing=loadQuickFoods(pid)||[];
+    saveQuickFoods([...existing.filter(f=>f.label!==food.label),food],pid);
+    setSavedToFav(true);setTimeout(()=>setSavedToFav(false),2000);
+  };
+
   return (
     <div className="panel fade">
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif" onChange={handleFile} style={{display:"none"}}/>
@@ -1549,8 +1560,11 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto,lang}){
           </div>
           <div style={{display:"flex",gap:6}}>
             <button onClick={addToDay} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ {isHe?"הוסף ליום":"Add to day"}</button>
-            <button onClick={openDbSave} style={{flex:1,background:savedToDb?"rgba(245,158,11,.12)":"transparent",border:`1px solid ${savedToDb?"#f59e0b":"rgba(245,158,11,.35)"}`,borderRadius:8,padding:"10px",fontSize:13,fontWeight:600,color:savedToDb?"#f59e0b":C.muted,cursor:"pointer",transition:"all .2s"}}>
-              {savedToDb?"✓":"⭐"}
+            <button onClick={openDbSave} style={{flex:1,background:savedToDb?"rgba(13,148,136,.1)":"transparent",border:`1px solid ${savedToDb?C.accent:C.border}`,borderRadius:8,padding:"10px",fontSize:13,fontWeight:600,color:savedToDb?C.accent:C.muted,cursor:"pointer",transition:"all .2s"}}>
+              {savedToDb?"✓":"💾"}
+            </button>
+            <button onClick={saveToFavorites} style={{flex:1,background:savedToFav?"rgba(245,158,11,.12)":"transparent",border:`1px solid ${savedToFav?"#f59e0b":"rgba(245,158,11,.35)"}`,borderRadius:8,padding:"10px",fontSize:13,fontWeight:600,color:savedToFav?"#f59e0b":C.muted,cursor:"pointer",transition:"all .2s"}}>
+              {savedToFav?"✓":"⭐"}
             </button>
           </div>
           {showDbInput&&(
@@ -1601,6 +1615,7 @@ function MealPanel({onAdd,onClose,lang}){
   const [savedToDb,setSavedToDb]=useState(false);
   const [showDbInput,setShowDbInput]=useState(false);
   const [dbName,setDbName]=useState("");
+  const [savedToFav,setSavedToFav]=useState(false);
   const [showJsonInput,setShowJsonInput]=useState(false);
   const [jsonText,setJsonText]=useState("");
   const [jsonError,setJsonError]=useState("");
@@ -1637,6 +1652,18 @@ function MealPanel({onAdd,onClose,lang}){
     setShowDbInput(false);
     setSavedToDb(true);
     setTimeout(()=>setSavedToDb(false),2000);
+  };
+
+  const saveToFavorites=()=>{
+    if(!preview)return;
+    const s=Math.max(1,servings);
+    const pid=window._activePid||"default";
+    const food={id:`qf_meal_${Date.now()}`,label:`🍽 ${preview.label||text.slice(0,30)}`,
+      kcal:Math.round(preview.kcal/s),carbs:parseFloat(((preview.carbs||0)/s).toFixed(1)),
+      protein:parseFloat(((preview.protein||0)/s).toFixed(1)),fat:parseFloat(((preview.fat||0)/s).toFixed(1))};
+    const existing=loadQuickFoods(pid)||[];
+    saveQuickFoods([...existing.filter(f=>f.label!==food.label),food],pid);
+    setSavedToFav(true);setTimeout(()=>setSavedToFav(false),2000);
   };
 
   return (
@@ -1699,6 +1726,9 @@ function MealPanel({onAdd,onClose,lang}){
             <button onClick={addToDay} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"10px",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ {isHe?"הוסף ליום":"Add to day"}</button>
             <button onClick={openDbSave} style={{flex:1,background:savedToDb?"rgba(13,148,136,.1)":"transparent",border:`1px solid ${savedToDb?C.accent:C.border}`,borderRadius:8,padding:"10px",fontSize:12,fontWeight:600,color:savedToDb?C.accent:C.muted,cursor:"pointer"}}>
               {savedToDb?"✓":"💾"}
+            </button>
+            <button onClick={saveToFavorites} style={{flex:1,background:savedToFav?"rgba(245,158,11,.12)":"transparent",border:`1px solid ${savedToFav?"#f59e0b":"rgba(245,158,11,.35)"}`,borderRadius:8,padding:"10px",fontSize:12,fontWeight:600,color:savedToFav?"#f59e0b":C.muted,cursor:"pointer",transition:"all .2s"}}>
+              {savedToFav?"✓":"⭐"}
             </button>
           </div>
           {showDbInput&&(
