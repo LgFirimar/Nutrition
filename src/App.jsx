@@ -2744,31 +2744,37 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
   const fileInputRef=useRef(null);
 
   const exportData=()=>{
-    // Persist live state to LS before reading, so the backup is always current
-    if(todayEntries?.length||todayBloodSugar){
-      const liveKey=todayDate||getTodayKey();
-      const j=loadJournal(pid);
-      j[liveKey]={
-        entries:(todayEntries||[]).map(e=>({label:e.label,kcal:e.kcal,carbs:e.carbs,protein:e.protein,fat:e.fat||0,...(e.count&&{count:e.count}),...(e.perUnit&&{perUnit:e.perUnit})})),
-        totals:todayTotals||{kcal:0,carbs:0,protein:0,fat:0},
-        ...(todayBloodSugar?{bloodSugar:parseFloat(todayBloodSugar)}:{}),
-      };
-      saveJournal(j,pid);
-    }
+    // Build today's live data directly from props (don't rely on LS round-trip)
+    const todayKey=todayDate||getTodayKey();
+    const todayLive=(todayEntries?.length||todayBloodSugar)?{
+      entries:(todayEntries||[]).map(e=>({label:e.label,kcal:e.kcal,carbs:e.carbs,protein:e.protein,fat:e.fat||0,...(e.count&&{count:e.count}),...(e.perUnit&&{perUnit:e.perUnit})})),
+      totals:todayTotals||{kcal:0,carbs:0,protein:0,fat:0},
+      ...(todayBloodSugar?{bloodSugar:parseFloat(todayBloodSugar)}:{}),
+    }:null;
+    // Current profile's journal: merge LS data + today's live state
+    const currentJournal={...loadJournal(pid),...(todayLive?{[todayKey]:todayLive}:{})};
+    // Collect data for ALL profiles
     const allProfiles=loadProfiles();
-    // Collect data for ALL profiles (LS is now up to date)
     const profilesData={};
     allProfiles.forEach(p=>{
       profilesData[p.id]={
-        journal:loadJournal(p.id),
+        journal:p.id===pid?currentJournal:loadJournal(p.id),
         customBtns:loadCustomBtns(p.id),
         customDB:loadCustomDB(p.id),
         quickFoods:loadQuickFoods(p.id),
         recipes:loadRecipes(p.id),
       };
     });
-    const journal=profilesData[pid]?.journal||loadJournal(pid);
-    if(profilesData[pid]) profilesData[pid].journal=journal;
+    // Always include the active profile even if profiles array was empty
+    if(!profilesData[pid]){
+      profilesData[pid]={
+        journal:currentJournal,
+        customBtns:loadCustomBtns(pid),
+        customDB:loadCustomDB(pid),
+        quickFoods:loadQuickFoods(pid),
+        recipes:loadRecipes(pid),
+      };
+    }
     const data={
       version:5,
       exportDate:new Date().toISOString(),
@@ -2777,7 +2783,7 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
       activeProfileId:loadActiveProfileId(),
       profilesData,
       // v4 compat keys for current pid
-      journal,
+      journal:currentJournal,
       customBtns:loadCustomBtns(pid),
       customDB:loadCustomDB(pid),
       fridge:loadFridge(),
