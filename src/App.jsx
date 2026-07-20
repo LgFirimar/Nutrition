@@ -1299,6 +1299,7 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto,lang}){
   const [showDbInput,setShowDbInput]=useState(false);
   const [dbName,setDbName]=useState("");
   const [savedToFav,setSavedToFav]=useState(false);
+  const [pendingFav,setPendingFav]=useState(null);
   const [imgHint,setImgHint]=useState('');
   const [storedB64,setStoredB64]=useState(initialPhoto?.base64||null);
   const [storedMime,setStoredMime]=useState(initialPhoto?.mediaType||'image/jpeg');
@@ -1470,12 +1471,9 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto,lang}){
 
   const saveToFavorites=()=>{
     if(!preview||!calcVals)return;
-    const pid=window._activePid||"default";
     const food={id:`qf_photo_${Date.now()}`,label:`📷 ${preview.label||"ארוחה"}`,
       kcal:calcVals.kcal,carbs:calcVals.carbs,protein:calcVals.protein,fat:calcVals.fat};
-    const existing=loadQuickFoods(pid)||[];
-    saveQuickFoods([...existing.filter(f=>f.label!==food.label),food],pid);
-    setSavedToFav(true);setTimeout(()=>setSavedToFav(false),2000);
+    setPendingFav(food);
   };
 
   return (
@@ -1580,6 +1578,7 @@ function PhotoMealPanel({onAdd,onClose,initialPhoto,lang}){
         </div>
       )}
       <button onClick={onClose} className="btn-muted" style={{marginTop:4}}>{isHe?"ביטול":"Cancel"}</button>
+      {pendingFav&&<SaveFavNameSheet defaultName={pendingFav.label} onConfirm={name=>{const pid=window._activePid||"default";const f={...pendingFav,label:name};const ex=loadQuickFoods(pid)||[];saveQuickFoods([...ex.filter(x=>x.label!==name),f],pid);setPendingFav(null);setSavedToFav(true);setTimeout(()=>setSavedToFav(false),2000);}} onClose={()=>setPendingFav(null)}/>}
     </div>
   );
 }
@@ -1616,6 +1615,7 @@ function MealPanel({onAdd,onClose,lang}){
   const [showDbInput,setShowDbInput]=useState(false);
   const [dbName,setDbName]=useState("");
   const [savedToFav,setSavedToFav]=useState(false);
+  const [pendingFav,setPendingFav]=useState(null);
   const [showJsonInput,setShowJsonInput]=useState(false);
   const [jsonText,setJsonText]=useState("");
   const [jsonError,setJsonError]=useState("");
@@ -1657,13 +1657,10 @@ function MealPanel({onAdd,onClose,lang}){
   const saveToFavorites=()=>{
     if(!preview)return;
     const s=Math.max(1,servings);
-    const pid=window._activePid||"default";
     const food={id:`qf_meal_${Date.now()}`,label:`🍽 ${preview.label||text.slice(0,30)}`,
       kcal:Math.round(preview.kcal/s),carbs:parseFloat(((preview.carbs||0)/s).toFixed(1)),
       protein:parseFloat(((preview.protein||0)/s).toFixed(1)),fat:parseFloat(((preview.fat||0)/s).toFixed(1))};
-    const existing=loadQuickFoods(pid)||[];
-    saveQuickFoods([...existing.filter(f=>f.label!==food.label),food],pid);
-    setSavedToFav(true);setTimeout(()=>setSavedToFav(false),2000);
+    setPendingFav(food);
   };
 
   return (
@@ -1743,6 +1740,7 @@ function MealPanel({onAdd,onClose,lang}){
         </div>
       )}
       <button onClick={onClose} className="btn-muted" style={{marginTop:4}}>{isHe?"ביטול":"Cancel"}</button>
+      {pendingFav&&<SaveFavNameSheet defaultName={pendingFav.label} onConfirm={name=>{const pid=window._activePid||"default";const f={...pendingFav,label:name};const ex=loadQuickFoods(pid)||[];saveQuickFoods([...ex.filter(x=>x.label!==name),f],pid);setPendingFav(null);setSavedToFav(true);setTimeout(()=>setSavedToFav(false),2000);}} onClose={()=>setPendingFav(null)}/>}
     </div>
   );
 }
@@ -1762,18 +1760,16 @@ function SmartAddPanel({onAdd,onClose,lang}){
   const [notFound,setNotFound]=useState(false);
   const [savedToDb,setSavedToDb]=useState(false);
   const [savedToFav,setSavedToFav]=useState(false);
+  const [pendingFav,setPendingFav]=useState(null);
   const [showJsonInput,setShowJsonInput]=useState(false);
   const [jsonText,setJsonText]=useState("");
   const [jsonError,setJsonError]=useState("");
 
   const handleSaveToFav=()=>{
     if(!kcal)return;
-    const pid=window._activePid||"default";
     const label=matched?matched.label:query||"מאכל";
     const food={id:`qf_smart_${Date.now()}`,label,kcal:parseFloat(kcal)||0,carbs:parseFloat(carbs)||0,protein:parseFloat(protein)||0,fat:parseFloat(fat)||0};
-    const existing=loadQuickFoods(pid)||[];
-    saveQuickFoods([...existing.filter(f=>f.label!==food.label),food],pid);
-    setSavedToFav(true);setTimeout(()=>setSavedToFav(false),2000);
+    setPendingFav(food);
   };
 
   const handleSaveToDb=()=>{
@@ -1928,6 +1924,7 @@ function SmartAddPanel({onAdd,onClose,lang}){
           {savedToFav?(isHe?"✓ נשמר":"✓ Saved"):(isHe?"⭐ קבועים":"⭐ Favorites")}
         </button>
       </div>
+      {pendingFav&&<SaveFavNameSheet defaultName={pendingFav.label} onConfirm={name=>{const pid=window._activePid||"default";const f={...pendingFav,label:name};const ex=loadQuickFoods(pid)||[];saveQuickFoods([...ex.filter(x=>x.label!==name),f],pid);setPendingFav(null);setSavedToFav(true);setTimeout(()=>setSavedToFav(false),2000);}} onClose={()=>setPendingFav(null)}/>}
     </div>
   );
 }
@@ -3431,7 +3428,7 @@ function QuickFoodChip({food,onAdd,editMode,onRemove,onEdit}){
     <div style={{position:"relative"}}>
       <button className="chip" style={{opacity:0.7}}>
         <span>{food.label}</span>
-        <span className="chip-sub">{food.kcal} {getT().kcal} · {food.carbs}g {getT().carbs}</span>
+        <span className="chip-sub">{food.defaultAmt&&food.unit?`${food.defaultAmt}${food.unit} · `:""}{food.kcal} {getT().kcal} · {food.carbs}g {getT().carbs}</span>
       </button>
       <button onClick={()=>onRemove(food.id)} style={{position:"absolute",top:-4,right:-4,background:C.danger,border:"none",borderRadius:"50%",width:18,height:18,color:"#fff",fontSize:11,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>×</button>
       <button onClick={()=>onEdit(food)} style={{position:"absolute",top:-4,left:-4,background:C.warn,border:"none",borderRadius:"50%",width:18,height:18,color:"#fff",fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>✏</button>
@@ -3448,6 +3445,31 @@ function QuickFoodChip({food,onAdd,editMode,onRemove,onEdit}){
   );
 }
 
+// ── SaveFavNameSheet ────────────────────────────────────────────────────────────
+function SaveFavNameSheet({defaultName,onConfirm,onClose}){
+  const [name,setName]=useState(defaultName||"");
+  return(
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-sheet slide" style={{paddingBottom:24}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontSize:14,fontWeight:700}}>⭐ שמירה למועדפים</div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
+        </div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:4}}>שם הפריט</div>
+        <input value={name} onChange={e=>setName(e.target.value)} className="inp" style={{marginBottom:16}} autoFocus
+          onKeyDown={e=>e.key==="Enter"&&name.trim()&&onConfirm(name.trim())}/>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={onClose} className="btn-muted" style={{flex:1}}>ביטול</button>
+          <button onClick={()=>name.trim()&&onConfirm(name.trim())} disabled={!name.trim()}
+            style={{flex:2,background:name.trim()?"#f59e0b":"#ddd",border:"none",borderRadius:8,color:name.trim()?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:name.trim()?"pointer":"default"}}>
+            ⭐ שמור
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── EditQuickFoodModal ─────────────────────────────────────────────────────────
 function EditQuickFoodModal({food,onSave,onClose}){
   const [label,setLabel]=useState(food.label);
@@ -3458,6 +3480,8 @@ function EditQuickFoodModal({food,onSave,onClose}){
   const [protein,setProtein]=useState(String(food.protein||0));
   const [fat,setFat]=useState(String(food.fat||0));
   const [error,setError]=useState(null);
+  const [unit,setUnit]=useState(food.unit||"");
+  const [defaultAmt,setDefaultAmt]=useState(String(food.defaultAmt||""));
 
   const ask=async()=>{
     if(!desc.trim())return;
@@ -3481,7 +3505,10 @@ function EditQuickFoodModal({food,onSave,onClose}){
   };
 
   const save=()=>{
-    onSave({...food,label,kcal:parseFloat(kcal)||0,carbs:parseFloat(carbs)||0,protein:parseFloat(protein)||0,fat:parseFloat(fat)||0});
+    const obj={...food,label,kcal:parseFloat(kcal)||0,carbs:parseFloat(carbs)||0,protein:parseFloat(protein)||0,fat:parseFloat(fat)||0};
+    if(unit.trim())obj.unit=unit.trim();
+    const da=parseFloat(defaultAmt);if(da>0)obj.defaultAmt=da;
+    onSave(obj);
   };
 
   const numField=(v,s,p,col)=>(
@@ -3499,7 +3526,17 @@ function EditQuickFoodModal({food,onSave,onClose}){
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
         </div>
         <div style={{fontSize:11,color:C.muted,marginBottom:4}}>שם הכפתור</div>
-        <input value={label} onChange={e=>setLabel(e.target.value)} className="inp" style={{marginBottom:12,borderColor:label?C.accent:C.border}}/>
+        <input value={label} onChange={e=>setLabel(e.target.value)} className="inp" style={{marginBottom:10,borderColor:label?C.accent:C.border}}/>
+        <div style={{display:"flex",gap:8,marginBottom:12}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:11,color:C.muted,marginBottom:4}}>יחידה (אופציונלי)</div>
+            <input value={unit} onChange={e=>setUnit(e.target.value)} className="inp" style={{marginBottom:0}} placeholder="גרם, מ״ל, מנה..."/>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:11,color:C.muted,marginBottom:4}}>כמות ברירת מחדל</div>
+            <input type="number" value={defaultAmt} onChange={e=>setDefaultAmt(e.target.value)} className="inp" style={{marginBottom:0}} placeholder="100"/>
+          </div>
+        </div>
         <div style={{fontSize:11,color:C.muted,marginBottom:4}}>תיאור לחישוב ע״י Claude</div>
         <textarea value={desc} onChange={e=>setDesc(e.target.value)} rows={3}
           placeholder="תארי בחופשיות, למשל: אצבע גבינה צהובה 20g"
@@ -4075,6 +4112,7 @@ function RecipeBookModal({onClose,lang,pid,onAddToDay,onSaveQuickFood,initialEdi
   const [search,setSearch]=useState('');
   const [showAdd,setShowAdd]=useState(false);
   const [editRecipe,setEditRecipe]=useState(initialEdit||null);
+  const [pendingFav,setPendingFav]=useState(null);
 
   const save=r=>{setRecipes(r);saveRecipes(r,activePid);};
   const remove=id=>save(recipes.filter(r=>r.id!==id));
@@ -4096,7 +4134,7 @@ function RecipeBookModal({onClose,lang,pid,onAddToDay,onSaveQuickFood,initialEdi
     const food={id:`qf_recipe_${Date.now()}`,label:`📖 ${recipe.name}`,
       kcal:Math.round(recipe.kcalPerPerson||0),carbs:parseFloat((recipe.carbsPerPerson||0).toFixed(1)),
       protein:parseFloat((recipe.proteinPerPerson||0).toFixed(1)),fat:parseFloat((recipe.fatPerPerson||0).toFixed(1))};
-    onSaveQuickFood?.(food);
+    setPendingFav(food);
     return true;
   };
 
@@ -4147,6 +4185,7 @@ function RecipeBookModal({onClose,lang,pid,onAddToDay,onSaveQuickFood,initialEdi
           ))
         }
       </div>
+      {pendingFav&&<SaveFavNameSheet defaultName={pendingFav.label} onConfirm={name=>{onSaveQuickFood?.({...pendingFav,label:name});setPendingFav(null);}} onClose={()=>setPendingFav(null)}/>}
     </div>
   );
 }
