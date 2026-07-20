@@ -2825,6 +2825,15 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
           if(pd.quickFoods) saveQuickFoods(pd.quickFoods,profileId);
           if(pd.recipes) saveRecipes(pd.recipes,profileId);
         });
+        // Restore top-level keys if the active profile wasn't covered by profilesData
+        const targetPid=data.pid||pid;
+        if(!data.profilesData[targetPid]){
+          if(data.journal){const ex=loadJournal(targetPid);saveJournal({...ex,...data.journal},targetPid);}
+          if(data.customBtns) saveCustomBtns(data.customBtns,targetPid);
+          if(data.customDB) saveCustomDB(data.customDB,targetPid);
+          if(data.quickFoods) saveQuickFoods(data.quickFoods,targetPid);
+          if(data.recipes) saveRecipes(data.recipes,targetPid);
+        }
       } else if(data.journal) {
         // v4 fallback: single profile
         const targetPid=data.pid||pid;
@@ -2840,9 +2849,10 @@ function ExportImportModal({pid, onClose, lang, todayEntries, todayDate, todayBl
       if(data.shopping) saveShopping(data.shopping);
       if(data.savedPrefs) localStorage.setItem("nutrition_saved_prefs",JSON.stringify(data.savedPrefs));
       const days=Object.keys((data.profilesData?Object.values(data.profilesData)[0]?.journal:data.journal)||{}).length;
-      setMsg({type:"success",text:isHe?`✓ יובאו ${days} ימים בהצלחה! רענן את הדף.`:`✓ Imported ${days} days. Please refresh.`});
+      setMsg({type:"success",text:isHe?`✓ יובאו ${days} ימים בהצלחה! טוען מחדש...`:`✓ Imported ${days} days. Reloading...`});
       setImporting(false);
       setImportText("");
+      setTimeout(()=>window.location.reload(),1500);
     }catch(e){
       setMsg({type:"error",text:"שגיאה: "+e.message});
     }
