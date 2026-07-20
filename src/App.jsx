@@ -1761,9 +1761,20 @@ function SmartAddPanel({onAdd,onClose,lang}){
   const [fat,setFat]=useState("");
   const [notFound,setNotFound]=useState(false);
   const [savedToDb,setSavedToDb]=useState(false);
+  const [savedToFav,setSavedToFav]=useState(false);
   const [showJsonInput,setShowJsonInput]=useState(false);
   const [jsonText,setJsonText]=useState("");
   const [jsonError,setJsonError]=useState("");
+
+  const handleSaveToFav=()=>{
+    if(!kcal)return;
+    const pid=window._activePid||"default";
+    const label=matched?matched.label:query||"מאכל";
+    const food={id:`qf_smart_${Date.now()}`,label,kcal:parseFloat(kcal)||0,carbs:parseFloat(carbs)||0,protein:parseFloat(protein)||0,fat:parseFloat(fat)||0};
+    const existing=loadQuickFoods(pid)||[];
+    saveQuickFoods([...existing.filter(f=>f.label!==food.label),food],pid);
+    setSavedToFav(true);setTimeout(()=>setSavedToFav(false),2000);
+  };
 
   const handleSaveToDb=()=>{
     if(!kcal)return;
@@ -1909,9 +1920,14 @@ function SmartAddPanel({onAdd,onClose,lang}){
         <button className="btn-muted" onClick={onClose} style={{flex:1}}>{isHe?"ביטול":"Cancel"}</button>
         <button onClick={handleAdd} disabled={!kcal} style={{flex:2,background:kcal?C.accent:"#ddd",border:"none",borderRadius:8,color:kcal?"#fff":"#aaa",padding:"10px",fontSize:13,fontWeight:700,cursor:kcal?"pointer":"default"}}>+ {isHe?"הוסף פריט":"Add item"}</button>
       </div>
-      <button onClick={handleSaveToDb} disabled={!kcal} style={{width:"100%",background:savedToDb?"rgba(13,148,136,.1)":"transparent",border:`1px solid ${savedToDb?C.accent:kcal?C.border:"#e0e0e5"}`,borderRadius:8,padding:"8px",fontSize:12,fontWeight:600,color:savedToDb?C.accent:kcal?C.muted:"#ccc",cursor:kcal?"pointer":"default"}}>
-        {savedToDb?(isHe?"✓ נשמר במאגר":"✓ Saved"):(isHe?"💾 שמור למאגר":"💾 Save to DB")}
-      </button>
+      <div style={{display:"flex",gap:6}}>
+        <button onClick={handleSaveToDb} disabled={!kcal} style={{flex:1,background:savedToDb?"rgba(13,148,136,.1)":"transparent",border:`1px solid ${savedToDb?C.accent:kcal?C.border:"#e0e0e5"}`,borderRadius:8,padding:"8px",fontSize:12,fontWeight:600,color:savedToDb?C.accent:kcal?C.muted:"#ccc",cursor:kcal?"pointer":"default"}}>
+          {savedToDb?(isHe?"✓ נשמר":"✓ Saved"):(isHe?"💾 מאגר":"💾 DB")}
+        </button>
+        <button onClick={handleSaveToFav} disabled={!kcal} style={{flex:1,background:savedToFav?"rgba(245,158,11,.1)":"transparent",border:`1px solid ${savedToFav?"#f59e0b":kcal?C.border:"#e0e0e5"}`,borderRadius:8,padding:"8px",fontSize:12,fontWeight:600,color:savedToFav?"#f59e0b":kcal?C.muted:"#ccc",cursor:kcal?"pointer":"default"}}>
+          {savedToFav?(isHe?"✓ נשמר":"✓ Saved"):(isHe?"⭐ קבועים":"⭐ Favorites")}
+        </button>
+      </div>
     </div>
   );
 }
