@@ -1998,9 +1998,14 @@ function NewButtonModal({onClose,onSave}){
 }
 
 // ── MetricWeekChart ────────────────────────────────────────────────────────────
-function MetricWeekChart({journal,metric,color,label,lang,range,setRange}){
+function MetricWeekChart({journal,metric,color,label,lang,range,setRange,goal,goalDir}){
   const H=54,W=280,PAD=14,TOP=20;
   const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en';
+  const goalColor=v=>{
+    if(!goal||!v) return color;
+    if(goalDir==='min') return v>=goal?'#0d9488':v>=goal*0.75?'#f59e0b':'#dc2626';
+    return v<=goal?'#0d9488':v<=goal*1.2?'#f59e0b':'#dc2626';
+  };
   const DAY_LABELS=isHe?['א','ב','ג','ד','ה','ו','ש']:['Su','Mo','Tu','We','Th','Fr','Sa'];
   const xs=Array.from({length:range},(_,i)=>Math.round(PAD+i*(W-2*PAD)/Math.max(range-1,1)));
   const ref=useRef(null);
@@ -2076,18 +2081,20 @@ function MetricWeekChart({journal,metric,color,label,lang,range,setRange}){
               <text x={W-1} y={ry+(i===2?-2:3)} textAnchor="end" fontSize="6" fill={color} opacity="0.65" fontWeight="700">{rl}</text>
             </g>);
           })}
+          {goal&&lo<=goal&&goal<=hi&&(()=>{const gy=toY(goal);return(<><line x1={PAD} y1={gy} x2={W-PAD} y2={gy} stroke="#0d9488" strokeWidth="0.8" strokeDasharray="4,3" opacity="0.45"/><text x={W-2} y={gy-1.5} fontSize="5.5" fill="#0d9488" opacity="0.7" textAnchor="end" fontFamily="Heebo,sans-serif">{goal}</text></>);})()}
           {lp&&<>
-            <path d={`${lp} L ${known[known.length-1].x},${TOP+H} L ${known[0].x},${TOP+H} Z`} fill={color} fillOpacity={0.1}/>
+            <path d={`${lp} L ${known[known.length-1].x},${TOP+H} L ${known[0].x},${TOP+H} Z`} fill={color} fillOpacity={0.07}/>
             <path d={lp} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </>}
           {(()=>{
             const step=range===7?1:range===30?5:13;
             return known.map((p,i)=>{
               const showLabel=i%step===0||i===known.length-1;
+              const dc=goalColor(p.v);
               return(
                 <g key={i}>
-                  <circle cx={p.x} cy={p.y} r={showLabel?3.5:1.8} fill="white" stroke={color} strokeWidth={showLabel?2:1.2}/>
-                  {showLabel&&<text x={p.x} y={p.y-7} textAnchor="middle" fontSize={range===7?"7.5":"7"} fill={color} fontWeight="700">
+                  <circle cx={p.x} cy={p.y} r={showLabel?3.5:1.8} fill="white" stroke={dc} strokeWidth={showLabel?2:1.2}/>
+                  {showLabel&&<text x={p.x} y={p.y-7} textAnchor="middle" fontSize={range===7?"7.5":"7"} fill={dc} fontWeight="700">
                     {metric==='kcal'?Math.round(p.v):Number(p.v).toFixed(1)}
                   </text>}
                 </g>
@@ -2238,7 +2245,7 @@ function SugarWeekChart({journal,lang}){
 }
 
 // ── JournalView ────────────────────────────────────────────────────────────────
-function JournalView({onClose,onLoadDay,pid,lang}){
+function JournalView({onClose,onLoadDay,pid,lang,profile}){
   const T=LANG[lang]||LANG.he;
   const [journal,setJournal]=useState(()=>loadJournal(pid||'default'));
   const [selected,setSelected]=useState(null);
@@ -2348,7 +2355,7 @@ function JournalView({onClose,onLoadDay,pid,lang}){
                   );
                 })}
               </div>
-              {activeChart&&<MetricWeekChart key={activeChart} journal={journal} metric={activeChart} color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:C.blue} label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:T.protein} lang={lang} range={metricRanges[activeChart]} setRange={r=>setMR(activeChart,r)}/>}
+              {activeChart&&<MetricWeekChart key={activeChart} journal={journal} metric={activeChart} color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:C.blue} label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:T.protein} lang={lang} range={metricRanges[activeChart]} setRange={r=>setMR(activeChart,r)} goal={activeChart==="kcal"?profile?.maxKcal||1800:activeChart==="carbs"?profile?.maxCarbs||80:profile?.maxProtein||120} goalDir={activeChart==="protein"?"min":"max"}/>}
               <SugarWeekChart journal={journal} lang={lang}/>
               <div className="card">
                 {weekDays.map((key,i)=>(
@@ -5324,7 +5331,7 @@ function App(){
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}} lang={lang}/>}
       {showWizard && <ProfileSetupWizard lang={lang} onToggleLang={toggleLang} profile={wizardProfile} onSave={p=>{const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===p.id?p:x));setActiveProfile(p.id===pid?p:activeProfile);setProfiles(loadProfiles());setWizardProfile(null);setShowWizard(false);}} onSkip={()=>{setWizardProfile(null);setShowWizard(false);}}/>}
       {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)} lang={lang} todayEntries={entries} todayDate={activeDate} todayBloodSugar={bloodSugar} todayTotals={totals}/>}
-      {showJournal && <JournalView pid={pid} lang={lang} onClose={()=>setShowJournal(false)} onLoadDay={saved=>{setEntries(saved.map(e=>({...e,uid:Date.now()+Math.random()})));setShowJournal(false);}}/>}
+      {showJournal && <JournalView pid={pid} lang={lang} profile={activeProfile} onClose={()=>setShowJournal(false)} onLoadDay={saved=>{setEntries(saved.map(e=>({...e,uid:Date.now()+Math.random()})));setShowJournal(false);}}/>}
       {showNewBtn && <NewButtonModal onClose={()=>setShowNewBtn(false)} onSave={saveNewBtn}/>}
       {showDB && <DBManagerModal pid={pid} lang={lang} onClose={()=>setShowDB(false)}/>}
       {editingQuickFood && <EditQuickFoodModal food={editingQuickFood} onSave={f=>{
