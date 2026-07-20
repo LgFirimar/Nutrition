@@ -5801,7 +5801,17 @@ function App(){
         </button>
         <button onClick={()=>setShowDailyPlan(true)}
           style={{flex:1,background:"linear-gradient(135deg,#6366f1,#4f46e5)",border:"none",borderRadius:50,padding:"13px 16px",fontSize:13,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 5px 18px rgba(99,102,241,.35)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-          📅 {lang==='he'?"תכנון יומי":"Daily Plan"}
+          <svg width="20" height="18" viewBox="0 0 20 18" fill="none" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0}}>
+            <polygon points="3,14 17,14 19.5,17.5 0.5,17.5" fill="rgba(94,211,200,.95)"/>
+            <polygon points="5.5,9 14.5,9 17,14 3,14" fill="rgba(134,210,100,.95)"/>
+            <polygon points="7.5,5 12.5,5 14.5,9 5.5,9" fill="rgba(250,150,110,.95)"/>
+            <polygon points="10,1 12.5,5 7.5,5" fill="rgba(255,215,55,.95)"/>
+            <polygon points="10,1 19.5,17.5 0.5,17.5" fill="none" stroke="rgba(255,255,255,.75)" strokeWidth="1.3" strokeLinejoin="round"/>
+            <line x1="7.5" y1="5" x2="12.5" y2="5" stroke="rgba(255,255,255,.5)" strokeWidth=".8"/>
+            <line x1="5.5" y1="9" x2="14.5" y2="9" stroke="rgba(255,255,255,.5)" strokeWidth=".8"/>
+            <line x1="3" y1="14" x2="17" y2="14" stroke="rgba(255,255,255,.5)" strokeWidth=".8"/>
+          </svg>
+          {lang==='he'?"תכנון יומי":"Daily Plan"}
         </button>
       </div>
 
