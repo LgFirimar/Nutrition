@@ -2169,25 +2169,26 @@ function SugarWeekChart({journal,lang}){
 
   return(
     <div style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(18px)",WebkitBackdropFilter:"blur(18px)",border:"1px solid rgba(255,255,255,.88)",borderRadius:18,padding:"12px 14px 10px",marginBottom:16,boxShadow:"0 4px 20px rgba(80,130,180,.1)",maxWidth:440}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           <div style={{fontSize:9.5,color:"#94a3b8",letterSpacing:1.4,textTransform:"uppercase"}}>🩸 {isHe?"סוכר":"Sugar"}</div>
           {avg7!=null&&<span style={{fontSize:8.5,color:sugarColor(avg7),background:sugarColor(avg7)+'18',borderRadius:8,padding:"1px 6px",fontWeight:700}}>{isHe?"ממוצע שבוע":"Week avg"}: {avg7}</span>}
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:6}}>
-          <div style={{display:"flex",gap:3}}>
-            {[[7,isHe?"שבוע":"Week"],[30,isHe?"חודש":"Month"],[90,isHe?"3ח":"3M"]].map(([r,l])=>(
-              <button key={r} onClick={()=>setRange(r)} style={{background:range===r?"rgba(148,163,184,.25)":"transparent",border:`1px solid ${range===r?"rgba(148,163,184,.5)":"rgba(148,163,184,.2)"}`,color:range===r?"#475569":"#94a3b8",borderRadius:5,padding:"2px 5px",fontSize:8,cursor:"pointer",fontFamily:"inherit",fontWeight:range===r?700:400}}>{l}</button>
-            ))}
-          </div>
-          <div style={{display:"flex",gap:8}}>
-            {[["≤85","#0d9488"],["86–99","#f59e0b"],["≥100","#dc2626"]].map(([l,c])=>(
-              <span key={l} style={{fontSize:7.5,color:c,display:"inline-flex",alignItems:"center",gap:2}}>
-                <span style={{width:6,height:2,borderRadius:1,background:"currentColor",display:"inline-block"}}></span>{l}
-              </span>
-            ))}
-          </div>
+        <div style={{display:"flex",gap:3}}>
+          {[[7,isHe?"שבוע":"Week"],[30,isHe?"חודש":"Month"],[90,isHe?"3ח":"3M"]].map(([r,l])=>(
+            <button key={r} onClick={()=>setRange(r)} style={{background:range===r?"rgba(148,163,184,.25)":"transparent",border:`1px solid ${range===r?"rgba(148,163,184,.5)":"rgba(148,163,184,.2)"}`,color:range===r?"#475569":"#94a3b8",borderRadius:5,padding:"2px 5px",fontSize:8,cursor:"pointer",fontFamily:"inherit",fontWeight:range===r?700:400}}>{l}</button>
+          ))}
         </div>
+      </div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+        <div style={{display:"flex",gap:8}}>
+          {[["≤85","#0d9488"],["86–99","#f59e0b"],["≥100","#dc2626"]].map(([l,c])=>(
+            <span key={l} style={{fontSize:7.5,color:c,display:"inline-flex",alignItems:"center",gap:2}}>
+              <span style={{width:6,height:2,borderRadius:1,background:"currentColor",display:"inline-block"}}></span>{l}
+            </span>
+          ))}
+        </div>
+        {avgRange!=null&&<span style={{fontSize:8,color:"#6366f1",fontWeight:700,background:"#6366f115",borderRadius:6,padding:"1px 7px"}}>⌀ {isHe?"ממוצע":"avg"} {range}{isHe?"י":"d"}: {avgRange}</span>}
       </div>
 
       <div style={{overflow:"hidden",borderRadius:8}}>
@@ -2205,11 +2206,7 @@ function SugarWeekChart({journal,lang}){
           <line x1={PAD} y1={y86}  x2={W-PAD} y2={y86}  stroke="rgba(245,158,11,.15)" strokeWidth="0.7" strokeDasharray="3,3"/>
           <text x={W-2} y={y100-1} fontSize="5.5" fill="rgba(220,38,38,.45)" textAnchor="end" fontFamily="Heebo,sans-serif">100</text>
           <text x={W-2} y={y86-1}  fontSize="5.5" fill="rgba(245,158,11,.5)"  textAnchor="end" fontFamily="Heebo,sans-serif">86</text>
-          {avgY!=null&&<>
-            <line x1={PAD} y1={avgY} x2={W-PAD} y2={avgY} stroke="#6366f1" strokeWidth="1.2" strokeDasharray="4,3" opacity="0.75"/>
-            <rect x={PAD} y={avgY-8} width="28" height="9" rx="2" fill="#6366f1" opacity="0.85"/>
-            <text x={PAD+14} y={avgY-0.5} fontSize="5.5" fill="white" textAnchor="middle" fontFamily="Heebo,sans-serif" fontWeight="700">⌀ {avgRange}</text>
-          </>}
+          {avgY!=null&&<line x1={PAD} y1={avgY} x2={W-PAD} y2={avgY} stroke="#6366f1" strokeWidth="1.2" strokeDasharray="4,3" opacity="0.6"/>}
           {linePath&&<path d={linePath} fill="none" stroke="url(#sg-line)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>}
           {range===7&&days.map((d,i)=>{
             if(!d.v) return <circle key={i} cx={xs[i]} cy={H*0.58} r="2" fill="none" stroke="rgba(148,163,184,.25)" strokeWidth="1"/>;
