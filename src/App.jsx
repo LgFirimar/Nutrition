@@ -5095,6 +5095,151 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
   );
 }
 
+// ── DailyPlanModal ─────────────────────────────────────────────────────────────
+function DailyPlanModal({onClose, pid, lang, profile}){
+  const isHe=(lang||'he')!=='en';
+  const [plan,setPlan]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState(null);
+
+  const buildHistory=()=>{
+    const journal=loadJournal(pid);
+    const days30=[];
+    const today=new Date();
+    for(let i=0;i<30;i++){
+      const d=new Date(today);d.setDate(today.getDate()-i);
+      const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      if(journal[k])days30.push(journal[k]);
+    }
+    const foodCounts={};
+    let tKcal=0,tCarbs=0,tProtein=0,tFat=0;
+    const sugarVals=[];
+    days30.forEach(day=>{
+      (day.entries||[]).forEach(e=>{
+        const nm=(e.label||'').replace(/^[\u{1F300}-\u{1FFFF}☀-⟿\s]+/u,'').trim();
+        if(nm)foodCounts[nm]=(foodCounts[nm]||0)+1;
+      });
+      tKcal+=day.totals?.kcal||0;tCarbs+=day.totals?.carbs||0;
+      tProtein+=day.totals?.protein||0;tFat+=day.totals?.fat||0;
+      if(day.bloodSugar)sugarVals.push(parseFloat(day.bloodSugar));
+    });
+    const n=days30.length||1;
+    const topFoods=Object.entries(foodCounts).sort((a,b)=>b[1]-a[1]).slice(0,12).map(([food,count])=>({food,count}));
+    return{topFoods,avgKcal:Math.round(tKcal/n),avgCarbs:parseFloat((tCarbs/n).toFixed(1)),
+      avgProtein:parseFloat((tProtein/n).toFixed(1)),avgFat:parseFloat((tFat/n).toFixed(1)),
+      sugarAvg:sugarVals.length?Math.round(sugarVals.reduce((a,b)=>a+b,0)/sugarVals.length):null,
+      sugarMin:sugarVals.length?Math.min(...sugarVals):null,sugarMax:sugarVals.length?Math.max(...sugarVals):null,
+      days:days30.length};
+  };
+
+  const fetchPlan=async()=>{
+    setLoading(true);setError(null);
+    try{
+      const history=buildHistory();
+      const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dailyPlan:{profile,history,lang}})});
+      if(!res.ok)throw new Error("server");
+      const txt=await res.text();
+      const m=txt.match(/\{[\s\S]*\}/);
+      if(!m)throw new Error("parse");
+      setPlan(JSON.parse(m[0]));
+    }catch{setError(isHe?"שגיאה בטעינה. נסי שוב.":"Error loading plan. Try again.");}
+    finally{setLoading(false);}
+  };
+
+  useEffect(()=>{fetchPlan();},[]);
+
+  const mealIcon=t=>({breakfast:"🌅",morning_snack:"☕",lunch:"☀️",afternoon_snack:"🍵",dinner:"🌙"}[t]||"🍽");
+
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.55)",backdropFilter:"blur(8px)",zIndex:1000,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div style={{background:"#f8fafc",borderRadius:"24px 24px 0 0",width:"100%",maxWidth:480,maxHeight:"92vh",overflowY:"auto",padding:"20px 16px",boxShadow:"0 -8px 40px rgba(15,23,42,.25)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div>
+            <div style={{fontSize:17,fontWeight:900,color:C.text}}>📅 {isHe?"תכנון יומי":"Daily Plan"}</div>
+            <div style={{fontSize:11,color:C.muted,marginTop:2}}>{isHe?"המלצות מותאמות אישית על בסיס ההיסטוריה שלך":"Personalized recommendations based on your history"}</div>
+          </div>
+          <button onClick={onClose} style={{width:30,height:30,borderRadius:"50%",background:"rgba(148,163,184,.18)",border:"none",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:C.muted}}>✕</button>
+        </div>
+
+        {loading&&(
+          <div style={{textAlign:"center",padding:"40px 0"}}>
+            <div style={{fontSize:32,marginBottom:10}}>⏳</div>
+            <div style={{fontSize:13,color:C.muted}}>{isHe?"מנתח היסטוריה ומכין תכנית...":"Analyzing history and building plan..."}</div>
+          </div>
+        )}
+
+        {error&&!loading&&(
+          <div style={{textAlign:"center",padding:"32px 0"}}>
+            <div style={{fontSize:13,color:C.danger,marginBottom:12}}>{error}</div>
+            <button onClick={fetchPlan} style={{background:C.accent,color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{isHe?"נסה שוב":"Try Again"}</button>
+          </div>
+        )}
+
+        {plan&&!loading&&(<>
+          {plan.insight&&(
+            <div style={{background:"linear-gradient(135deg,rgba(13,148,136,.08),rgba(20,184,166,.04))",border:"1px solid rgba(13,148,136,.18)",borderRadius:14,padding:"11px 13px",marginBottom:12}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.accent,marginBottom:3}}>{isHe?"💡 תובנה":"💡 Insight"}</div>
+              <div style={{fontSize:12.5,color:C.text,lineHeight:1.55}}>{plan.insight}</div>
+            </div>
+          )}
+          <div style={{display:"flex",gap:6,marginBottom:12}}>
+            {[{lbl:isHe?"קק״ל":"kcal",val:plan.totalKcal,c:"#0d9488"},{lbl:isHe?"פחמ׳":"carbs",val:(plan.totalCarbs||0)+"g",c:"#f59e0b"},{lbl:isHe?"חלבון":"protein",val:(plan.totalProtein||0)+"g",c:"#6366f1"},{lbl:isHe?"שומן":"fat",val:(plan.totalFat||0)+"g",c:"#f97316"}].map(({lbl,val,c})=>(
+              <div key={lbl} style={{flex:1,background:"rgba(255,255,255,.8)",borderRadius:10,padding:"7px 4px",textAlign:"center",border:"1px solid rgba(148,163,184,.18)"}}>
+                <div style={{fontSize:12,fontWeight:800,color:c}}>{val}</div>
+                <div style={{fontSize:9,color:C.muted,marginTop:1}}>{lbl}</div>
+              </div>
+            ))}
+          </div>
+          {(plan.meals||[]).map((meal,i)=>(
+            <div key={i} style={{background:"rgba(255,255,255,.88)",borderRadius:14,padding:12,marginBottom:8,border:"1px solid rgba(148,163,184,.15)",boxShadow:"0 1px 6px rgba(15,23,42,.05)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:7}}>
+                <div style={{display:"flex",alignItems:"center",gap:7}}>
+                  <span style={{fontSize:20,lineHeight:1}}>{mealIcon(meal.type)}</span>
+                  <div>
+                    <div style={{fontSize:12.5,fontWeight:800,color:C.text}}>{meal.label}</div>
+                    <div style={{fontSize:10,color:C.muted}}>{meal.time}</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:3}}>
+                  {[{v:meal.targetKcal,u:isHe?"קק״ל":"kcal",c:"#0d9488"},{v:meal.targetCarbs,u:"g פחמ׳",c:"#f59e0b"},{v:meal.targetProtein,u:"g חל׳",c:"#6366f1"}].map(({v,u,c},j)=>(
+                    <div key={j} style={{background:"rgba(255,255,255,.9)",borderRadius:6,padding:"3px 5px",textAlign:"center",minWidth:30,border:`1px solid ${c}22`}}>
+                      <div style={{fontSize:10,fontWeight:800,color:c}}>{v}</div>
+                      <div style={{fontSize:8,color:C.muted}}>{u}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:0}}>
+                {(meal.ideas||[]).map((idea,j)=>(
+                  <div key={j} style={{display:"flex",alignItems:"flex-start",gap:6,padding:"4px 0",borderBottom:j<meal.ideas.length-1?"1px solid rgba(148,163,184,.1)":"none"}}>
+                    <span style={{color:C.accent,fontSize:11,marginTop:2,flexShrink:0}}>•</span>
+                    <span style={{fontSize:12,color:"#1e293b",lineHeight:1.45}}>{idea}</span>
+                  </div>
+                ))}
+              </div>
+              {meal.note&&<div style={{marginTop:7,fontSize:11,color:C.muted,fontStyle:"italic",borderTop:"1px solid rgba(148,163,184,.1)",paddingTop:6}}>💬 {meal.note}</div>}
+            </div>
+          ))}
+          {(plan.substitutions||[]).length>0&&(
+            <div style={{background:"rgba(255,255,255,.88)",borderRadius:14,padding:12,marginBottom:8,border:"1px solid rgba(245,158,11,.2)"}}>
+              <div style={{fontSize:12,fontWeight:800,color:"#b45309",marginBottom:8}}>{isHe?"🔄 תחליפים מומלצים":"🔄 Recommended Substitutions"}</div>
+              {plan.substitutions.map((s,i)=>(
+                <div key={i} style={{padding:"6px 0",borderBottom:i<plan.substitutions.length-1?"1px solid rgba(148,163,184,.1)":"none"}}>
+                  <div style={{fontSize:11.5,color:C.text}}><span style={{textDecoration:"line-through",color:C.muted}}>{s.original}</span> <span style={{color:C.accent}}>→</span> <span style={{fontWeight:700,color:C.accent}}>{s.suggested}</span></div>
+                  {s.reason&&<div style={{fontSize:10.5,color:C.muted,marginTop:2,lineHeight:1.4}}>{s.reason}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+          <button onClick={fetchPlan} style={{width:"100%",background:"rgba(13,148,136,.08)",color:C.accent,border:"1px solid rgba(13,148,136,.22)",borderRadius:12,padding:"11px",fontSize:13,fontWeight:700,cursor:"pointer",marginTop:2,marginBottom:8}}>
+            🔄 {isHe?"רענן תכנון":"Refresh Plan"}
+          </button>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
 // ── App ────────────────────────────────────────────────────────────────────────
 function App(){
   const [profiles,setProfiles]=useState(()=>loadProfiles());
@@ -5153,6 +5298,7 @@ function App(){
   const [showShopping,setShowShopping]=useState(false);
   const [showMealPlanner,setShowMealPlanner]=useState(false);
   const [showRecipeBook,setShowRecipeBook]=useState(false);
+  const [showDailyPlan,setShowDailyPlan]=useState(false);
   const [showHousehold,setShowHousehold]=useState(false);
   const [hhWelcome,setHhWelcome]=useState(null);
   const [householdCfg,setHouseholdCfg]=useState(()=>ls.get('nutrition_household'));
@@ -5328,6 +5474,7 @@ function App(){
       {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang} profile={activeProfile}
         onSaveRecipe={r=>{const pid2=window._activePid||'default';saveRecipes([r,...loadRecipes(pid2)],pid2);}}/>}
       {showRecipeBook && <RecipeBookModal onClose={()=>setShowRecipeBook(false)} lang={lang} pid={pid} onAddToDay={addEntry} onSaveQuickFood={addQuickFood}/>}
+      {showDailyPlan && <DailyPlanModal onClose={()=>setShowDailyPlan(false)} lang={lang} pid={pid} profile={activeProfile}/>}
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}} lang={lang}/>}
       {showWizard && <ProfileSetupWizard lang={lang} onToggleLang={toggleLang} profile={wizardProfile} onSave={p=>{const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===p.id?p:x));setActiveProfile(p.id===pid?p:activeProfile);setProfiles(loadProfiles());setWizardProfile(null);setShowWizard(false);}} onSkip={()=>{setWizardProfile(null);setShowWizard(false);}}/>}
       {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)} lang={lang} todayEntries={entries} todayDate={activeDate} todayBloodSugar={bloodSugar} todayTotals={totals}/>}
@@ -5647,10 +5794,14 @@ function App(){
       </div>
 
       {/* ── FAB ── */}
-      <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
+      <div style={{display:"flex",justifyContent:"center",gap:10,marginBottom:24,padding:"0 16px"}}>
         <button onClick={()=>{setShowMealPlanner(v=>!v);setShowMeal(false);setShowPhoto(false);setShowSmart(false);}}
-          style={{background:"linear-gradient(135deg,#14b8a6,#0d9488)",border:"none",borderRadius:50,padding:"14px 32px",fontSize:14,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 6px 24px rgba(13,148,136,.35)",display:"flex",alignItems:"center",gap:8}}>
+          style={{flex:1,background:"linear-gradient(135deg,#14b8a6,#0d9488)",border:"none",borderRadius:50,padding:"13px 16px",fontSize:13,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 5px 18px rgba(13,148,136,.35)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
           <span>{T.whatEat.split(' ')[0]}</span><span>{T.whatEat.split(' ').slice(1).join(' ')}</span>
+        </button>
+        <button onClick={()=>setShowDailyPlan(true)}
+          style={{flex:1,background:"linear-gradient(135deg,#6366f1,#4f46e5)",border:"none",borderRadius:50,padding:"13px 16px",fontSize:13,fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 5px 18px rgba(99,102,241,.35)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+          📅 {lang==='he'?"תכנון יומי":"Daily Plan"}
         </button>
       </div>
 
