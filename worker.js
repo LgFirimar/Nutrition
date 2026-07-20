@@ -226,9 +226,17 @@ Return ONLY JSON, exactly this format:
         const isHeDp = (dpLang || lang || 'he') !== 'en';
         model = 'claude-haiku-4-5-20251001';
         max_tokens = 1800;
+        // Build system with dietary hard-constraint so even system-prompt level enforces it
+        const prefs0 = dp?.dietPrefs || [];
+        const iv0 = prefs0.some(p=>p==='vegan'||/vegan|טבעוני/i.test(p));
+        const ivg0 = iv0 || prefs0.some(p=>p==='veg'||/vegetarian|צמחוני/i.test(p));
+        const sysRestrictHe = iv0 ? ' חוק מוחלט: אסור לכלול כל מוצר מן החי (בשר, עוף, דגים, פירות ים, ביצים, חלב, גבינה, יוגורט, דבש). כל רעיון חייב להיות 100% טבעוני.'
+                             : ivg0 ? ' חוק מוחלט: אסור לכלול בשר, עוף, דגים ופירות ים בשום רעיון.' : '';
+        const sysRestrictEn = iv0 ? ' HARD RULE: NO animal products — meat, poultry, fish, seafood, eggs, milk, cheese, yogurt, honey. Every idea must be 100% vegan.'
+                             : ivg0 ? ' HARD RULE: NO meat, poultry, fish or seafood in any idea.' : '';
         system = isHeDp
-          ? 'תזונאית קלינית. החזר JSON בלבד, ללא markdown, ללא טקסט נוסף.'
-          : 'Clinical nutritionist. Return ONLY JSON, no markdown, no extra text.';
+          ? `תזונאית קלינית.${sysRestrictHe} החזר JSON בלבד, ללא markdown, ללא טקסט נוסף.`
+          : `Clinical nutritionist.${sysRestrictEn} Return ONLY JSON, no markdown, no extra text.`;
         const gHe = dp?.gender === 'female' ? 'נקבה' : dp?.gender === 'male' ? 'זכר' : 'לא צוין';
         const bmi = (dp?.weight && dp?.height) ? (dp.weight / Math.pow(dp.height / 100, 2)).toFixed(1) : null;
         const foodList = (history?.topFoods || []).slice(0, 8).map(f => `${f.food}(${f.count}×)`).join(', ');
