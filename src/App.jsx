@@ -5218,7 +5218,9 @@ function DailyPlanModal({onClose, pid, lang, profile}){
       const txt=await res.text();
       const m=txt.match(/\{[\s\S]*\}/);
       if(!m)throw new Error("parse");
-      setPlan(JSON.parse(m[0]));
+      const parsed=JSON.parse(m[0]);
+      if(parsed.error)throw new Error(parsed.error);
+      setPlan(parsed);
     }catch{setError(isHe?"שגיאה בטעינה. נסי שוב.":"Error loading plan. Try again.");}
     finally{setLoading(false);}
   };

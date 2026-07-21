@@ -1,5 +1,5 @@
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const cors = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -225,7 +225,7 @@ Return ONLY JSON, exactly this format:
         const { profile: dp, history, lang: dpLang } = dailyPlan;
         const isHeDp = (dpLang || lang || 'he') !== 'en';
         model = 'claude-haiku-4-5-20251001';
-        max_tokens = 600;
+        max_tokens = 800;
         // Build system with dietary hard-constraint so even system-prompt level enforces it
         const prefs0 = dp?.dietPrefs || [];
         const iv0 = prefs0.some(p=>p==='vegan'||/vegan|טבעוני/i.test(p));
@@ -289,7 +289,7 @@ Return ONLY JSON, exactly this format:
         const {readable, writable} = new TransformStream();
         const writer = writable.getWriter();
         const enc = new TextEncoder();
-        (async () => {
+        const bgTask = (async () => {
           try {
             const reader = anthropicRes.body.getReader();
             const dec = new TextDecoder();
@@ -324,6 +324,8 @@ Return ONLY JSON, exactly this format:
             await writer.close();
           }
         })();
+        // Keep worker alive until the background stream finishes
+        ctx.waitUntil(bgTask);
         return new Response(readable, {headers: {...cors, 'Content-Type': 'application/json'}});
       } else if (profileData) {
         model = 'claude-sonnet-4-6';
