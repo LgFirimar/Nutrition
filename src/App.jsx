@@ -5422,27 +5422,27 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
               <textarea value={newRulesText} onChange={e=>setNewRulesText(e.target.value)}
                 placeholder={isHe?"הנחיות חדשות לתכנון...":"New instructions for the plan..."}
                 style={{width:"100%",minHeight:64,borderRadius:8,border:"1px solid rgba(37,99,235,.2)",padding:"8px 10px",fontSize:12,lineHeight:1.5,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit",direction:isHe?"rtl":"ltr",background:"rgba(255,255,255,.9)"}}/>
-              {profile?.planRules&&(
+              {(profile?.planRules||ls.get('nutrition_plan_rules_'+pid))&&(
                 <div style={{marginTop:8}}>
                   <button onClick={()=>setShowPrevRules(v=>!v)}
                     style={{width:"100%",background:"none",border:"none",textAlign:isHe?"right":"left",padding:"6px 2px",cursor:"pointer",display:"flex",alignItems:"center",gap:5,borderBottom:"1px solid rgba(15,23,42,.12)",paddingBottom:6}}>
                     <span style={{fontSize:10,color:C.muted}}>{showPrevRules?"▼":"▶"}</span>
                     <span style={{fontSize:13,fontWeight:600,color:"#334155"}}>{isHe?"העדפות אישיות שמורות":"Saved preferences"}</span>
                   </button>
-                  {showPrevRules&&(
+                  {showPrevRules&&(()=>{const saved=profile?.planRules||ls.get('nutrition_plan_rules_'+pid)||'';const lines=saved.split('\n').filter(l=>l.trim());return(
                     <div style={{background:"rgba(148,163,184,.08)",borderRadius:8,padding:"8px 10px",marginTop:6,direction:isHe?"rtl":"ltr"}}>
-                      {profile.planRules.split('\n').filter(l=>l.trim()).map((line,i)=>(
-                        <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,marginBottom:i<profile.planRules.split('\n').filter(l=>l.trim()).length-1?5:0}}>
+                      {lines.map((line,i)=>(
+                        <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,marginBottom:i<lines.length-1?5:0}}>
                           <span style={{color:C.muted,fontSize:12,flexShrink:0,marginTop:1}}>•</span>
                           <span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>{line.trim()}</span>
                         </div>
                       ))}
                     </div>
-                  )}
+                  );})()}
                 </div>
               )}
               <div style={{display:"flex",gap:8,marginTop:8}}>
-                <button onClick={()=>{if(newRulesText.trim()){const combined=[profile?.planRules,newRulesText.trim()].filter(Boolean).join('\n');onSaveRules&&onSaveRules(combined);}setNewRulesText('');setShowNotes(false);setShowPrevRules(false);}}
+                <button onClick={()=>{if(newRulesText.trim()){const existing=profile?.planRules||ls.get('nutrition_plan_rules_'+pid)||'';const combined=[existing,newRulesText.trim()].filter(Boolean).join('\n');onSaveRules&&onSaveRules(combined);}setNewRulesText('');setShowNotes(false);setShowPrevRules(false);}}
                   style={{flex:1,background:C.blue,color:"#fff",border:"none",borderRadius:9,padding:"9px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                   {isHe?"שמירה":"Save"}
                 </button>
@@ -5694,7 +5694,7 @@ function App(){
       {showMealPlanner && <MealPlannerModal onAdd={addEntry} onClose={()=>setShowMealPlanner(false)} lang={lang} profile={activeProfile}
         onSaveRecipe={r=>{const pid2=window._activePid||'default';saveRecipes([r,...loadRecipes(pid2)],pid2);}}/>}
       {showRecipeBook && <RecipeBookModal onClose={()=>setShowRecipeBook(false)} lang={lang} pid={pid} onAddToDay={addEntry} onSaveQuickFood={addQuickFood}/>}
-      {showDailyPlan && <DailyPlanModal onClose={()=>setShowDailyPlan(false)} lang={lang} pid={pid} profile={activeProfile} onSaveRules={rules=>{const updated={...activeProfile,planRules:rules};const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===pid?updated:x));setActiveProfile(updated);}}/>}
+      {showDailyPlan && <DailyPlanModal onClose={()=>setShowDailyPlan(false)} lang={lang} pid={pid} profile={activeProfile} onSaveRules={rules=>{const updated={...activeProfile,planRules:rules};const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===pid?updated:x));if(rules)ls.set('nutrition_plan_rules_'+pid,rules);setActiveProfile(updated);}}/>}
       {showProfiles && <ProfileModal profiles={profiles} activeId={pid} onSelect={switchProfile} onClose={()=>setShowProfiles(false)} onBackup={()=>{setShowProfiles(false);setShowExport(true);}} onSetupProfile={p=>{setShowProfiles(false);setWizardProfile(p);setShowWizard(true);}} lang={lang}/>}
       {showWizard && <ProfileSetupWizard lang={lang} onToggleLang={toggleLang} profile={wizardProfile} onSave={p=>{const fresh=loadProfiles();saveProfiles(fresh.map(x=>x.id===p.id?p:x));setActiveProfile(p.id===pid?p:activeProfile);setProfiles(loadProfiles());setWizardProfile(null);setShowWizard(false);}} onSkip={()=>{setWizardProfile(null);setShowWizard(false);}}/>}
       {showExport && <ExportImportModal pid={pid} onClose={()=>setShowExport(false)} lang={lang} todayEntries={entries} todayDate={activeDate} todayBloodSugar={bloodSugar} todayTotals={totals}/>}
