@@ -5240,8 +5240,9 @@ function DailyPlanModal({onClose, pid, lang, profile}){
 
         {loading&&(
           <div style={{textAlign:"center",padding:"40px 0"}}>
-            <div style={{fontSize:32,marginBottom:10}}>⏳</div>
-            <div style={{fontSize:13,color:C.muted}}>{isHe?"מנתח היסטוריה ומכין תכנית...":"Analyzing history and building plan..."}</div>
+            <div style={{fontSize:32,marginBottom:12}}>⏳</div>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:6}}>{isHe?"מכין תפריט יומי...":"Building your daily menu..."}</div>
+            <div style={{fontSize:12,color:C.muted}}>{isHe?"המלצות מותאמות אישית על פי הפרופיל שלך":"Personalized recommendations based on your profile"}</div>
           </div>
         )}
 
@@ -5888,7 +5889,7 @@ function App(){
             <line x1="5.5" y1="9" x2="14.5" y2="9" stroke="rgba(255,255,255,.5)" strokeWidth=".8"/>
             <line x1="3" y1="14" x2="17" y2="14" stroke="rgba(255,255,255,.5)" strokeWidth=".8"/>
           </svg>
-          <span style={{fontSize:10,lineHeight:1.35,textAlign:"center"}}>{lang==='he'?"המלצות מותאמות אישית על פי הפרופיל שלך":"Personalized Recommendations"}</span>
+          <span style={{fontSize:12,lineHeight:1.2,textAlign:"center"}}>{lang==='he'?"תפריט יומי":"Daily Menu"}</span>
         </button>
       </div>
 
