@@ -74,7 +74,7 @@ export default {
     }
 
     try {
-      const { foodName, mealDescription, imageData, imageMediaType, imageHint, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, dbEditImageHint, profileData, dailyPlan, lang, translateItems, recipeText } = await request.json();
+      const { foodName, mealDescription, imageData, imageMediaType, imageHint, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, dbEditImageHint, profileData, dailyPlan, recipeIdea, lang, translateItems, recipeText } = await request.json();
 
       let prompt, model, system, max_tokens, messages;
       if (recipeText) {
@@ -250,12 +250,31 @@ Return ONLY JSON, exactly this format:
         prompt = isHeDp
           ? `גיל ${dp?.age||'?'}${gHe?','+gHe:''}${bmi?',BMI '+bmi:''}.${conds?' מצבים:'+conds+'.':''} ${dRule?'הגבלות:'+dRule+'. ':''}יעד:${tKcal}קק"ל. מזונות:${foods||'אין'}. ממוצע:${history?.avgKcal||0}קק"ל.
 ארוחות(קק"ל): בוקר ${mKcal[0]}, ביניים ${mKcal[1]}, צהריים ${mKcal[2]}, ביניים ${mKcal[3]}, ערב ${mKcal[4]}.
-החזר JSON קומפקטי (שורה אחת, כל רעיון עד 4 מילים בעברית):
+החזר JSON קומפקטי (שורה אחת, כל רעיון עד 6 מילים בעברית):
 {"ideas":[["בוקר1","בוקר2","בוקר3"],["ביניים1","ביניים2"],["צהריים1","צהריים2","צהריים3"],["ביניים1","ביניים2"],["ערב1","ערב2","ערב3"]],"notes":["","","","",""],"insight":"משפט אחד"}`
           : `Age ${dp?.age||'?'}${dp?.gender?','+dp.gender:''}${bmi?',BMI '+bmi:''}.${conds?' conditions:'+conds+'.':''} ${dRuleEn?'rules:'+dRuleEn+'. ':''}target:${tKcal}kcal. foods:${foods||'none'}. avg:${history?.avgKcal||0}kcal.
 Meals(kcal): breakfast ${mKcal[0]}, snack ${mKcal[1]}, lunch ${mKcal[2]}, snack ${mKcal[3]}, dinner ${mKcal[4]}.
-Return compact single-line JSON (each idea max 4 words):
+Return compact single-line JSON (each idea max 6 words):
 {"ideas":[["bkf1","bkf2","bkf3"],["snk1","snk2"],["lnch1","lnch2","lnch3"],["snk1","snk2"],["din1","din2","din3"]],"notes":["","","","",""],"insight":"one sentence"}`;
+      } else if (recipeIdea) {
+        const { idea, targetKcal, targetCarbs, targetProtein, targetFat, lang: riLang } = recipeIdea;
+        const isHeRi = (riLang || lang || 'he') !== 'en';
+        model = 'claude-sonnet-4-6';
+        max_tokens = 700;
+        system = isHeRi
+          ? 'שף ותזונאי. החזר JSON בלבד, ללא markdown.'
+          : 'Chef and nutritionist. Return ONLY JSON, no markdown.';
+        prompt = isHeRi
+          ? `מתכון ל-1 מנה של "${idea}".
+יעד תזונתי: ${targetKcal} קק"ל, ${targetCarbs}g פחמ', ${targetProtein}g חלבון, ${targetFat}g שומן.
+התאם כמויות מצרכים להשגת היעד בדיוק.
+החזר JSON בלבד:
+{"name":"שם המנה","ingredients":[{"item":"מצרך","amount":"כמות מדויקת"}],"steps":["שלב הכנה"],"kcalPerPerson":${targetKcal},"carbsPerPerson":${targetCarbs},"proteinPerPerson":${targetProtein},"fatPerPerson":${targetFat}}`
+          : `Recipe for 1 serving of "${idea}".
+Nutrition target: ${targetKcal} kcal, ${targetCarbs}g carbs, ${targetProtein}g protein, ${targetFat}g fat.
+Calibrate ingredient amounts to hit the target exactly.
+Return ONLY JSON:
+{"name":"meal name","ingredients":[{"item":"ingredient","amount":"exact amount"}],"steps":["preparation step"],"kcalPerPerson":${targetKcal},"carbsPerPerson":${targetCarbs},"proteinPerPerson":${targetProtein},"fatPerPerson":${targetFat}}`;
       } else if (profileData) {
         model = 'claude-sonnet-4-6';
         max_tokens = 2000;
