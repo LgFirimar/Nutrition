@@ -225,7 +225,7 @@ Return ONLY JSON, exactly this format:
         const { profile: dp, history, lang: dpLang } = dailyPlan;
         const isHeDp = (dpLang || lang || 'he') !== 'en';
         model = 'claude-haiku-4-5-20251001';
-        max_tokens = 1000;
+        max_tokens = 600;
         // Build system with dietary hard-constraint so even system-prompt level enforces it
         const prefs0 = dp?.dietPrefs || [];
         const iv0 = prefs0.some(p=>p==='vegan'||/vegan|טבעוני/i.test(p));
@@ -274,6 +274,57 @@ Return ONLY JSON, exactly this format:
         prompt = isHeDp
           ? `פרופיל: גיל ${dp?.age||'?'}, ${gHe}${bmi?`, BMI ${bmi}`:''}, מצבים: ${condLine}. יעד: ${tKcal}קק"ל/${tCarbs}g פחמ'/${tProt}g חלבון.${dietRuleHe?' הגבלות: '+dietRuleHe:''} ${guideHe}היסטוריה ${history?.days||0}ד: ממוצע ${history?.avgKcal||0}קק"ל, מזונות: ${foodList||'אין'}.${sugarNote}\nמלא ideas(2-3 אפשרויות בעברית) ו-insight, שמור שאר המספרים:\n${schemaHe}`
           : `Profile: age ${dp?.age||'?'}, ${dp?.gender||'?'}${bmi?`, BMI ${bmi}`:''}, conditions: ${condLine}. Targets: ${tKcal}kcal/${tCarbs}g carbs/${tProt}g protein.${dietRuleEn?' Rules: '+dietRuleEn:''} ${guideEn}History ${history?.days||0}d: avg ${history?.avgKcal||0}kcal, foods: ${foodList||'none'}.${sugarNote}\nFill ideas(2-3 options) and insight, keep all numbers:\n${schemaEn}`;
+        // Stream from Anthropic — avoids Cloudflare's 30s subrequest timeout.
+        // With stream:true, Anthropic returns HTTP headers + first SSE event within ~1-2s,
+        // so the fetch() promise resolves immediately and body streams progressively.
+        const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json','x-api-key':env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},
+          body: JSON.stringify({model, max_tokens, system, messages:[{role:'user',content:prompt}], stream:true})
+        });
+        if (!anthropicRes.ok) {
+          const errTxt = await anthropicRes.text();
+          return new Response(JSON.stringify({error:'API error: '+errTxt}), {status:502,headers:{...cors,'Content-Type':'application/json'}});
+        }
+        const {readable, writable} = new TransformStream();
+        const writer = writable.getWriter();
+        const enc = new TextEncoder();
+        (async () => {
+          try {
+            const reader = anthropicRes.body.getReader();
+            const dec = new TextDecoder();
+            let buf = '', txt = '';
+            while (true) {
+              const {done, value} = await reader.read();
+              if (done) break;
+              buf += dec.decode(value, {stream: true});
+              const lines = buf.split('\n');
+              buf = lines.pop() || '';
+              for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                const d = line.slice(6).trim();
+                if (d === '[DONE]') continue;
+                try {
+                  const ev = JSON.parse(d);
+                  if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') txt += ev.delta.text;
+                } catch (_) {}
+              }
+            }
+            let jsonStr = null, depth = 0, start = -1;
+            for (let i = 0; i < txt.length; i++) {
+              const c = txt[i];
+              if (c === '{') { if (depth === 0) start = i; depth++; }
+              else if (c === '}' && depth > 0) { depth--; if (depth === 0) { jsonStr = txt.slice(start, i+1); break; } }
+            }
+            if (!jsonStr) jsonStr = txt.replace(/```json|```/g, '').trim();
+            await writer.write(enc.encode(JSON.stringify(JSON.parse(jsonStr))));
+          } catch (e) {
+            await writer.write(enc.encode(JSON.stringify({error: e.message})));
+          } finally {
+            await writer.close();
+          }
+        })();
+        return new Response(readable, {headers: {...cors, 'Content-Type': 'application/json'}});
       } else if (profileData) {
         model = 'claude-sonnet-4-6';
         max_tokens = 2000;
