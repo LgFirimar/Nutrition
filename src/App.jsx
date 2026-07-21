@@ -5220,7 +5220,21 @@ function DailyPlanModal({onClose, pid, lang, profile}){
       if(!m)throw new Error("parse");
       const parsed=JSON.parse(m[0]);
       if(parsed.error)throw new Error(parsed.error);
-      setPlan(parsed);
+      // Reconstruct full plan from compact worker response
+      const prof=profile||{};
+      const tK=prof.maxKcal||1800,tC=prof.maxCarbs||130,tP=prof.maxProtein||90;
+      const tF=Math.round(tK*0.28/9);
+      const mK=[Math.round(tK*.25),Math.round(tK*.08),Math.round(tK*.35),Math.round(tK*.08),Math.round(tK*.24)];
+      const mC=[Math.round(tC*.22),Math.round(tC*.09),Math.round(tC*.35),Math.round(tC*.09),Math.round(tC*.25)];
+      const mP=[Math.round(tP*.22),Math.round(tP*.09),Math.round(tP*.35),Math.round(tP*.09),Math.round(tP*.25)];
+      const mFt=[Math.round(tF*.22),Math.round(tF*.09),Math.round(tF*.35),Math.round(tF*.09),Math.round(tF*.25)];
+      const META=isHe
+        ?[{type:'breakfast',label:'ארוחת בוקר',time:'07:00-09:00'},{type:'morning_snack',label:'ביניים בוקר',time:'10:30'},{type:'lunch',label:'ארוחת צהריים',time:'12:30-14:00'},{type:'afternoon_snack',label:'ביניים',time:'16:00'},{type:'dinner',label:'ארוחת ערב',time:'19:00-20:30'}]
+        :[{type:'breakfast',label:'Breakfast',time:'7:00-9:00'},{type:'morning_snack',label:'Morning Snack',time:'10:30'},{type:'lunch',label:'Lunch',time:'12:30-2:00'},{type:'afternoon_snack',label:'Afternoon Snack',time:'4:00-5:00'},{type:'dinner',label:'Dinner',time:'7:00-8:30'}];
+      setPlan({
+        meals:META.map((mt,i)=>({...mt,targetKcal:mK[i],targetCarbs:mC[i],targetProtein:mP[i],targetFat:mFt[i],ideas:(parsed.ideas||[])[i]||[],note:(parsed.notes||[])[i]||''})),
+        insight:parsed.insight||'',totalKcal:tK,totalCarbs:tC,totalProtein:tP,totalFat:tF
+      });
     }catch{setError(isHe?"שגיאה בטעינה. נסי שוב.":"Error loading plan. Try again.");}
     finally{setLoading(false);}
   };

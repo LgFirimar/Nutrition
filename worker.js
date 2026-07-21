@@ -222,111 +222,40 @@ Return ONLY JSON, exactly this format:
           ? `המשתמש אכל לאחרונה: ${(recentFoods||[]).join(', ')||'לא ידוע'}.\nבמזווה/מקרר יש: ${pantry||'ריק'}.\nהצע 6-10 פריטים לקנות בסופר — עדיפות לפריטים שחסרים במזווה ומופיעים בהרגלי האכילה.\n{"items":[{"name":"שם מוצר","qty":"כמות מומלצת"}]}`
           : `Recently eaten: ${(recentFoods||[]).join(', ')||'unknown'}.\nPantry/fridge has (may be in Hebrew): ${pantry||'empty'}.\nSuggest 6-10 items to buy — prioritize items missing from pantry that match eating habits.\n{"items":[{"name":"product name in English","qty":"recommended quantity"}]}`;
       } else if (dailyPlan) {
+        // Compact format: ask only for ideas/notes/insight (~200 tokens output → ~5s, no timeout risk)
+        // Frontend reconstructs the full plan with macro targets computed from profile.
         const { profile: dp, history, lang: dpLang } = dailyPlan;
         const isHeDp = (dpLang || lang || 'he') !== 'en';
         model = 'claude-haiku-4-5-20251001';
-        max_tokens = 800;
-        // Build system with dietary hard-constraint so even system-prompt level enforces it
+        max_tokens = 350;
         const prefs0 = dp?.dietPrefs || [];
         const iv0 = prefs0.some(p=>p==='vegan'||/vegan|טבעוני/i.test(p));
         const ivg0 = iv0 || prefs0.some(p=>p==='veg'||/vegetarian|צמחוני/i.test(p));
-        const sysRestrictHe = iv0 ? ' חוק מוחלט: אסור לכלול כל מוצר מן החי (בשר, עוף, דגים, פירות ים, ביצים, חלב, גבינה, יוגורט, דבש). כל רעיון חייב להיות 100% טבעוני.'
-                             : ivg0 ? ' חוק מוחלט: אסור לכלול בשר, עוף, דגים ופירות ים בשום רעיון.' : '';
-        const sysRestrictEn = iv0 ? ' HARD RULE: NO animal products — meat, poultry, fish, seafood, eggs, milk, cheese, yogurt, honey. Every idea must be 100% vegan.'
-                             : ivg0 ? ' HARD RULE: NO meat, poultry, fish or seafood in any idea.' : '';
-        system = isHeDp
-          ? `תזונאית קלינית.${sysRestrictHe} החזר JSON בלבד, ללא markdown, ללא טקסט נוסף.`
-          : `Clinical nutritionist.${sysRestrictEn} Return ONLY JSON, no markdown, no extra text.`;
-        const gHe = dp?.gender === 'female' ? 'נקבה' : dp?.gender === 'male' ? 'זכר' : 'לא צוין';
-        const bmi = (dp?.weight && dp?.height) ? (dp.weight / Math.pow(dp.height / 100, 2)).toFixed(1) : null;
-        const foodList = (history?.topFoods || []).slice(0, 8).map(f => `${f.food}(${f.count}×)`).join(', ');
-        const sugarNote = history?.sugarAvg ? (isHeDp ? ` סוכר ממוצע ${history.sugarAvg}` : ` avg sugar ${history.sugarAvg}`) : '';
-        const condLine = (dp?.conditions || []).join(',') || (isHeDp ? 'אין' : 'none');
-        const prefs = dp?.dietPrefs || [];
-        const isVegan = prefs.some(p => p==='vegan' || /vegan|טבעוני/i.test(p));
-        const isVeg = isVegan || prefs.some(p => p==='veg' || /vegetarian|צמחוני/i.test(p));
-        const isGF = prefs.some(p => p==='gf' || /gluten|גלוטן/i.test(p));
-        const isLF = prefs.some(p => p==='lf' || /lactose|לקטוז/i.test(p));
-        const dietRuleHe = [
-          isVegan ? '🚫 טבעוני: אסור לחלוטין בשר, עוף, דגים, פירות ים, ביצים, חלב, גבינה, יוגורט, דבש וכל מוצר מן החי.' : '',
-          (!isVegan && isVeg) ? '🚫 צמחוני: אסור בשר, עוף, דגים ופירות ים. מותר ביצים ומוצרי חלב.' : '',
-          isGF ? '🚫 ללא גלוטן: אסור חיטה, לחם, פסטה, שיבולת שועל רגילה.' : '',
-          isLF ? '🚫 ללא לקטוז: אסור חלב, גבינה, יוגורט רגיל.' : '',
-        ].filter(Boolean).join(' ');
-        const dietRuleEn = [
-          isVegan ? '🚫 VEGAN STRICT: FORBIDDEN — meat, poultry, fish, seafood, eggs, milk, cheese, yogurt, honey. ALL animal products forbidden.' : '',
-          (!isVegan && isVeg) ? '🚫 VEGETARIAN STRICT: FORBIDDEN — meat, poultry, fish, seafood. Eggs and dairy are allowed.' : '',
-          isGF ? '🚫 GLUTEN-FREE: FORBIDDEN — wheat, bread, pasta, regular oats.' : '',
-          isLF ? '🚫 LACTOSE-FREE: FORBIDDEN — milk, cheese, regular yogurt.' : '',
-        ].filter(Boolean).join(' ');
-        const guideHe = (dp?.conditions||[]).includes('t2d')||(dp?.conditions||[]).includes('prediab') ? 'ADA: פחמ׳ נמוך GI. ' : '';
-        const guideEn = (dp?.conditions||[]).includes('t2d')||(dp?.conditions||[]).includes('prediab') ? 'ADA: low GI carbs. ' : '';
-        // Calculate per-meal macro targets that sum to daily goal
-        const tKcal = dp?.maxKcal||1800, tCarbs = dp?.maxCarbs||130, tProt = dp?.maxProtein||90;
-        const tFat = Math.round(tKcal * 0.28 / 9);
-        // Split: breakfast 25%, snack 8%, lunch 35%, snack 8%, dinner 24%
-        const mKcal  = [Math.round(tKcal*.25), Math.round(tKcal*.08), Math.round(tKcal*.35), Math.round(tKcal*.08), Math.round(tKcal*.24)];
-        const mCarbs = [Math.round(tCarbs*.22), Math.round(tCarbs*.09), Math.round(tCarbs*.35), Math.round(tCarbs*.09), Math.round(tCarbs*.25)];
-        const mProt  = [Math.round(tProt*.22),  Math.round(tProt*.09),  Math.round(tProt*.35),  Math.round(tProt*.09),  Math.round(tProt*.25)];
-        const mFat   = [Math.round(tFat*.22),   Math.round(tFat*.09),   Math.round(tFat*.35),   Math.round(tFat*.09),   Math.round(tFat*.25)];
-        const schemaHe=`{"meals":[{"type":"breakfast","label":"ארוחת בוקר","time":"07:00-09:00","targetKcal":${mKcal[0]},"targetCarbs":${mCarbs[0]},"targetProtein":${mProt[0]},"targetFat":${mFat[0]},"ideas":[],"note":""},{"type":"morning_snack","label":"ביניים בוקר","time":"10:30","targetKcal":${mKcal[1]},"targetCarbs":${mCarbs[1]},"targetProtein":${mProt[1]},"targetFat":${mFat[1]},"ideas":[],"note":""},{"type":"lunch","label":"ארוחת צהריים","time":"12:30-14:00","targetKcal":${mKcal[2]},"targetCarbs":${mCarbs[2]},"targetProtein":${mProt[2]},"targetFat":${mFat[2]},"ideas":[],"note":""},{"type":"afternoon_snack","label":"ביניים","time":"16:00","targetKcal":${mKcal[3]},"targetCarbs":${mCarbs[3]},"targetProtein":${mProt[3]},"targetFat":${mFat[3]},"ideas":[],"note":""},{"type":"dinner","label":"ארוחת ערב","time":"19:00-20:30","targetKcal":${mKcal[4]},"targetCarbs":${mCarbs[4]},"targetProtein":${mProt[4]},"targetFat":${mFat[4]},"ideas":[],"note":""}],"insight":"","totalKcal":${tKcal},"totalCarbs":${tCarbs},"totalProtein":${tProt},"totalFat":${tFat}}`;
-        const schemaEn=`{"meals":[{"type":"breakfast","label":"Breakfast","time":"7:00-9:00","targetKcal":${mKcal[0]},"targetCarbs":${mCarbs[0]},"targetProtein":${mProt[0]},"targetFat":${mFat[0]},"ideas":[],"note":""},{"type":"morning_snack","label":"Morning Snack","time":"10:30","targetKcal":${mKcal[1]},"targetCarbs":${mCarbs[1]},"targetProtein":${mProt[1]},"targetFat":${mFat[1]},"ideas":[],"note":""},{"type":"lunch","label":"Lunch","time":"12:30-2:00","targetKcal":${mKcal[2]},"targetCarbs":${mCarbs[2]},"targetProtein":${mProt[2]},"targetFat":${mFat[2]},"ideas":[],"note":""},{"type":"afternoon_snack","label":"Afternoon Snack","time":"4:00-5:00","targetKcal":${mKcal[3]},"targetCarbs":${mCarbs[3]},"targetProtein":${mProt[3]},"targetFat":${mFat[3]},"ideas":[],"note":""},{"type":"dinner","label":"Dinner","time":"7:00-8:30","targetKcal":${mKcal[4]},"targetCarbs":${mCarbs[4]},"targetProtein":${mProt[4]},"targetFat":${mFat[4]},"ideas":[],"note":""}],"insight":"","totalKcal":${tKcal},"totalCarbs":${tCarbs},"totalProtein":${tProt},"totalFat":${tFat}}`;
+        const sysHe = iv0 ? ' חוק: 100% טבעוני — אסור בשר/עוף/דגים/ביצים/חלב/גבינה/דבש.' : ivg0 ? ' חוק: אסור בשר/עוף/דגים/פירות ים.' : '';
+        const sysEn = iv0 ? ' RULE: 100% vegan — no meat/poultry/fish/eggs/dairy/honey.' : ivg0 ? ' RULE: no meat/poultry/fish/seafood.' : '';
+        system = isHeDp ? `תזונאית.${sysHe} החזר JSON בלבד.` : `Nutritionist.${sysEn} Return ONLY JSON.`;
+        const gHe = dp?.gender==='female'?'נ':dp?.gender==='male'?'ז':'';
+        const bmi = (dp?.weight&&dp?.height)?(dp.weight/Math.pow(dp.height/100,2)).toFixed(1):null;
+        const foods = (history?.topFoods||[]).slice(0,5).map(f=>`${f.food}(${f.count})`).join(',');
+        const conds = (dp?.conditions||[]).join(',');
+        const prefs = dp?.dietPrefs||[];
+        const isVegan=prefs.some(p=>p==='vegan'||/vegan|טבעוני/i.test(p));
+        const isVeg=isVegan||prefs.some(p=>p==='veg'||/vegetarian|צמחוני/i.test(p));
+        const isGF=prefs.some(p=>p==='gf'||/gluten|גלוטן/i.test(p));
+        const isLF=prefs.some(p=>p==='lf'||/lactose|לקטוז/i.test(p));
+        const dRule=[isVegan?'טבעוני':isVeg?'צמחוני':'',isGF?'ללא גלוטן':'',isLF?'ללא לקטוז':''].filter(Boolean).join(',');
+        const dRuleEn=[isVegan?'vegan':isVeg?'vegetarian':'',isGF?'gluten-free':'',isLF?'lactose-free':''].filter(Boolean).join(',');
+        const tKcal=dp?.maxKcal||1800;
+        const mKcal=[Math.round(tKcal*.25),Math.round(tKcal*.08),Math.round(tKcal*.35),Math.round(tKcal*.08),Math.round(tKcal*.24)];
         prompt = isHeDp
-          ? `פרופיל: גיל ${dp?.age||'?'}, ${gHe}${bmi?`, BMI ${bmi}`:''}, מצבים: ${condLine}. יעד: ${tKcal}קק"ל/${tCarbs}g פחמ'/${tProt}g חלבון.${dietRuleHe?' הגבלות: '+dietRuleHe:''} ${guideHe}היסטוריה ${history?.days||0}ד: ממוצע ${history?.avgKcal||0}קק"ל, מזונות: ${foodList||'אין'}.${sugarNote}\nמלא ideas(2-3 אפשרויות בעברית) ו-insight, שמור שאר המספרים:\n${schemaHe}`
-          : `Profile: age ${dp?.age||'?'}, ${dp?.gender||'?'}${bmi?`, BMI ${bmi}`:''}, conditions: ${condLine}. Targets: ${tKcal}kcal/${tCarbs}g carbs/${tProt}g protein.${dietRuleEn?' Rules: '+dietRuleEn:''} ${guideEn}History ${history?.days||0}d: avg ${history?.avgKcal||0}kcal, foods: ${foodList||'none'}.${sugarNote}\nFill ideas(2-3 options) and insight, keep all numbers:\n${schemaEn}`;
-        // Stream from Anthropic — avoids Cloudflare's 30s subrequest timeout.
-        // With stream:true, Anthropic returns HTTP headers + first SSE event within ~1-2s,
-        // so the fetch() promise resolves immediately and body streams progressively.
-        const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {'Content-Type':'application/json','x-api-key':env.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01'},
-          body: JSON.stringify({model, max_tokens, system, messages:[{role:'user',content:prompt}], stream:true})
-        });
-        if (!anthropicRes.ok) {
-          const errTxt = await anthropicRes.text();
-          return new Response(JSON.stringify({error:'API error: '+errTxt}), {status:502,headers:{...cors,'Content-Type':'application/json'}});
-        }
-        const {readable, writable} = new TransformStream();
-        const writer = writable.getWriter();
-        const enc = new TextEncoder();
-        const bgTask = (async () => {
-          try {
-            const reader = anthropicRes.body.getReader();
-            const dec = new TextDecoder();
-            let buf = '', txt = '';
-            while (true) {
-              const {done, value} = await reader.read();
-              if (done) break;
-              buf += dec.decode(value, {stream: true});
-              const lines = buf.split('\n');
-              buf = lines.pop() || '';
-              for (const line of lines) {
-                if (!line.startsWith('data: ')) continue;
-                const d = line.slice(6).trim();
-                if (d === '[DONE]') continue;
-                try {
-                  const ev = JSON.parse(d);
-                  if (ev.type === 'content_block_delta' && ev.delta?.type === 'text_delta') txt += ev.delta.text;
-                } catch (_) {}
-              }
-            }
-            let jsonStr = null, depth = 0, start = -1;
-            for (let i = 0; i < txt.length; i++) {
-              const c = txt[i];
-              if (c === '{') { if (depth === 0) start = i; depth++; }
-              else if (c === '}' && depth > 0) { depth--; if (depth === 0) { jsonStr = txt.slice(start, i+1); break; } }
-            }
-            if (!jsonStr) jsonStr = txt.replace(/```json|```/g, '').trim();
-            await writer.write(enc.encode(JSON.stringify(JSON.parse(jsonStr))));
-          } catch (e) {
-            await writer.write(enc.encode(JSON.stringify({error: e.message})));
-          } finally {
-            await writer.close();
-          }
-        })();
-        // Keep worker alive until the background stream finishes
-        ctx.waitUntil(bgTask);
-        return new Response(readable, {headers: {...cors, 'Content-Type': 'application/json'}});
+          ? `גיל ${dp?.age||'?'}${gHe?','+gHe:''}${bmi?',BMI '+bmi:''}.${conds?' מצבים:'+conds+'.':''} ${dRule?'הגבלות:'+dRule+'. ':''}יעד:${tKcal}קק"ל. מזונות:${foods||'אין'}. ממוצע:${history?.avgKcal||0}קק"ל.
+ארוחות(קק"ל): בוקר ${mKcal[0]}, ביניים ${mKcal[1]}, צהריים ${mKcal[2]}, ביניים ${mKcal[3]}, ערב ${mKcal[4]}.
+החזר JSON בלבד:
+{"ideas":[["בוקר1","בוקר2","בוקר3"],["ביניים1","ביניים2"],["צהריים1","צהריים2","צהריים3"],["ביניים1","ביניים2"],["ערב1","ערב2","ערב3"]],"notes":["","","","",""],"insight":""}`
+          : `Age ${dp?.age||'?'}${dp?.gender?','+dp.gender:''}${bmi?',BMI '+bmi:''}.${conds?' conditions:'+conds+'.':''} ${dRuleEn?'rules:'+dRuleEn+'. ':''}target:${tKcal}kcal. foods:${foods||'none'}. avg:${history?.avgKcal||0}kcal.
+Meals(kcal): breakfast ${mKcal[0]}, snack ${mKcal[1]}, lunch ${mKcal[2]}, snack ${mKcal[3]}, dinner ${mKcal[4]}.
+Return ONLY JSON:
+{"ideas":[["bkf1","bkf2","bkf3"],["snk1","snk2"],["lnch1","lnch2","lnch3"],["snk1","snk2"],["din1","din2","din3"]],"notes":["","","","",""],"insight":""}`;
       } else if (profileData) {
         model = 'claude-sonnet-4-6';
         max_tokens = 2000;
