@@ -226,7 +226,7 @@ Return ONLY JSON, exactly this format:
         // Frontend reconstructs the full plan with macro targets computed from profile.
         const { profile: dp, history, lang: dpLang } = dailyPlan;
         const isHeDp = (dpLang || lang || 'he') !== 'en';
-        model = 'claude-haiku-4-5-20251001';
+        model = 'claude-sonnet-4-6';
         max_tokens = 350;
         const prefs0 = dp?.dietPrefs || [];
         const iv0 = prefs0.some(p=>p==='vegan'||/vegan|טבעוני/i.test(p));

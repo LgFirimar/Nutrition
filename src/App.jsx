@@ -5211,11 +5211,16 @@ function DailyPlanModal({onClose, pid, lang, profile}){
 
   const fetchPlan=async()=>{
     setLoading(true);setError(null);
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),28000);
     try{
       const history=buildHistory();
-      const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dailyPlan:{profile,history,lang}})});
-      if(!res.ok)throw new Error("server");
+      const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dailyPlan:{profile,history,lang}}),signal:ctrl.signal});
       const txt=await res.text();
+      if(!res.ok){
+        let detail='';try{detail=JSON.parse(txt).error||'';}catch(_){}
+        throw new Error(detail||'server '+res.status);
+      }
       const m=txt.match(/\{[\s\S]*\}/);
       if(!m)throw new Error("parse");
       const parsed=JSON.parse(m[0]);
@@ -5235,8 +5240,10 @@ function DailyPlanModal({onClose, pid, lang, profile}){
         meals:META.map((mt,i)=>({...mt,targetKcal:mK[i],targetCarbs:mC[i],targetProtein:mP[i],targetFat:mFt[i],ideas:(parsed.ideas||[])[i]||[],note:(parsed.notes||[])[i]||''})),
         insight:parsed.insight||'',totalKcal:tK,totalCarbs:tC,totalProtein:tP,totalFat:tF
       });
-    }catch{setError(isHe?"שגיאה בטעינה. נסי שוב.":"Error loading plan. Try again.");}
-    finally{setLoading(false);}
+    }catch(e){
+      const msg=e?.name==='AbortError'?(isHe?"פג זמן הטעינה. נסי שוב.":"Timed out. Try again."):e?.message||'';
+      setError((isHe?"שגיאה בטעינה. ":"Error loading. ")+msg);
+    }finally{clearTimeout(timer);setLoading(false);}
   };
 
   useEffect(()=>{fetchPlan();},[]);
