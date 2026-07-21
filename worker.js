@@ -246,18 +246,15 @@ Return ONLY JSON, exactly this format:
         const dRule=[isVegan?'טבעוני':isVeg?'צמחוני':'',isGF?'ללא גלוטן':'',isLF?'ללא לקטוז':''].filter(Boolean).join(',');
         const dRuleEn=[isVegan?'vegan':isVeg?'vegetarian':'',isGF?'gluten-free':'',isLF?'lactose-free':''].filter(Boolean).join(',');
         const tKcal=dp?.maxKcal||1800;
-        // dinner-heavy: ערב = ארוחה מרכזית עם מירב הפחמימות
-        const mKcal=[Math.round(tKcal*.19),Math.round(tKcal*.07),Math.round(tKcal*.24),Math.round(tKcal*.08),Math.round(tKcal*.42)];
+        const mKcal=[Math.round(tKcal*.25),Math.round(tKcal*.08),Math.round(tKcal*.35),Math.round(tKcal*.08),Math.round(tKcal*.24)];
         const planRulesHe = dp?.planRules ? `\nחוקים אישיים: ${dp.planRules}` : '';
         const planRulesEn = dp?.planRules ? `\nPersonal rules: ${dp.planRules}` : '';
         prompt = isHeDp
           ? `גיל ${dp?.age||'?'}${gHe?','+gHe:''}${bmi?',BMI '+bmi:''}.${conds?' מצבים:'+conds+'.':''} ${dRule?'הגבלות:'+dRule+'. ':''}יעד:${tKcal}קק"ל. מזונות:${foods||'אין'}. ממוצע:${history?.avgKcal||0}קק"ל.${planRulesHe}
-חוק: ארוחת ערב היא הארוחה המרכזית ביום עם מירב הפחמימות. בוקר וצהריים — קלות יחסית.
 ארוחות(קק"ל): בוקר ${mKcal[0]}, ביניים ${mKcal[1]}, צהריים ${mKcal[2]}, ביניים ${mKcal[3]}, ערב ${mKcal[4]}.
 החזר JSON קומפקטי (שורה אחת, כל רעיון עד 6 מילים בעברית):
 {"ideas":[["בוקר1","בוקר2","בוקר3"],["ביניים1","ביניים2"],["צהריים1","צהריים2","צהריים3"],["ביניים1","ביניים2"],["ערב1","ערב2","ערב3"]],"notes":["","","","",""],"insight":"משפט אחד"}`
           : `Age ${dp?.age||'?'}${dp?.gender?','+dp.gender:''}${bmi?',BMI '+bmi:''}.${conds?' conditions:'+conds+'.':''} ${dRuleEn?'rules:'+dRuleEn+'. ':''}target:${tKcal}kcal. foods:${foods||'none'}. avg:${history?.avgKcal||0}kcal.${planRulesEn}
-Rule: dinner is the main meal with most carbs. Breakfast and lunch are light.
 Meals(kcal): breakfast ${mKcal[0]}, snack ${mKcal[1]}, lunch ${mKcal[2]}, snack ${mKcal[3]}, dinner ${mKcal[4]}.
 Return compact single-line JSON (each idea max 6 words):
 {"ideas":[["bkf1","bkf2","bkf3"],["snk1","snk2"],["lnch1","lnch2","lnch3"],["snk1","snk2"],["din1","din2","din3"]],"notes":["","","","",""],"insight":"one sentence"}`;
