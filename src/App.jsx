@@ -5332,6 +5332,7 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <div>
             <div style={{fontSize:17,fontWeight:900,color:C.text}}>📅 {isHe?"תכנון יומי":"Daily Plan"}</div>
+            {profile?.planRules&&<div style={{fontSize:11,color:C.muted,marginTop:2,maxWidth:240}}>{profile.planRules}</div>}
           </div>
           <button onClick={onClose} style={{width:30,height:30,borderRadius:"50%",background:"rgba(148,163,184,.18)",border:"none",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:C.muted}}>✕</button>
         </div>
