@@ -5306,10 +5306,11 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
       const prof=profile||{};
       const tK=prof.maxKcal||1800,tC=prof.maxCarbs||130,tP=prof.maxProtein||90;
       const tF=Math.round(tK*0.28/9);
-      const mK=[Math.round(tK*.25),Math.round(tK*.08),Math.round(tK*.35),Math.round(tK*.08),Math.round(tK*.24)];
-      const mC=[Math.round(tC*.22),Math.round(tC*.09),Math.round(tC*.35),Math.round(tC*.09),Math.round(tC*.25)];
-      const mP=[Math.round(tP*.22),Math.round(tP*.09),Math.round(tP*.35),Math.round(tP*.09),Math.round(tP*.25)];
-      const mFt=[Math.round(tF*.22),Math.round(tF*.09),Math.round(tF*.35),Math.round(tF*.09),Math.round(tF*.25)];
+      const dinnerMain=!!(prof.planRules&&/ערב.*(מרכז|עיקרי|פחמ|גדול|יותר)|מרכז.*ערב|פחמ.*ערב|dinner.*(main|most|heavy)/i.test(prof.planRules));
+      const mK=dinnerMain?[Math.round(tK*.19),Math.round(tK*.07),Math.round(tK*.24),Math.round(tK*.08),Math.round(tK*.42)]:[Math.round(tK*.25),Math.round(tK*.08),Math.round(tK*.35),Math.round(tK*.08),Math.round(tK*.24)];
+      const mC=dinnerMain?[Math.round(tC*.14),Math.round(tC*.07),Math.round(tC*.19),Math.round(tC*.07),Math.round(tC*.53)]:[Math.round(tC*.22),Math.round(tC*.09),Math.round(tC*.35),Math.round(tC*.09),Math.round(tC*.25)];
+      const mP=dinnerMain?[Math.round(tP*.20),Math.round(tP*.08),Math.round(tP*.27),Math.round(tP*.08),Math.round(tP*.37)]:[Math.round(tP*.22),Math.round(tP*.09),Math.round(tP*.35),Math.round(tP*.09),Math.round(tP*.25)];
+      const mFt=dinnerMain?[Math.round(tF*.20),Math.round(tF*.07),Math.round(tF*.25),Math.round(tF*.08),Math.round(tF*.40)]:[Math.round(tF*.22),Math.round(tF*.09),Math.round(tF*.35),Math.round(tF*.09),Math.round(tF*.25)];
       const META=isHe
         ?[{type:'breakfast',label:'ארוחת בוקר',time:'07:00-09:00'},{type:'morning_snack',label:'ביניים בוקר',time:'10:30'},{type:'lunch',label:'ארוחת צהריים',time:'12:30-14:00'},{type:'afternoon_snack',label:'ביניים',time:'16:00'},{type:'dinner',label:'ארוחת ערב',time:'19:00-20:30'}]
         :[{type:'breakfast',label:'Breakfast',time:'7:00-9:00'},{type:'morning_snack',label:'Morning Snack',time:'10:30'},{type:'lunch',label:'Lunch',time:'12:30-2:00'},{type:'afternoon_snack',label:'Afternoon Snack',time:'4:00-5:00'},{type:'dinner',label:'Dinner',time:'7:00-8:30'}];
@@ -5424,13 +5425,18 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
               {profile?.planRules&&(
                 <div style={{marginTop:8}}>
                   <button onClick={()=>setShowPrevRules(v=>!v)}
-                    style={{width:"100%",background:"none",border:"none",textAlign:isHe?"right":"left",padding:"6px 2px",fontSize:11.5,color:C.muted,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
-                    <span style={{fontSize:10}}>{showPrevRules?"▼":"▶"}</span>
-                    {isHe?"העדפות אישיות שמורות":"Saved preferences"}
+                    style={{width:"100%",background:"none",border:"none",textAlign:isHe?"right":"left",padding:"6px 2px",cursor:"pointer",display:"flex",alignItems:"center",gap:5,borderBottom:"1px solid rgba(15,23,42,.12)",paddingBottom:6}}>
+                    <span style={{fontSize:10,color:C.muted}}>{showPrevRules?"▼":"▶"}</span>
+                    <span style={{fontSize:13,fontWeight:600,color:"#334155"}}>{isHe?"העדפות אישיות שמורות":"Saved preferences"}</span>
                   </button>
                   {showPrevRules&&(
-                    <div style={{background:"rgba(148,163,184,.08)",borderRadius:8,padding:"8px 10px",fontSize:11.5,color:C.muted,lineHeight:1.55,direction:isHe?"rtl":"ltr"}}>
-                      {profile.planRules}
+                    <div style={{background:"rgba(148,163,184,.08)",borderRadius:8,padding:"8px 10px",marginTop:6,direction:isHe?"rtl":"ltr"}}>
+                      {profile.planRules.split('\n').filter(l=>l.trim()).map((line,i)=>(
+                        <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,marginBottom:i<profile.planRules.split('\n').filter(l=>l.trim()).length-1?5:0}}>
+                          <span style={{color:C.muted,fontSize:12,flexShrink:0,marginTop:1}}>•</span>
+                          <span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>{line.trim()}</span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
