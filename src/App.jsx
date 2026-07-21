@@ -5306,7 +5306,7 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
       const prof=profile||{};
       const tK=prof.maxKcal||1800,tC=prof.maxCarbs||130,tP=prof.maxProtein||90;
       const tF=Math.round(tK*0.28/9);
-      const dinnerMain=!!(prof.planRules&&/ערב.*(מרכז|עיקרי|פחמ|גדול|יותר)|מרכז.*ערב|פחמ.*ערב|dinner.*(main|most|heavy)/i.test(prof.planRules));
+      const dinnerMain=!!(prof.planRules&&/ערב.*(מרכז|עיקרי|פחמ|גדול|יותר|ראשי)|מרכז.*ערב|עיקר.*ערב|פחמ.*ערב|dinner.*(main|most|heavy|primary)/i.test(prof.planRules));
       const mK=dinnerMain?[Math.round(tK*.19),Math.round(tK*.07),Math.round(tK*.24),Math.round(tK*.08),Math.round(tK*.42)]:[Math.round(tK*.25),Math.round(tK*.08),Math.round(tK*.35),Math.round(tK*.08),Math.round(tK*.24)];
       const mC=dinnerMain?[Math.round(tC*.14),Math.round(tC*.07),Math.round(tC*.19),Math.round(tC*.07),Math.round(tC*.53)]:[Math.round(tC*.22),Math.round(tC*.09),Math.round(tC*.35),Math.round(tC*.09),Math.round(tC*.25)];
       const mP=dinnerMain?[Math.round(tP*.20),Math.round(tP*.08),Math.round(tP*.27),Math.round(tP*.08),Math.round(tP*.37)]:[Math.round(tP*.22),Math.round(tP*.09),Math.round(tP*.35),Math.round(tP*.09),Math.round(tP*.25)];
@@ -5442,7 +5442,7 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
                 </div>
               )}
               <div style={{display:"flex",gap:8,marginTop:8}}>
-                <button onClick={()=>{onSaveRules&&onSaveRules(newRulesText);setNewRulesText('');setShowNotes(false);setShowPrevRules(false);}}
+                <button onClick={()=>{if(newRulesText.trim()){const combined=[profile?.planRules,newRulesText.trim()].filter(Boolean).join('\n');onSaveRules&&onSaveRules(combined);}setNewRulesText('');setShowNotes(false);setShowPrevRules(false);}}
                   style={{flex:1,background:C.blue,color:"#fff",border:"none",borderRadius:9,padding:"9px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                   {isHe?"שמירה":"Save"}
                 </button>

@@ -246,7 +246,7 @@ Return ONLY JSON, exactly this format:
         const dRule=[isVegan?'טבעוני':isVeg?'צמחוני':'',isGF?'ללא גלוטן':'',isLF?'ללא לקטוז':''].filter(Boolean).join(',');
         const dRuleEn=[isVegan?'vegan':isVeg?'vegetarian':'',isGF?'gluten-free':'',isLF?'lactose-free':''].filter(Boolean).join(',');
         const tKcal=dp?.maxKcal||1800;
-        const dinnerMainW=!!(dp?.planRules&&/ערב.*(מרכז|עיקרי|פחמ|גדול|יותר)|מרכז.*ערב|פחמ.*ערב|dinner.*(main|most|heavy)/i.test(dp.planRules));
+        const dinnerMainW=!!(dp?.planRules&&/ערב.*(מרכז|עיקרי|פחמ|גדול|יותר|ראשי)|מרכז.*ערב|עיקר.*ערב|פחמ.*ערב|dinner.*(main|most|heavy|primary)/i.test(dp.planRules));
         const mKcal=dinnerMainW?[Math.round(tKcal*.19),Math.round(tKcal*.07),Math.round(tKcal*.24),Math.round(tKcal*.08),Math.round(tKcal*.42)]:[Math.round(tKcal*.25),Math.round(tKcal*.08),Math.round(tKcal*.35),Math.round(tKcal*.08),Math.round(tKcal*.24)];
         const dinnerRuleHe=dinnerMainW?'\nחוק: ארוחת ערב היא הארוחה המרכזית עם מירב הפחמימות. בוקר וצהריים קלים יחסית.':'';
         const dinnerRuleEn=dinnerMainW?'\nRule: dinner is the main meal with most carbs. Breakfast and lunch are lighter.':'';
