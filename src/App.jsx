@@ -5253,7 +5253,8 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
   const [error,setError]=useState(null);
   const [recipeTarget,setRecipeTarget]=useState(null);
   const [showNotes,setShowNotes]=useState(false);
-  const [rulesText,setRulesText]=useState(profile?.planRules||'');
+  const [newRulesText,setNewRulesText]=useState('');
+  const [showPrevRules,setShowPrevRules]=useState(false);
 
   const buildHistory=()=>{
     const journal=loadJournal(pid);
@@ -5417,16 +5418,29 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
           </button>
           {showNotes&&(
             <div style={{background:"rgba(37,99,235,.04)",border:"1px solid rgba(37,99,235,.15)",borderRadius:12,padding:12,marginBottom:10}}>
-              <div style={{fontSize:11,color:C.blue,fontWeight:700,marginBottom:6}}>{isHe?"חוקים אישיים לתפריט היומי:":"Personal rules for daily plan:"}</div>
-              <textarea value={rulesText} onChange={e=>setRulesText(e.target.value)}
-                placeholder={isHe?"למשל: לא אוכלת גלוטן, מעדיפה ארוחות קלות בערב, לא אוהבת ברוקולי...":"e.g. no gluten, prefer light dinners, dislike broccoli..."}
-                style={{width:"100%",minHeight:72,borderRadius:8,border:"1px solid rgba(37,99,235,.2)",padding:"8px 10px",fontSize:12,lineHeight:1.5,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit",direction:isHe?"rtl":"ltr",background:"rgba(255,255,255,.9)"}}/>
+              <textarea value={newRulesText} onChange={e=>setNewRulesText(e.target.value)}
+                placeholder={isHe?"הנחיות חדשות לתכנון...":"New instructions for the plan..."}
+                style={{width:"100%",minHeight:64,borderRadius:8,border:"1px solid rgba(37,99,235,.2)",padding:"8px 10px",fontSize:12,lineHeight:1.5,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit",direction:isHe?"rtl":"ltr",background:"rgba(255,255,255,.9)"}}/>
+              {profile?.planRules&&(
+                <div style={{marginTop:8}}>
+                  <button onClick={()=>setShowPrevRules(v=>!v)}
+                    style={{width:"100%",background:"none",border:"none",textAlign:isHe?"right":"left",padding:"6px 2px",fontSize:11.5,color:C.muted,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
+                    <span style={{fontSize:10}}>{showPrevRules?"▼":"▶"}</span>
+                    {isHe?"העדפות אישיות שמורות":"Saved preferences"}
+                  </button>
+                  {showPrevRules&&(
+                    <div style={{background:"rgba(148,163,184,.08)",borderRadius:8,padding:"8px 10px",fontSize:11.5,color:C.muted,lineHeight:1.55,direction:isHe?"rtl":"ltr"}}>
+                      {profile.planRules}
+                    </div>
+                  )}
+                </div>
+              )}
               <div style={{display:"flex",gap:8,marginTop:8}}>
-                <button onClick={()=>{onSaveRules&&onSaveRules(rulesText);setShowNotes(false);}}
+                <button onClick={()=>{onSaveRules&&onSaveRules(newRulesText);setNewRulesText('');setShowNotes(false);setShowPrevRules(false);}}
                   style={{flex:1,background:C.blue,color:"#fff",border:"none",borderRadius:9,padding:"9px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                   {isHe?"שמירה":"Save"}
                 </button>
-                {(profile?.planRules||rulesText)&&<button onClick={()=>{setRulesText('');onSaveRules&&onSaveRules('');setShowNotes(false);}}
+                {profile?.planRules&&<button onClick={()=>{onSaveRules&&onSaveRules('');setNewRulesText('');setShowNotes(false);setShowPrevRules(false);}}
                   style={{background:"rgba(220,38,38,.08)",color:C.danger,border:"1px solid rgba(220,38,38,.2)",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                   🗑
                 </button>}
