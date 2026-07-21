@@ -5422,14 +5422,14 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
               <textarea value={newRulesText} onChange={e=>setNewRulesText(e.target.value)}
                 placeholder={isHe?"הנחיות חדשות לתכנון...":"New instructions for the plan..."}
                 style={{width:"100%",minHeight:64,borderRadius:8,border:"1px solid rgba(37,99,235,.2)",padding:"8px 10px",fontSize:12,lineHeight:1.5,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit",direction:isHe?"rtl":"ltr",background:"rgba(255,255,255,.9)"}}/>
-              {(profile?.planRules||ls.get('nutrition_plan_rules_'+pid))&&(
+              {(()=>{const _p=JSON.parse(localStorage.getItem('nutrition_profiles')||'[]').find(x=>x.id===pid);return _p?.planRules||ls.get('nutrition_plan_rules_'+pid);})()&&(
                 <div style={{marginTop:8}}>
                   <button onClick={()=>setShowPrevRules(v=>!v)}
                     style={{width:"100%",background:"none",border:"none",textAlign:isHe?"right":"left",padding:"6px 2px",cursor:"pointer",display:"flex",alignItems:"center",gap:5,borderBottom:"1px solid rgba(15,23,42,.12)",paddingBottom:6}}>
                     <span style={{fontSize:10,color:C.muted}}>{showPrevRules?"▼":"▶"}</span>
                     <span style={{fontSize:13,fontWeight:600,color:"#334155"}}>{isHe?"העדפות אישיות שמורות":"Saved preferences"}</span>
                   </button>
-                  {showPrevRules&&(()=>{const saved=profile?.planRules||ls.get('nutrition_plan_rules_'+pid)||'';const lines=saved.split('\n').filter(l=>l.trim());return(
+                  {showPrevRules&&(()=>{const _fp=JSON.parse(localStorage.getItem('nutrition_profiles')||'[]').find(x=>x.id===pid);const saved=(_fp?.planRules)||ls.get('nutrition_plan_rules_'+pid)||'';const lines=saved.split('\n').filter(l=>l.trim());return(
                     <div style={{background:"rgba(148,163,184,.08)",borderRadius:8,padding:"8px 10px",marginTop:6,direction:isHe?"rtl":"ltr"}}>
                       {lines.map((line,i)=>(
                         <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,marginBottom:i<lines.length-1?5:0}}>
@@ -5442,7 +5442,7 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
                 </div>
               )}
               <div style={{display:"flex",gap:8,marginTop:8}}>
-                <button onClick={()=>{if(newRulesText.trim()){const existing=profile?.planRules||ls.get('nutrition_plan_rules_'+pid)||'';const combined=[existing,newRulesText.trim()].filter(Boolean).join('\n');onSaveRules&&onSaveRules(combined);}setNewRulesText('');setShowNotes(false);setShowPrevRules(false);}}
+                <button onClick={()=>{if(newRulesText.trim()){const freshProfiles=JSON.parse(localStorage.getItem('nutrition_profiles')||'[]');const freshRules=(freshProfiles.find(x=>x.id===pid)||{}).planRules||ls.get('nutrition_plan_rules_'+pid)||'';const combined=[freshRules,newRulesText.trim()].filter(Boolean).join('\n');onSaveRules&&onSaveRules(combined);}setNewRulesText('');setShowNotes(false);setShowPrevRules(false);}}
                   style={{flex:1,background:C.blue,color:"#fff",border:"none",borderRadius:9,padding:"9px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                   {isHe?"שמירה":"Save"}
                 </button>
