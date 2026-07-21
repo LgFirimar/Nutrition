@@ -227,13 +227,13 @@ Return ONLY JSON, exactly this format:
         const { profile: dp, history, lang: dpLang } = dailyPlan;
         const isHeDp = (dpLang || lang || 'he') !== 'en';
         model = 'claude-sonnet-4-6';
-        max_tokens = 350;
+        max_tokens = 500;
         const prefs0 = dp?.dietPrefs || [];
         const iv0 = prefs0.some(p=>p==='vegan'||/vegan|טבעוני/i.test(p));
         const ivg0 = iv0 || prefs0.some(p=>p==='veg'||/vegetarian|צמחוני/i.test(p));
         const sysHe = iv0 ? ' חוק: 100% טבעוני — אסור בשר/עוף/דגים/ביצים/חלב/גבינה/דבש.' : ivg0 ? ' חוק: אסור בשר/עוף/דגים/פירות ים.' : '';
         const sysEn = iv0 ? ' RULE: 100% vegan — no meat/poultry/fish/eggs/dairy/honey.' : ivg0 ? ' RULE: no meat/poultry/fish/seafood.' : '';
-        system = isHeDp ? `תזונאית.${sysHe} החזר JSON בלבד.` : `Nutritionist.${sysEn} Return ONLY JSON.`;
+        system = isHeDp ? `תזונאית.${sysHe} החזר JSON קומפקטי בשורה אחת בלבד, ללא רווחים מיותרים.` : `Nutritionist.${sysEn} Return compact single-line JSON only, no extra whitespace.`;
         const gHe = dp?.gender==='female'?'נ':dp?.gender==='male'?'ז':'';
         const bmi = (dp?.weight&&dp?.height)?(dp.weight/Math.pow(dp.height/100,2)).toFixed(1):null;
         const foods = (history?.topFoods||[]).slice(0,5).map(f=>`${f.food}(${f.count})`).join(',');
@@ -250,12 +250,12 @@ Return ONLY JSON, exactly this format:
         prompt = isHeDp
           ? `גיל ${dp?.age||'?'}${gHe?','+gHe:''}${bmi?',BMI '+bmi:''}.${conds?' מצבים:'+conds+'.':''} ${dRule?'הגבלות:'+dRule+'. ':''}יעד:${tKcal}קק"ל. מזונות:${foods||'אין'}. ממוצע:${history?.avgKcal||0}קק"ל.
 ארוחות(קק"ל): בוקר ${mKcal[0]}, ביניים ${mKcal[1]}, צהריים ${mKcal[2]}, ביניים ${mKcal[3]}, ערב ${mKcal[4]}.
-החזר JSON בלבד:
-{"ideas":[["בוקר1","בוקר2","בוקר3"],["ביניים1","ביניים2"],["צהריים1","צהריים2","צהריים3"],["ביניים1","ביניים2"],["ערב1","ערב2","ערב3"]],"notes":["","","","",""],"insight":""}`
+החזר JSON קומפקטי (שורה אחת, כל רעיון עד 4 מילים בעברית):
+{"ideas":[["בוקר1","בוקר2","בוקר3"],["ביניים1","ביניים2"],["צהריים1","צהריים2","צהריים3"],["ביניים1","ביניים2"],["ערב1","ערב2","ערב3"]],"notes":["","","","",""],"insight":"משפט אחד"}`
           : `Age ${dp?.age||'?'}${dp?.gender?','+dp.gender:''}${bmi?',BMI '+bmi:''}.${conds?' conditions:'+conds+'.':''} ${dRuleEn?'rules:'+dRuleEn+'. ':''}target:${tKcal}kcal. foods:${foods||'none'}. avg:${history?.avgKcal||0}kcal.
 Meals(kcal): breakfast ${mKcal[0]}, snack ${mKcal[1]}, lunch ${mKcal[2]}, snack ${mKcal[3]}, dinner ${mKcal[4]}.
-Return ONLY JSON:
-{"ideas":[["bkf1","bkf2","bkf3"],["snk1","snk2"],["lnch1","lnch2","lnch3"],["snk1","snk2"],["din1","din2","din3"]],"notes":["","","","",""],"insight":""}`;
+Return compact single-line JSON (each idea max 4 words):
+{"ideas":[["bkf1","bkf2","bkf3"],["snk1","snk2"],["lnch1","lnch2","lnch3"],["snk1","snk2"],["din1","din2","din3"]],"notes":["","","","",""],"insight":"one sentence"}`;
       } else if (profileData) {
         model = 'claude-sonnet-4-6';
         max_tokens = 2000;
