@@ -5422,10 +5422,16 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
               <textarea value={rulesText} onChange={e=>setRulesText(e.target.value)}
                 placeholder={isHe?"למשל: לא אוכלת גלוטן, מעדיפה ארוחות קלות בערב, לא אוהבת ברוקולי...":"e.g. no gluten, prefer light dinners, dislike broccoli..."}
                 style={{width:"100%",minHeight:72,borderRadius:8,border:"1px solid rgba(37,99,235,.2)",padding:"8px 10px",fontSize:12,lineHeight:1.5,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit",direction:isHe?"rtl":"ltr",background:"rgba(255,255,255,.9)"}}/>
-              <button onClick={()=>{onSaveRules&&onSaveRules(rulesText);setShowNotes(false);}}
-                style={{marginTop:8,width:"100%",background:C.blue,color:"#fff",border:"none",borderRadius:9,padding:"9px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
-                {isHe?"שמירה":"Save"}
-              </button>
+              <div style={{display:"flex",gap:8,marginTop:8}}>
+                <button onClick={()=>{onSaveRules&&onSaveRules(rulesText);setShowNotes(false);}}
+                  style={{flex:1,background:C.blue,color:"#fff",border:"none",borderRadius:9,padding:"9px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+                  {isHe?"שמירה":"Save"}
+                </button>
+                {(profile?.planRules||rulesText)&&<button onClick={()=>{setRulesText('');onSaveRules&&onSaveRules('');setShowNotes(false);}}
+                  style={{background:"rgba(220,38,38,.08)",color:C.danger,border:"1px solid rgba(220,38,38,.2)",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+                  🗑
+                </button>}
+              </div>
             </div>
           )}
         </>)}
