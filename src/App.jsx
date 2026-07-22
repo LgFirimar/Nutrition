@@ -5346,7 +5346,7 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
           <div style={{textAlign:"center",padding:"32px 0"}}>
             {animErr
               ?<div style={{width:80,height:80,margin:"0 auto 8px",borderRadius:"50%",border:`6px solid rgba(13,148,136,.15)`,borderTop:`6px solid ${C.accent}`,animation:"spin 1s linear infinite"}}/>
-              :<img src="/Nutrition/loader-plan.webp?v=4" alt="" onError={()=>setAnimErr(true)}
+              :<img src="/Nutrition/loader-plan.webp?v=5" alt="" onError={()=>setAnimErr(true)}
                   style={{width:160,height:160,objectFit:"contain",display:"block",margin:"0 auto 8px"}}/>}
             <div style={{fontSize:14,fontWeight:700,color:C.text}}>{isHe?"מכין תפריט יומי...":"Building your daily menu..."}</div>
           </div>
