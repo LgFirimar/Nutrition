@@ -2016,8 +2016,8 @@ function MetricWeekChart({journal,metric,color,label,lang,range,setRange,goal,go
   const isHe=(lang||localStorage.getItem('nutrition_lang')||'he')!=='en';
   const goalColor=v=>{
     if(!goal||!v) return color;
-    if(goalDir==='min') return v>=goal?'#0d9488':v>=goal*0.75?'#f59e0b':'#dc2626';
-    return v<=goal?'#0d9488':v<=goal*1.2?'#f59e0b':'#dc2626';
+    if(goalDir==='min') return v>=goal?'#15803d':v>=goal*0.75?'#f59e0b':'#dc2626';
+    return v<=goal?'#15803d':v<=goal*1.2?'#f59e0b':'#dc2626';
   };
   const DAY_LABELS=isHe?['א','ב','ג','ד','ה','ו','ש']:['Su','Mo','Tu','We','Th','Fr','Sa'];
   const xs=Array.from({length:range},(_,i)=>Math.round(PAD+i*(W-2*PAD)/Math.max(range-1,1)));
@@ -2230,12 +2230,16 @@ function SugarWeekChart({journal,lang}){
               <stop offset={`${(y86/H*100+8).toFixed(0)}%`}  stopColor="#15803d"/>
               <stop offset="100%" stopColor="#15803d"/>
             </linearGradient>
+            <linearGradient id="sg-area" x1={PAD} y1="0" x2={W-PAD} y2="0" gradientUnits="userSpaceOnUse">
+              {known.map((p,i)=>{const di=xs.indexOf(p.x);const v=di>=0?days[di]?.v||0:0;return <stop key={i} offset={`${((p.x-PAD)/(W-2*PAD)*100).toFixed(1)}%`} stopColor={sugarColor(v)} stopOpacity="0.13"/>;})}
+            </linearGradient>
           </defs>
           <line x1={PAD} y1={y100} x2={W-PAD} y2={y100} stroke="rgba(220,38,38,.15)" strokeWidth="0.7" strokeDasharray="3,3"/>
           <line x1={PAD} y1={y86}  x2={W-PAD} y2={y86}  stroke="rgba(245,158,11,.15)" strokeWidth="0.7" strokeDasharray="3,3"/>
           <text x={W-2} y={y100-1} fontSize="5.5" fill="rgba(220,38,38,.45)" textAnchor="end" fontFamily="Heebo,sans-serif">100</text>
           <text x={W-2} y={y86-1}  fontSize="5.5" fill="rgba(245,158,11,.5)"  textAnchor="end" fontFamily="Heebo,sans-serif">86</text>
           {avgY!=null&&<line x1={PAD} y1={avgY} x2={W-PAD} y2={avgY} stroke="#6366f1" strokeWidth="1.2" strokeDasharray="4,3" opacity="0.6"/>}
+          {linePath&&known.length>=2&&<path d={`${linePath} L ${known[known.length-1].x},${H} L ${known[0].x},${H} Z`} fill="url(#sg-area)"/>}
           {linePath&&<path d={linePath} fill="none" stroke="url(#sg-line)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>}
           {range===7&&days.map((d,i)=>{
             if(!d.v) return <circle key={i} cx={xs[i]} cy={H*0.58} r="2" fill="none" stroke="rgba(148,163,184,.25)" strokeWidth="1"/>;
