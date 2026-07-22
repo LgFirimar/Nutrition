@@ -5255,6 +5255,8 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
   const [showNotes,setShowNotes]=useState(false);
   const [newRulesText,setNewRulesText]=useState('');
   const [showPrevRules,setShowPrevRules]=useState(false);
+  const [editRulesMode,setEditRulesMode]=useState(false);
+  const [editedRules,setEditedRules]=useState([]);
 
   const buildHistory=()=>{
     const journal=loadJournal(pid);
@@ -5414,45 +5416,69 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
           <button onClick={fetchPlan} style={{width:"100%",background:"rgba(13,148,136,.08)",color:C.accent,border:"1px solid rgba(13,148,136,.22)",borderRadius:12,padding:"11px",fontSize:13,fontWeight:700,cursor:"pointer",marginTop:2,marginBottom:6}}>
             🔄 {isHe?"רענן תכנון":"Refresh Plan"}
           </button>
-          <button onClick={()=>setShowNotes(v=>!v)} style={{width:"100%",background:showNotes?"rgba(37,99,235,.08)":"rgba(148,163,184,.08)",color:showNotes?C.blue:C.muted,border:`1px solid ${showNotes?"rgba(37,99,235,.22)":"rgba(148,163,184,.2)"}`,borderRadius:12,padding:"10px",fontSize:12.5,fontWeight:700,cursor:"pointer",marginBottom:8}}>
+          <button onClick={()=>{setShowNotes(v=>!v);setEditRulesMode(false);setShowPrevRules(false);}} style={{width:"100%",background:showNotes?"rgba(37,99,235,.08)":"rgba(148,163,184,.08)",color:showNotes?C.blue:C.muted,border:`1px solid ${showNotes?"rgba(37,99,235,.22)":"rgba(148,163,184,.2)"}`,borderRadius:12,padding:"10px",fontSize:12.5,fontWeight:700,cursor:"pointer",marginBottom:8}}>
             📝 {isHe?"הערות לתכנון הבא":"Notes for Next Plan"}{profile?.planRules?` ✓`:''}
           </button>
-          {showNotes&&(
+          {showNotes&&(()=>{
+            const freshProfiles=JSON.parse(localStorage.getItem('nutrition_profiles')||'[]');
+            const freshRules=(freshProfiles.find(x=>x.id===pid)||{}).planRules||ls.get('nutrition_plan_rules_'+pid)||'';
+            const savedLines=freshRules.split('\n').filter(l=>l.trim());
+            return(
             <div style={{background:"rgba(37,99,235,.04)",border:"1px solid rgba(37,99,235,.15)",borderRadius:12,padding:12,marginBottom:10}}>
-              <textarea value={newRulesText} onChange={e=>setNewRulesText(e.target.value)}
-                placeholder={isHe?"הנחיות חדשות לתכנון...":"New instructions for the plan..."}
-                style={{width:"100%",minHeight:64,borderRadius:8,border:"1px solid rgba(37,99,235,.2)",padding:"8px 10px",fontSize:12,lineHeight:1.5,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit",direction:isHe?"rtl":"ltr",background:"rgba(255,255,255,.9)"}}/>
-              {(()=>{const _p=JSON.parse(localStorage.getItem('nutrition_profiles')||'[]').find(x=>x.id===pid);return _p?.planRules||ls.get('nutrition_plan_rules_'+pid);})()&&(
-                <div style={{marginTop:8}}>
-                  <button onClick={()=>setShowPrevRules(v=>!v)}
-                    style={{width:"100%",background:"none",border:"none",textAlign:isHe?"right":"left",padding:"6px 2px",cursor:"pointer",display:"flex",alignItems:"center",gap:5,borderBottom:"1px solid rgba(15,23,42,.12)",paddingBottom:6}}>
-                    <span style={{fontSize:10,color:C.muted}}>{showPrevRules?"▼":"▶"}</span>
-                    <span style={{fontSize:13,fontWeight:600,color:"#334155"}}>{isHe?"העדפות אישיות שמורות":"Saved preferences"}</span>
-                  </button>
-                  {showPrevRules&&(()=>{const _fp=JSON.parse(localStorage.getItem('nutrition_profiles')||'[]').find(x=>x.id===pid);const saved=(_fp?.planRules)||ls.get('nutrition_plan_rules_'+pid)||'';const lines=saved.split('\n').filter(l=>l.trim());return(
-                    <div style={{background:"rgba(148,163,184,.08)",borderRadius:8,padding:"8px 10px",marginTop:6,direction:isHe?"rtl":"ltr"}}>
-                      {lines.map((line,i)=>(
-                        <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,marginBottom:i<lines.length-1?5:0}}>
-                          <span style={{color:C.muted,fontSize:12,flexShrink:0,marginTop:1}}>•</span>
-                          <span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>{line.trim()}</span>
-                        </div>
-                      ))}
+              {editRulesMode?(
+                <>
+                  <div style={{fontSize:12,fontWeight:700,color:"#334155",marginBottom:8,borderBottom:"1px solid rgba(15,23,42,.1)",paddingBottom:6}}>{isHe?"עריכת העדפות שמורות":"Edit saved preferences"}</div>
+                  {editedRules.map((rule,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                      <input value={rule} onChange={e=>{const r=[...editedRules];r[i]=e.target.value;setEditedRules(r);}}
+                        style={{flex:1,borderRadius:7,border:"1px solid rgba(37,99,235,.2)",padding:"7px 10px",fontSize:12,outline:"none",fontFamily:"inherit",direction:isHe?"rtl":"ltr",background:"rgba(255,255,255,.9)"}}/>
+                      <button onClick={()=>setEditedRules(editedRules.filter((_,j)=>j!==i))}
+                        style={{width:28,height:28,borderRadius:"50%",border:"none",background:"rgba(220,38,38,.08)",color:C.danger,fontSize:14,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
                     </div>
-                  );})()}
-                </div>
+                  ))}
+                  <button onClick={()=>{const joined=editedRules.map(r=>r.trim()).filter(Boolean).join('\n');onSaveRules&&onSaveRules(joined);if(joined)ls.set('nutrition_plan_rules_'+pid,joined);setEditRulesMode(false);setShowNotes(false);setShowPrevRules(false);}}
+                    style={{marginTop:4,width:"100%",background:C.blue,color:"#fff",border:"none",borderRadius:9,padding:"9px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+                    {isHe?"שמירה":"Save"}
+                  </button>
+                </>
+              ):(
+                <>
+                  <textarea value={newRulesText} onChange={e=>setNewRulesText(e.target.value)}
+                    placeholder={isHe?"הנחיות חדשות לתכנון...":"New instructions for the plan..."}
+                    style={{width:"100%",minHeight:64,borderRadius:8,border:"1px solid rgba(37,99,235,.2)",padding:"8px 10px",fontSize:12,lineHeight:1.5,resize:"vertical",outline:"none",boxSizing:"border-box",fontFamily:"inherit",direction:isHe?"rtl":"ltr",background:"rgba(255,255,255,.9)"}}/>
+                  {savedLines.length>0&&(
+                    <div style={{marginTop:8}}>
+                      <button onClick={()=>setShowPrevRules(v=>!v)}
+                        style={{width:"100%",background:"none",border:"none",textAlign:isHe?"right":"left",padding:"6px 2px",cursor:"pointer",display:"flex",alignItems:"center",gap:5,borderBottom:"1px solid rgba(15,23,42,.12)",paddingBottom:6}}>
+                        <span style={{fontSize:10,color:C.muted}}>{showPrevRules?"▼":"▶"}</span>
+                        <span style={{fontSize:13,fontWeight:600,color:"#334155"}}>{isHe?"העדפות אישיות שמורות":"Saved preferences"}</span>
+                      </button>
+                      {showPrevRules&&(
+                        <div style={{background:"rgba(148,163,184,.08)",borderRadius:8,padding:"8px 10px",marginTop:6,direction:isHe?"rtl":"ltr"}}>
+                          {savedLines.map((line,i)=>(
+                            <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,marginBottom:i<savedLines.length-1?5:0}}>
+                              <span style={{color:C.muted,fontSize:12,flexShrink:0,marginTop:1}}>•</span>
+                              <span style={{fontSize:11.5,color:C.muted,lineHeight:1.5}}>{line.trim()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div style={{display:"flex",gap:8,marginTop:8}}>
+                    <button onClick={()=>{if(newRulesText.trim()){const combined=[freshRules,newRulesText.trim()].filter(Boolean).join('\n');onSaveRules&&onSaveRules(combined);if(combined)ls.set('nutrition_plan_rules_'+pid,combined);}setNewRulesText('');setShowNotes(false);setShowPrevRules(false);}}
+                      style={{flex:1,background:C.blue,color:"#fff",border:"none",borderRadius:9,padding:"9px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+                      {isHe?"שמירה":"Save"}
+                    </button>
+                    {savedLines.length>0&&<button onClick={()=>{setEditedRules(savedLines);setEditRulesMode(true);setShowPrevRules(false);}}
+                      style={{background:"rgba(37,99,235,.08)",color:C.blue,border:"1px solid rgba(37,99,235,.2)",borderRadius:9,padding:"9px 14px",fontSize:15,fontWeight:700,cursor:"pointer"}}>
+                      ✏️
+                    </button>}
+                  </div>
+                </>
               )}
-              <div style={{display:"flex",gap:8,marginTop:8}}>
-                <button onClick={()=>{if(newRulesText.trim()){const freshProfiles=JSON.parse(localStorage.getItem('nutrition_profiles')||'[]');const freshRules=(freshProfiles.find(x=>x.id===pid)||{}).planRules||ls.get('nutrition_plan_rules_'+pid)||'';const combined=[freshRules,newRulesText.trim()].filter(Boolean).join('\n');onSaveRules&&onSaveRules(combined);}setNewRulesText('');setShowNotes(false);setShowPrevRules(false);}}
-                  style={{flex:1,background:C.blue,color:"#fff",border:"none",borderRadius:9,padding:"9px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
-                  {isHe?"שמירה":"Save"}
-                </button>
-                {profile?.planRules&&<button onClick={()=>{onSaveRules&&onSaveRules('');setNewRulesText('');setShowNotes(false);setShowPrevRules(false);}}
-                  style={{background:"rgba(220,38,38,.08)",color:C.danger,border:"1px solid rgba(220,38,38,.2)",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
-                  🗑
-                </button>}
-              </div>
             </div>
-          )}
+          );})()}
         </>)}
       </div>
     </div>
