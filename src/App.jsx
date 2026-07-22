@@ -5347,8 +5347,8 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
         {loading&&(
           <div style={{textAlign:"center",padding:"32px 0"}}>
             {videoErr
-              ?<div style={{fontSize:40,marginBottom:8}}>⏳</div>
-              :<video ref={loaderVidRef} src="/Nutrition/loader-plan.mp4" loop muted playsInline preload="auto"
+              ?<div style={{width:80,height:80,margin:"0 auto 8px",borderRadius:"50%",border:`6px solid rgba(13,148,136,.15)`,borderTop:`6px solid ${C.accent}`,animation:"spin 1s linear infinite"}}/>
+              :<video ref={loaderVidRef} src="/Nutrition/loader-plan.mp4" autoPlay loop muted playsInline preload="auto"
                   onError={()=>setVideoErr(true)}
                   style={{width:140,height:140,objectFit:"contain",display:"block",margin:"0 auto 8px"}}/>}
             <div style={{fontSize:14,fontWeight:700,color:C.text}}>{isHe?"מכין תפריט יומי...":"Building your daily menu..."}</div>
