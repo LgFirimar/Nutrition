@@ -5252,6 +5252,7 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState(null);
   const [recipeTarget,setRecipeTarget]=useState(null);
+  const [videoErr,setVideoErr]=useState(false);
   const [showNotes,setShowNotes]=useState(false);
   const [newRulesText,setNewRulesText]=useState('');
   const [showPrevRules,setShowPrevRules]=useState(false);
@@ -5343,7 +5344,11 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
 
         {loading&&(
           <div style={{textAlign:"center",padding:"32px 0"}}>
-            <video src="/Nutrition/loader-plan.mp4" autoPlay loop muted playsInline style={{width:120,height:120,objectFit:"contain",marginBottom:8}}/>
+            {videoErr
+              ?<div style={{fontSize:40,marginBottom:8}}>⏳</div>
+              :<video src="/Nutrition/loader-plan.mp4" autoPlay loop muted playsInline preload="auto"
+                  onError={()=>setVideoErr(true)}
+                  style={{width:140,height:140,objectFit:"contain",marginBottom:8,display:"block",margin:"0 auto 8px"}}/>}
             <div style={{fontSize:14,fontWeight:700,color:C.text}}>{isHe?"מכין תפריט יומי...":"Building your daily menu..."}</div>
           </div>
         )}
@@ -6047,7 +6052,7 @@ function App(){
         </button>
         <button onClick={()=>setShowDailyPlan(true)}
           style={{flex:1,background:"linear-gradient(135deg,#6366f1,#4f46e5)",border:"none",borderRadius:50,padding:"12px 12px",fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 5px 18px rgba(99,102,241,.35)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4}}>
-          <img src="/Nutrition/food-pyramid.png" alt="" style={{width:28,height:28,objectFit:"contain",flexShrink:0}}/>
+          <img src="/Nutrition/food-pyramid.png" alt="" style={{width:44,height:44,objectFit:"contain",flexShrink:0}}/>
           <span style={{fontSize:12,lineHeight:1.2,textAlign:"center"}}>{lang==='he'?"תפריט יומי":"Daily Menu"}</span>
         </button>
       </div>
