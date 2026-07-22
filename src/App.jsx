@@ -5346,7 +5346,7 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
           <div style={{textAlign:"center",padding:"32px 0"}}>
             {animErr
               ?<div style={{width:80,height:80,margin:"0 auto 8px",borderRadius:"50%",border:`6px solid rgba(13,148,136,.15)`,borderTop:`6px solid ${C.accent}`,animation:"spin 1s linear infinite"}}/>
-              :<img src="/Nutrition/loader-plan.webp" alt="" onError={()=>setAnimErr(true)}
+              :<img src="/Nutrition/loader-plan.webp?v=2" alt="" onError={()=>setAnimErr(true)}
                   style={{width:160,height:160,objectFit:"contain",display:"block",margin:"0 auto 8px"}}/>}
             <div style={{fontSize:14,fontWeight:700,color:C.text}}>{isHe?"מכין תפריט יומי...":"Building your daily menu..."}</div>
           </div>
@@ -6052,7 +6052,7 @@ function App(){
         </button>
         <button onClick={()=>setShowDailyPlan(true)}
           style={{flex:1,background:"linear-gradient(135deg,#6366f1,#4f46e5)",border:"none",borderRadius:50,padding:"12px 16px",fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 5px 18px rgba(99,102,241,.35)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-          <img src="/Nutrition/food-pyramid.png" alt="" style={{width:44,height:44,objectFit:"contain",flexShrink:0}}/>
+          <img src="/Nutrition/food-pyramid.png?v=2" alt="" style={{width:44,height:44,objectFit:"contain",flexShrink:0}}/>
           <span style={{fontSize:13}}>{lang==='he'?"תפריט יומי":"Daily Menu"}</span>
         </button>
       </div>
