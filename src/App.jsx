@@ -5252,8 +5252,7 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
   const [loading,setLoading]=useState(false);
   const [error,setError]=useState(null);
   const [recipeTarget,setRecipeTarget]=useState(null);
-  const [videoErr,setVideoErr]=useState(false);
-  const loaderVidRef=useRef(null);
+  const [animErr,setAnimErr]=useState(false);
   const [showNotes,setShowNotes]=useState(false);
   const [newRulesText,setNewRulesText]=useState('');
   const [showPrevRules,setShowPrevRules]=useState(false);
@@ -5329,7 +5328,6 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
   };
 
   useEffect(()=>{fetchPlan();},[]);
-  useEffect(()=>{if(loading&&loaderVidRef.current){const p=loaderVidRef.current.play();if(p)p.catch(()=>setVideoErr(true));}},[loading]);
 
   const mealIcon=t=>({breakfast:"🌅",morning_snack:"☕",lunch:"☀️",afternoon_snack:"🍵",dinner:"🌙"}[t]||"🍽");
 
@@ -5346,11 +5344,10 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
 
         {loading&&(
           <div style={{textAlign:"center",padding:"32px 0"}}>
-            {videoErr
+            {animErr
               ?<div style={{width:80,height:80,margin:"0 auto 8px",borderRadius:"50%",border:`6px solid rgba(13,148,136,.15)`,borderTop:`6px solid ${C.accent}`,animation:"spin 1s linear infinite"}}/>
-              :<video ref={loaderVidRef} src="/Nutrition/loader-plan.mp4" autoPlay loop muted playsInline preload="auto"
-                  onError={()=>setVideoErr(true)}
-                  style={{width:140,height:140,objectFit:"contain",display:"block",margin:"0 auto 8px"}}/>}
+              :<img src="/Nutrition/loader-plan.webp" alt="" onError={()=>setAnimErr(true)}
+                  style={{width:160,height:160,objectFit:"contain",display:"block",margin:"0 auto 8px"}}/>}
             <div style={{fontSize:14,fontWeight:700,color:C.text}}>{isHe?"מכין תפריט יומי...":"Building your daily menu..."}</div>
           </div>
         )}
