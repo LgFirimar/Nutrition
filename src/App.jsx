@@ -5214,7 +5214,7 @@ function RecipeIdeaSheet({idea, meal, lang, onClose}){
           ))}
         </div>
         {loading&&<div style={{textAlign:"center",padding:"36px 0"}}>
-          <div style={{fontSize:28,marginBottom:8}}>👨‍🍳</div>
+          <img src="/Nutrition/recipe-loader.webp?v=1" alt="" style={{width:140,height:140,objectFit:"contain",display:"block",margin:"0 auto 4px"}}/>
           <div style={{fontSize:12,color:C.muted}}>{isHe?"מכין מתכון...":"Preparing recipe..."}</div>
         </div>}
         {err&&!loading&&<div style={{textAlign:"center",padding:"20px 0",color:C.danger,fontSize:12}}>{err}</div>}
