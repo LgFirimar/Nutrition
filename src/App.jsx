@@ -5253,6 +5253,7 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
   const [error,setError]=useState(null);
   const [recipeTarget,setRecipeTarget]=useState(null);
   const [videoErr,setVideoErr]=useState(false);
+  const loaderVidRef=useRef(null);
   const [showNotes,setShowNotes]=useState(false);
   const [newRulesText,setNewRulesText]=useState('');
   const [showPrevRules,setShowPrevRules]=useState(false);
@@ -5328,6 +5329,7 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
   };
 
   useEffect(()=>{fetchPlan();},[]);
+  useEffect(()=>{if(loading&&loaderVidRef.current){const p=loaderVidRef.current.play();if(p)p.catch(()=>setVideoErr(true));}},[loading]);
 
   const mealIcon=t=>({breakfast:"🌅",morning_snack:"☕",lunch:"☀️",afternoon_snack:"🍵",dinner:"🌙"}[t]||"🍽");
 
@@ -5346,9 +5348,9 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
           <div style={{textAlign:"center",padding:"32px 0"}}>
             {videoErr
               ?<div style={{fontSize:40,marginBottom:8}}>⏳</div>
-              :<video src="/Nutrition/loader-plan.mp4" autoPlay loop muted playsInline preload="auto"
+              :<video ref={loaderVidRef} src="/Nutrition/loader-plan.mp4" loop muted playsInline preload="auto"
                   onError={()=>setVideoErr(true)}
-                  style={{width:140,height:140,objectFit:"contain",marginBottom:8,display:"block",margin:"0 auto 8px"}}/>}
+                  style={{width:140,height:140,objectFit:"contain",display:"block",margin:"0 auto 8px"}}/>}
             <div style={{fontSize:14,fontWeight:700,color:C.text}}>{isHe?"מכין תפריט יומי...":"Building your daily menu..."}</div>
           </div>
         )}
