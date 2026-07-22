@@ -5340,8 +5340,8 @@ function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
         </div>
 
         {loading&&(
-          <div style={{textAlign:"center",padding:"40px 0"}}>
-            <div style={{fontSize:32,marginBottom:12}}>⏳</div>
+          <div style={{textAlign:"center",padding:"32px 0"}}>
+            <video src="/Nutrition/loader-plan.mp4" autoPlay loop muted playsInline style={{width:120,height:120,objectFit:"contain",marginBottom:8}}/>
             <div style={{fontSize:14,fontWeight:700,color:C.text}}>{isHe?"מכין תפריט יומי...":"Building your daily menu..."}</div>
           </div>
         )}
