@@ -6047,12 +6047,12 @@ function App(){
       <div style={{display:"flex",justifyContent:"center",gap:10,marginBottom:24,padding:"0 16px"}}>
         <button onClick={()=>{setShowMealPlanner(v=>!v);setShowMeal(false);setShowPhoto(false);setShowSmart(false);}}
           style={{flex:1,background:"linear-gradient(135deg,#14b8a6,#0d9488)",border:"none",borderRadius:50,padding:"12px 16px",fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 5px 18px rgba(13,148,136,.35)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-          <span style={{fontSize:40,lineHeight:1,flexShrink:0}}>{T.whatEat.split(' ')[0]}</span>
+          <span style={{fontSize:32,lineHeight:1,flexShrink:0}}>{T.whatEat.split(' ')[0]}</span>
           <span style={{fontSize:13}}>{T.whatEat.split(' ').slice(1).join(' ')}</span>
         </button>
         <button onClick={()=>setShowDailyPlan(true)}
           style={{flex:1,background:"linear-gradient(135deg,#6366f1,#4f46e5)",border:"none",borderRadius:50,padding:"12px 16px",fontWeight:700,color:"#fff",cursor:"pointer",fontFamily:"inherit",boxShadow:"0 5px 18px rgba(99,102,241,.35)",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-          <img src="/Nutrition/food-pyramid.png?v=2" alt="" style={{width:44,height:44,objectFit:"contain",flexShrink:0}}/>
+          <img src="/Nutrition/food-pyramid.png?v=2" alt="" style={{width:36,height:36,objectFit:"contain",flexShrink:0}}/>
           <span style={{fontSize:13}}>{lang==='he'?"תפריט יומי":"Daily Menu"}</span>
         </button>
       </div>
