@@ -2086,6 +2086,14 @@ function MetricWeekChart({journal,metric,color,label,lang,range,setRange,goal,go
       </div>
       <div style={{overflow:"hidden",borderRadius:8}}>
         <svg width="100%" viewBox={`0 0 ${W} ${svgH}`} style={{display:"block"}}>
+          {goal&&known.length>=2&&<defs>
+            <linearGradient id={`mg-${metric}`} x1={PAD} y1="0" x2={W-PAD} y2="0" gradientUnits="userSpaceOnUse">
+              {known.map((p,i)=><stop key={i} offset={`${((p.x-PAD)/(W-2*PAD)*100).toFixed(1)}%`} stopColor={goalColor(p.v)}/>)}
+            </linearGradient>
+            <linearGradient id={`mg-${metric}-a`} x1={PAD} y1="0" x2={W-PAD} y2="0" gradientUnits="userSpaceOnUse">
+              {known.map((p,i)=><stop key={i} offset={`${((p.x-PAD)/(W-2*PAD)*100).toFixed(1)}%`} stopColor={goalColor(p.v)} stopOpacity="0.13"/>)}
+            </linearGradient>
+          </defs>}
           {[minV,(minV+maxV)/2,maxV].map((v,i)=>{
             const ry=toY(v);
             const rl=metric==='kcal'?Math.round(v):v.toFixed(1);
@@ -2096,8 +2104,9 @@ function MetricWeekChart({journal,metric,color,label,lang,range,setRange,goal,go
           })}
           {goal&&lo<=goal&&goal<=hi&&(()=>{const gy=toY(goal);return(<><line x1={PAD} y1={gy} x2={W-PAD} y2={gy} stroke="#0d9488" strokeWidth="0.8" strokeDasharray="4,3" opacity="0.45"/><text x={W-2} y={gy-1.5} fontSize="5.5" fill="#0d9488" opacity="0.7" textAnchor="end" fontFamily="Heebo,sans-serif">{goal}</text></>);})()}
           {lp&&<>
-            <path d={`${lp} L ${known[known.length-1].x},${TOP+H} L ${known[0].x},${TOP+H} Z`} fill={color} fillOpacity={0.07}/>
-            <path d={lp} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d={`${lp} L ${known[known.length-1].x},${TOP+H} L ${known[0].x},${TOP+H} Z`}
+                  fill={goal?`url(#mg-${metric}-a)`:color} fillOpacity={goal?1:0.07}/>
+            <path d={lp} fill="none" stroke={goal?`url(#mg-${metric})`:color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </>}
           {(()=>{
             const step=range===7?1:range===30?5:13;
