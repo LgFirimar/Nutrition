@@ -12,18 +12,18 @@ function _spRemoveBg(c,thr){
   var vis=new Uint8Array(W*H),q=[];
   function ok(i4){return d[i4]>thr&&d[i4+1]>thr&&d[i4+2]>thr;}
   function seed(x,y){var i=y*W+x;if(!vis[i]&&ok(i*4)){vis[i]=1;q.push(i);}}
-  for(var x=0;x<W;x++){seed(x,0);seed(x,H-1);}
-  for(var y=1;y<H-1;y++){seed(0,y);seed(W-1,y);}
+  for(var bx=0;bx<W;bx++){seed(bx,0);seed(bx,H-1);}
+  for(var by=1;by<H-1;by++){seed(0,by);seed(W-1,by);}
   while(q.length){
     var i=q.pop();d[i*4+3]=0;
     var x=i%W,y=(i-x)/W;
     if(x>0)seed(x-1,y);if(x<W-1)seed(x+1,y);
     if(y>0)seed(x,y-1);if(y<H-1)seed(x,y+1);
   }
-  for(var i=0;i<d.length;i+=4){
-    if(d[i+3]===0)continue;
-    var r=d[i],g=d[i+1],b=d[i+2];
-    if(r>200&&g>200&&b>200)d[i+3]=Math.round((255-(r+g+b)/3)*4);
+  for(var j=0;j<d.length;j+=4){
+    if(d[j+3]===0)continue;
+    var r=d[j],g=d[j+1],b=d[j+2];
+    if(r>200&&g>200&&b>200)d[j+3]=Math.round((255-(r+g+b)/3)*4);
   }
   ctx.putImageData(id,0,0);
 }

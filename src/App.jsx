@@ -186,7 +186,7 @@ async function autoSetupHousehold(projectId,onStep){
         addOp=await _gapi(`https://firebase.googleapis.com/v1beta1/${addOp.name}`,tok);
       }
       proj=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}`,tok);
-    }catch(e2){throw new Error(`פרויקט לא נמצא: ${e2.message}`);}
+    }catch(e2){throw new Error(`פרויקט לא נמצא: ${e2.message}`,{cause:e2});}
   }
   const pNum=proj.projectNumber;
   if(!pNum)throw new Error('לא הצלחנו לאמת את הפרויקט — בדקי את ה-Project ID');
@@ -235,9 +235,24 @@ async function autoSetupHousehold(projectId,onStep){
   onStep('config');
   const cfg=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps/${appId}/config`,tok);
   if(!cfg.databaseURL)cfg.databaseURL=dbUrl;
-  // Set test-mode rules (best effort)
+
+  // Enable Anonymous Auth so the database can require authentication instead of being world-writable
   try{
-    await fetch(`${cfg.databaseURL}/.settings/rules.json`,{method:'PUT',headers:{Authorization:`Bearer ${tok}`,'Content-Type':'application/json'},body:JSON.stringify({rules:{'.read':true,'.write':true}})});
+    await _gapi(`https://serviceusage.googleapis.com/v1/projects/${pNum}/services/identitytoolkit.googleapis.com:enable`,tok,'POST',{});
+  }catch(_){}
+  try{
+    await _gapi(`https://identitytoolkit.googleapis.com/admin/v2/projects/${projectId}/config?updateMask=signIn.anonymous.enabled`,tok,'PATCH',{signIn:{anonymous:{enabled:true}}});
+  }catch(_){}
+
+  // Lock rules down to "must be signed in" + scoped to the households path (was previously wide-open '.read'/'.write': true,
+  // which let anyone who ever saw a sharing code or the databaseURL read/write the whole database, forever, with no auth).
+  // Best effort: if this fails (e.g. anonymous auth couldn't be enabled above), the client falls back to unauthenticated
+  // access in _fbInit so existing/manual setups keep working.
+  try{
+    await fetch(`${cfg.databaseURL}/.settings/rules.json`,{method:'PUT',headers:{Authorization:`Bearer ${tok}`,'Content-Type':'application/json'},body:JSON.stringify({rules:{
+      '.read':false,'.write':false,
+      households:{'$hid':{'.read':'auth != null','.write':'auth != null'}},
+    }})});
   }catch(_){}
   return cfg;
 }
@@ -245,15 +260,23 @@ async function autoSetupHousehold(projectId,onStep){
 async function _fbInit(cfg){
   if(_fbDb&&_householdId===cfg.householdId)return true;
   try{
-    const[appMod,dbMod]=await Promise.all([import('firebase/app'),import('firebase/database')]);
+    const[appMod,dbMod,authMod]=await Promise.all([import('firebase/app'),import('firebase/database'),import('firebase/auth')]);
     const{initializeApp,getApps,deleteApp}=appMod;
     const{getDatabase,ref,set,onValue}=dbMod;
+    const{getAuth,signInAnonymously}=authMod;
     const ANAME='nutrition-household';
     const existing=getApps().find(a=>a.name===ANAME);
     if(existing&&existing.options.projectId!==cfg.firebaseConfig?.projectId){
       await deleteApp(existing);
     }
     const app=getApps().find(a=>a.name===ANAME)||initializeApp(cfg.firebaseConfig,ANAME);
+    // New households have rules that require auth ('auth != null'). Sign in anonymously so reads/writes are authorized.
+    // Best effort: older/manual households may not have Anonymous Auth enabled on their Firebase project — in that
+    // case this fails silently and we fall back to whatever (legacy, possibly open) rules that project already has.
+    try{
+      const auth=getAuth(app);
+      if(!auth.currentUser)await signInAnonymously(auth);
+    }catch(e){console.error('Firebase anon auth (continuing without it):',e);}
     _fbDb=getDatabase(app);
     _fbRefFn=ref;_fbSet=set;_fbOnValue=onValue;
     _householdId=cfg.householdId;
@@ -447,7 +470,7 @@ function EntryRow({entry,onRemove,onUpdate,lang}){
   const T=LANG[lang||localStorage.getItem('nutrition_lang')||'he']||LANG.he;
   const [editing,setEditing]=useState(false);
   const [qty,setQty]=useState("");
-  const m=entry.label.match(/\((\d+\.?\d*)\s*([^\)]*)\)$/);
+  const m=entry.label.match(/\((\d+\.?\d*)\s*([^)]*)\)$/);
   const origQty=m?parseFloat(m[1]):null;
   const origUnit=m?m[2].trim():null;
 
@@ -456,7 +479,7 @@ function EntryRow({entry,onRemove,onUpdate,lang}){
     if(!nq||!origQty||nq===origQty){setEditing(false);return;}
     const f=nq/origQty;
     onUpdate(entry.uid,{
-      label:entry.label.replace(/\(\d+\.?\d*\s*[^\)]*\)$/,`(${nq}${origUnit?" "+origUnit:""})`),
+      label:entry.label.replace(/\(\d+\.?\d*\s*[^)]*\)$/,`(${nq}${origUnit?" "+origUnit:""})`),
       kcal:Math.round(entry.kcal*f*10)/10,
       carbs:Math.round(entry.carbs*f*10)/10,
       protein:Math.round(entry.protein*f*10)/10,
