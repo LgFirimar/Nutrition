@@ -76,7 +76,7 @@ export default {
     try {
       const { foodName, mealDescription, imageData, imageMediaType, imageHint, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, dbEditImageHint, profileData, dailyPlan, recipeIdea, lang, translateItems, recipeText } = await request.json();
 
-      let prompt, model, system, max_tokens, messages;
+      let prompt, model, system, max_tokens, messages, temperature;
       if (recipeText) {
         const isHeR = (lang || 'he') !== 'en';
         model = 'claude-sonnet-4-6';
@@ -158,6 +158,13 @@ Output ONLY this JSON on the last line (no markdown):
       } else if (mealDescription) {
         model = 'claude-sonnet-4-6';
         max_tokens = 1024;
+        // Lower temperature: measured 13 live trials of this exact prompt at the API default
+        // (temperature 1.0) and saw kcal estimates for the same meal swing ~370-490 (a ~25%
+        // spread) purely from sampling, since the model has to freely guess per-ingredient
+        // proportions from a single total weight. At temperature 0.2 the spread narrowed
+        // (374-451). This is a calculator, not a creative-writing task — consistency matters
+        // more than variety here.
+        temperature = 0.2;
         system = 'You are a precise nutrition calculator with expert knowledge of food composition databases (USDA, Israeli food tables).';
         prompt = `Calculate the total nutritional values for this meal.
 
@@ -333,6 +340,7 @@ Return exactly this JSON structure:
         },
         body: JSON.stringify({
           model, max_tokens, system,
+          ...(temperature !== undefined ? { temperature } : {}),
           messages: messages || [{ role: 'user', content: prompt }]
         })
       });
