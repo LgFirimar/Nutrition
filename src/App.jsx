@@ -1,114 +1,26 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import {
+  ls, loadProfiles, saveProfiles, loadActiveProfileId, saveActiveProfileId,
+  pKey, loadJournal, saveJournal, loadCustomBtns, saveCustomBtns,
+  loadCustomDB, saveCustomDB, loadQuickFoods, saveQuickFoods, migrateOldData,
+  loadPantry, loadShopping,
+  loadSpecialEdits, saveSpecialEdit, getSpecialEdit, loadHiddenSpecial, toggleHiddenSpecial, isHiddenSpecial,
+  loadRecipes, saveRecipes, loadFridge, saveFridgeLS,
+} from './lib/storage.js';
+import {
+  FOOD_DB, QUICK_FOODS, VAR_FOODS, MILK, FRIDGE_CATS, API,
+  MAX_KCAL, MAX_CARBS, C, sugarColor, goalColor, goalGrad, goalColorInv, goalGradInv,
+  DAYS, getDateLabel, getTodayKey, cleanQ, loadRecentFoods, addToRecentFoods,
+  getRecentFoodLabels, searchFood, searchAllFoods, unitToG, calcNutrition, getFoodLabel,
+} from './lib/nutrition.js';
+import { LANG, getT } from './lib/lang.js';
+import {
+  fbState, fbReset, autoSetupHousehold, _fbInit, savePantryLS, saveShopping,
+  prewarmFirebaseIfConfigured,
+} from './lib/household.js';
+
 const imgUtilsReady = import('./imgUtils.js');
 
-
-// ── Food DB ────────────────────────────────────────────────────────────────────
-const FOOD_DB = [
-  {names:["בננה","banana"],label:"🍌 בננה",kcal:89,carbs:23,protein:1.1,fat:0.3,defaultAmt:120,unit:"g"},
-  {names:["תפוח","apple"],label:"🍎 תפוח",kcal:52,carbs:14,protein:0.3,fat:0.2,defaultAmt:150,unit:"g"},
-  {names:["תות","תותים","strawberry"],label:"🍓 תותים",kcal:32,carbs:7.7,protein:0.7,fat:0.3,defaultAmt:100,unit:"g"},
-  {names:["אבוקדו","avocado"],label:"🥑 אבוקדו",kcal:160,carbs:9,protein:2,fat:15,defaultAmt:80,unit:"g"},
-  {names:["ענבים","grape"],label:"🍇 ענבים",kcal:67,carbs:17,protein:0.6,fat:0.4,defaultAmt:100,unit:"g"},
-  {names:["מנגו","mango"],label:"🥭 מנגו",kcal:60,carbs:15,protein:0.8,fat:0.4,defaultAmt:150,unit:"g"},
-  {names:["אגס","pear"],label:"🍐 אגס",kcal:57,carbs:15,protein:0.4,fat:0.1,defaultAmt:160,unit:"g"},
-  {names:["אפרסק","peach"],label:"🍑 אפרסק",kcal:39,carbs:10,protein:0.9,fat:0.3,defaultAmt:130,unit:"g"},
-  {names:["תמר","dates"],label:"🌴 תמר",kcal:277,carbs:75,protein:1.8,fat:0.2,defaultAmt:30,unit:"g"},
-  {names:["בלוברי","אוכמניות"],label:"🫐 אוכמניות",kcal:57,carbs:14,protein:0.7,fat:0.3,defaultAmt:80,unit:"g"},
-  {names:["גזר","carrot"],label:"🥕 גזר",kcal:41,carbs:10,protein:0.9,fat:0.2,defaultAmt:80,unit:"g"},
-  {names:["מלפפון","cucumber"],label:"🥒 מלפפון",kcal:15,carbs:3.6,protein:0.7,fat:0.1,defaultAmt:150,unit:"g"},
-  {names:["עגבניה","עגבנייה","tomato"],label:"🍅 עגבניה",kcal:18,carbs:3.9,protein:0.9,fat:0.2,defaultAmt:120,unit:"g"},
-  {names:["פלפל אדום","red pepper"],label:"🌶 פלפל אדום",kcal:31,carbs:7.5,protein:1,fat:0.3,defaultAmt:100,unit:"g"},
-  {names:["ברוקולי","broccoli"],label:"🥦 ברוקולי",kcal:34,carbs:7,protein:2.8,fat:0.4,defaultAmt:100,unit:"g"},
-  {names:["תרד","spinach"],label:"🥬 תרד",kcal:23,carbs:3.6,protein:2.9,fat:0.4,defaultAmt:80,unit:"g"},
-  {names:["ביצה","egg"],label:"🥚 ביצה",kcal:155,carbs:1.1,protein:13,fat:11,defaultAmt:55,unit:"g"},
-  {names:["טופו","tofu"],label:"🧊 טופו",kcal:76,carbs:1.9,protein:8,fat:4.2,defaultAmt:100,unit:"g"},
-  {names:["קוטג׳","cottage"],label:"🧀 קוטג׳",kcal:98,carbs:3.4,protein:11,fat:4.3,defaultAmt:100,unit:"g"},
-  {names:["גבינה צהובה","yellow cheese","צ׳דר"],label:"🧀 גבינה צהובה",kcal:402,carbs:1.3,protein:25,fat:33,defaultAmt:30,unit:"g"},
-  {names:["גבינת עיזים","goat cheese"],label:"🧀 גבינת עיזים",kcal:364,carbs:0.1,protein:22,fat:30,defaultAmt:30,unit:"g"},
-  {names:["פטה","feta"],label:"🧀 פטה",kcal:264,carbs:4,protein:14,fat:21,defaultAmt:30,unit:"g"},
-  {names:["בורטה","burrata"],label:"🧀 בורטה",kcal:300,carbs:1,protein:18,fat:25,defaultAmt:60,unit:"g"},
-  {names:["טונה","tuna"],label:"🐟 טונה (שימור)",kcal:116,carbs:0,protein:26,fat:1,defaultAmt:80,unit:"g"},
-  {names:["סלמון","salmon"],label:"🐟 סלמון",kcal:208,carbs:0,protein:20,fat:13,defaultAmt:120,unit:"g"},
-  {names:["פריקי מבושל","פריקי","freekeh"],label:"🌾 פריקי מבושל",kcal:130,carbs:28,protein:5,fat:1,defaultAmt:150,unit:"g"},
-  {names:["עדשים שחורות","עדשים בלוגה","black lentils","beluga"],label:"🫘 עדשים שחורות",kcal:116,carbs:20,protein:9,fat:0.4,defaultAmt:150,unit:"g"},
-  {names:["עדשים כתומות","red lentils","עדשים אדומות"],label:"🫘 עדשים כתומות",kcal:116,carbs:20,protein:9,fat:0.4,defaultAmt:150,unit:"g"},
-  {names:["עדשים ירוקות","green lentils"],label:"🫘 עדשים ירוקות",kcal:116,carbs:20,protein:9,fat:0.4,defaultAmt:150,unit:"g"},
-  {names:["שעועית מש","מש","mung beans"],label:"🫘 שעועית מש",kcal:105,carbs:19,protein:7,fat:0.4,defaultAmt:150,unit:"g"},
-  {names:["חומוס","hummus"],label:"🫘 חומוס ממרח",kcal:166,carbs:14,protein:8,fat:10,defaultAmt:50,unit:"g"},
-  {names:["שעועית שחורה","black beans"],label:"🫘 שעועית שחורה",kcal:132,carbs:24,protein:8.9,fat:0.5,defaultAmt:150,unit:"g"},
-  {names:["גרגירי חומוס","chickpeas"],label:"🫘 גרגירי חומוס",kcal:164,carbs:27,protein:8.9,fat:2.6,defaultAmt:150,unit:"g"},
-  {names:["קינואה","quinoa"],label:"🌾 קינואה מבושלת",kcal:120,carbs:22,protein:4.1,fat:1.9,defaultAmt:150,unit:"g"},
-  {names:["אורז","rice"],label:"🍚 אורז מבושל",kcal:130,carbs:28,protein:2.7,fat:0.3,defaultAmt:150,unit:"g"},
-  {names:["פסטה","pasta"],label:"🍝 פסטה מבושלת",kcal:131,carbs:25,protein:5,fat:1.1,defaultAmt:180,unit:"g"},
-  {names:["לחם","bread"],label:"🍞 לחם",kcal:265,carbs:49,protein:9,fat:3.2,defaultAmt:30,unit:"g"},
-  {names:["שיבולת שועל","oats","שיבולת"],label:"🥣 שיבולת שועל",kcal:389,carbs:66,protein:17,fat:7,defaultAmt:40,unit:"g"},
-  {names:["שמן זית","olive oil"],label:"🫒 שמן זית",kcal:884,carbs:0,protein:0,fat:100,defaultAmt:10,unit:"g"},
-  {names:["שקדים","almonds"],label:"🌰 שקדים",kcal:579,carbs:22,protein:21,fat:50,defaultAmt:30,unit:"g"},
-  {names:["אגוזי מלך","walnuts"],label:"🌰 אגוזי מלך",kcal:654,carbs:14,protein:15,fat:65,defaultAmt:30,unit:"g"},
-  {names:["טחינה","tahini"],label:"🫙 טחינה גולמית",kcal:595,carbs:22,protein:17,fat:54,defaultAmt:15,unit:"g"},
-  {names:["חלב","milk"],label:"🥛 חלב 2%",kcal:50,carbs:4.7,protein:3.4,fat:2,defaultAmt:200,unit:"ml"},
-  {names:["יוגורט","yogurt","יוגורט יווני"],label:"🥛 יוגורט יווני",kcal:97,carbs:6,protein:9,fat:5,defaultAmt:150,unit:"g"},
-  {names:["שמנת חמוצה","sour cream"],label:"🥛 שמנת חמוצה 5%",kcal:80,carbs:3.4,protein:2.7,fat:5,defaultAmt:30,unit:"g"},
-  {names:["קפה שחור","coffee"],label:"☕ קפה שחור",kcal:2,carbs:0,protein:0.3,fat:0,defaultAmt:200,unit:"ml"},
-  {names:["מיץ תפוזים","orange juice"],label:"🍊 מיץ תפוזים",kcal:45,carbs:10,protein:0.7,fat:0.2,defaultAmt:200,unit:"ml"},
-  {names:["שוקולד מריר","dark chocolate"],label:"🍫 שוקולד מריר",kcal:546,carbs:60,protein:5,fat:31,defaultAmt:20,unit:"g"},
-  {names:["דבש","honey"],label:"🍯 דבש",kcal:304,carbs:82,protein:0.3,fat:0,defaultAmt:10,unit:"g"},
-  {names:["פופקורן","popcorn"],label:"🍿 פופקורן",kcal:387,carbs:78,protein:13,fat:4.5,defaultAmt:30,unit:"g"},
-  {names:["חמאת בוטנים","peanut butter"],label:"🥜 חמאת בוטנים",kcal:588,carbs:20,protein:25,fat:50,defaultAmt:15,unit:"g"},
-  {names:["יין לבן","white wine"],label:"🥂 יין לבן",kcal:81,carbs:2.6,protein:0.1,fat:0,defaultAmt:150,unit:"ml"},
-  {names:["יין אדום","red wine"],label:"🍷 יין אדום",kcal:85,carbs:2.6,protein:0.1,fat:0,defaultAmt:150,unit:"ml"},
-  {names:["בירה","beer"],label:"🍺 בירה",kcal:43,carbs:3.6,protein:0.5,fat:0,defaultAmt:330,unit:"ml"},
-];
-
-// ── Storage ────────────────────────────────────────────────────────────────────
-const ls = {
-  get: k => { try { return JSON.parse(localStorage.getItem(k)||"null"); } catch { return null; } },
-  set: (k,v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
-};
-// ── Profiles ───────────────────────────────────────────────────────────────────
-const loadProfiles = () => ls.get("nutrition_profiles") || [];
-const saveProfiles = p => ls.set("nutrition_profiles", p);
-const loadActiveProfileId = () => ls.get("nutrition_active_profile") || "default";
-const saveActiveProfileId = id => ls.set("nutrition_active_profile", id);
-
-const pKey = (pid, k) => k + "_" + pid;
-const loadJournal = (pid) => { pid=pid||"default"; return ls.get(pKey(pid,"nutrition_journal")) || {}; };
-const saveJournal = (j, pid) => { pid=pid||"default"; ls.set(pKey(pid,"nutrition_journal"), j); };
-const loadCustomBtns = (pid) => { pid=pid||"default"; return ls.get(pKey(pid,"nutrition_custom_btns")) || []; };
-const saveCustomBtns = (b, pid) => { pid=pid||"default"; ls.set(pKey(pid,"nutrition_custom_btns"), b); };
-const loadCustomDB = (pid) => { pid=pid||"default"; return ls.get(pKey(pid,"nutrition_food_db")) || []; };
-const saveCustomDB = (db, pid) => { pid=pid||"default"; ls.set(pKey(pid,"nutrition_food_db"), db); };
-const loadQuickFoods = (pid) => { pid=pid||"default"; return ls.get(pKey(pid,"nutrition_quick_foods")); }; // null = use defaults
-const saveQuickFoods = (f, pid) => { pid=pid||"default"; ls.set(pKey(pid,"nutrition_quick_foods"), f); };
-
-// ── Data Migration (old keys → pid-based keys) ────────────────────────────────
-function migrateOldData() {
-  // Run migration every time - check all possible old key formats
-  const oldJournal = ls.get("nutrition_journal");
-  const oldBtns = ls.get("nutrition_custom_btns");
-  const oldDB = ls.get("nutrition_food_db");
-  const newJournal = ls.get("nutrition_journal_default");
-  const newDB = ls.get("nutrition_food_db_default");
-  // migrate journal
-  if (oldJournal && !newJournal) {
-    saveJournal(oldJournal, "default");
-  }
-  // migrate custom buttons
-  if (oldBtns && !ls.get("nutrition_custom_btns_default")) {
-    saveCustomBtns(oldBtns, "default");
-  }
-  // migrate food db
-  if (oldDB && !newDB) {
-    saveCustomDB(oldDB, "default");
-  }
-  // also handle keys with _profile_ prefix
-  const keys = Object.keys(localStorage);
-  keys.forEach(k => {
-    if(k.startsWith("nutrition_journal_profile_") || k.startsWith("nutrition_food_db_profile_")) {
-      // already in new format, no action needed
-    }
-  });
-}
 migrateOldData();
 
 // ── Analytics device ping ─────────────────────────────────────────────────────
@@ -126,327 +38,8 @@ migrateOldData();
   }catch(_){}
 })();
 
-// ── Pantry & Shopping helpers ─────────────────────────────────────────────────
-const loadPantry=()=>{try{return JSON.parse(localStorage.getItem("nutrition_pantry")||"{}");}catch{return {};}};
-const loadShopping=()=>{try{return JSON.parse(localStorage.getItem("nutrition_shopping")||"[]");}catch{return [];}};
-
 // ── Household / Firebase ──────────────────────────────────────────────────────
-let _fbDb=null,_fbRefFn=null,_fbSet=null,_fbOnValue=null;
-let _householdId=null,_memberName="",_lastSyncAt=0;
-
-// Pre-warm Firebase modules if household is already configured (improves first-open speed)
-if(ls.get('nutrition_household')){
-  Promise.all([import('firebase/app'),import('firebase/database')]).catch(()=>{});
-}
-
-// ── Google OAuth + Firebase Management API (auto household setup) ─────────────
-const GOOG_CLIENT_ID='265332769587-rdfch8osb3k8f5tn7mf1ra1ods3kte38.apps.googleusercontent.com';
-
-const _loadGIS=()=>new Promise((ok,fail)=>{
-  if(window.google?.accounts?.oauth2){ok();return;}
-  const s=document.createElement('script');
-  s.src='https://accounts.google.com/gsi/client';
-  s.onload=ok;s.onerror=fail;document.head.appendChild(s);
-});
-
-const _getGToken=()=>new Promise((ok,fail)=>{
-  window.google.accounts.oauth2.initTokenClient({
-    client_id:GOOG_CLIENT_ID,
-    scope:'https://www.googleapis.com/auth/firebase https://www.googleapis.com/auth/cloud-platform',
-    callback:r=>r.error?fail(new Error(r.error_description||r.error)):ok(r.access_token),
-    error_callback:e=>fail(new Error(e?.type||'auth error')),
-  }).requestAccessToken({prompt:''});
-});
-
-const _gapi=async(url,tok,method='GET',body=null)=>{
-  const r=await fetch(url,{method,headers:{Authorization:`Bearer ${tok}`,'Content-Type':'application/json'},...(body!=null?{body:JSON.stringify(body)}:{})});
-  const d=await r.json().catch(()=>({}));
-  if(!r.ok)throw new Error(d.error?.message||`שגיאה ${r.status}`);
-  return d;
-};
-
-async function autoSetupHousehold(projectId,onStep){
-  await _loadGIS();
-  onStep('auth');
-  const tok=await _getGToken();
-
-  onStep('project');
-  // Get project info — also ensures Firebase is activated on this Cloud project
-  let proj;
-  try{
-    proj=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}`,tok);
-  }catch(e){
-    // If not yet a Firebase project, try to add Firebase to the Cloud project
-    try{
-      const op=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}:addFirebase`,tok,'POST',{});
-      // Poll until done
-      let addOp=op;
-      for(let i=0;i<15&&!addOp.done;i++){
-        await new Promise(r=>setTimeout(r,2000));
-        addOp=await _gapi(`https://firebase.googleapis.com/v1beta1/${addOp.name}`,tok);
-      }
-      proj=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${encodeURIComponent(projectId)}`,tok);
-    }catch(e2){throw new Error(`פרויקט לא נמצא: ${e2.message}`,{cause:e2});}
-  }
-  const pNum=proj.projectNumber;
-  if(!pNum)throw new Error('לא הצלחנו לאמת את הפרויקט — בדקי את ה-Project ID');
-
-  onStep('database');
-  // Try known URL patterns first (avoids management API permission issues)
-  const _probeDb=async(url)=>{
-    try{const r=await fetch(`${url}/.json?shallow=true`,{headers:{Authorization:`Bearer ${tok}`}});return r.status!==404;}catch(_){return false;}
-  };
-  const candidates=[
-    `https://${projectId}-default-rtdb.firebaseio.com`,
-    `https://${projectId}-default-rtdb.europe-west1.firebasedatabase.app`,
-    `https://${projectId}.firebaseio.com`,
-  ];
-  let dbUrl=null;
-  for(const url of candidates){if(await _probeDb(url)){dbUrl=url;break;}}
-  // If not found by probing, try management API to create
-  if(!dbUrl){
-    for(const [ref,loc] of[[pNum,'europe-west1'],[pNum,'us-central1'],[projectId,'us-central1']]){
-      try{
-        const db=await _gapi(`https://firebasedatabase.googleapis.com/v1beta/projects/${ref}/locations/${loc}/instances?databaseId=${projectId}-default-rtdb`,tok,'POST',{type:'USER_DATABASE'});
-        dbUrl=db.databaseUrl;break;
-      }catch(e){
-        if(e.message.toLowerCase().includes('multiple')||e.message.toLowerCase().includes('blaze')||e.message.toLowerCase().includes('already')){
-          // DB definitely exists — use standard URL
-          dbUrl=candidates[0];break;
-        }
-      }
-    }
-  }
-  if(!dbUrl)throw new Error('לא הצלחנו למצוא את ה-Realtime Database — צרו אחד ידנית ב-Firebase Console');
-
-  onStep('webapp');
-  let appId=null;
-  try{
-    const al=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps`,tok);
-    if(al.apps?.length)appId=al.apps[0].appId;
-  }catch(_){}
-  if(!appId){
-    let op=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps`,tok,'POST',{displayName:'Nutrition'});
-    for(let i=0;i<20&&!op.done;i++){await new Promise(r=>setTimeout(r,1500));op=await _gapi(`https://firebase.googleapis.com/v1beta1/${op.name}`,tok);}
-    if(!op.done)throw new Error('יצירת Web App לקחה יותר מדי זמן');
-    appId=op.response?.appId;
-  }
-
-  onStep('config');
-  const cfg=await _gapi(`https://firebase.googleapis.com/v1beta1/projects/${projectId}/webApps/${appId}/config`,tok);
-  if(!cfg.databaseURL)cfg.databaseURL=dbUrl;
-
-  // Enable Anonymous Auth so the database can require authentication instead of being world-writable
-  try{
-    await _gapi(`https://serviceusage.googleapis.com/v1/projects/${pNum}/services/identitytoolkit.googleapis.com:enable`,tok,'POST',{});
-  }catch(_){}
-  try{
-    await _gapi(`https://identitytoolkit.googleapis.com/admin/v2/projects/${projectId}/config?updateMask=signIn.anonymous.enabled`,tok,'PATCH',{signIn:{anonymous:{enabled:true}}});
-  }catch(_){}
-
-  // Lock rules down to "must be signed in" + scoped to the households path (was previously wide-open '.read'/'.write': true,
-  // which let anyone who ever saw a sharing code or the databaseURL read/write the whole database, forever, with no auth).
-  // Best effort: if this fails (e.g. anonymous auth couldn't be enabled above), the client falls back to unauthenticated
-  // access in _fbInit so existing/manual setups keep working.
-  try{
-    await fetch(`${cfg.databaseURL}/.settings/rules.json`,{method:'PUT',headers:{Authorization:`Bearer ${tok}`,'Content-Type':'application/json'},body:JSON.stringify({rules:{
-      '.read':false,'.write':false,
-      households:{'$hid':{'.read':'auth != null','.write':'auth != null'}},
-    }})});
-  }catch(_){}
-  return cfg;
-}
-
-async function _fbInit(cfg){
-  if(_fbDb&&_householdId===cfg.householdId)return true;
-  try{
-    const[appMod,dbMod,authMod]=await Promise.all([import('firebase/app'),import('firebase/database'),import('firebase/auth')]);
-    const{initializeApp,getApps,deleteApp}=appMod;
-    const{getDatabase,ref,set,onValue}=dbMod;
-    const{getAuth,signInAnonymously}=authMod;
-    const ANAME='nutrition-household';
-    const existing=getApps().find(a=>a.name===ANAME);
-    if(existing&&existing.options.projectId!==cfg.firebaseConfig?.projectId){
-      await deleteApp(existing);
-    }
-    const app=getApps().find(a=>a.name===ANAME)||initializeApp(cfg.firebaseConfig,ANAME);
-    // New households have rules that require auth ('auth != null'). Sign in anonymously so reads/writes are authorized.
-    // Best effort: older/manual households may not have Anonymous Auth enabled on their Firebase project — in that
-    // case this fails silently and we fall back to whatever (legacy, possibly open) rules that project already has.
-    try{
-      const auth=getAuth(app);
-      if(!auth.currentUser)await signInAnonymously(auth);
-    }catch(e){console.error('Firebase anon auth (continuing without it):',e);}
-    _fbDb=getDatabase(app);
-    _fbRefFn=ref;_fbSet=set;_fbOnValue=onValue;
-    _householdId=cfg.householdId;
-    _memberName=cfg.memberName||"";
-    return true;
-  }catch(e){console.error('Firebase init:',e);return false;}
-}
-
-function _fbSyncPantry(p){
-  if(!_fbDb||!_householdId)return;
-  _fbSet(_fbRefFn(_fbDb,`households/${_householdId}/pantry`),p).catch(()=>{});
-}
-
-function _fbSyncShopping(s){
-  if(!_fbDb||!_householdId)return;
-  // Store as object (Firebase handles arrays inconsistently)
-  const obj={};s.forEach(item=>{obj[String(item.id).replace('.','_')]=item;});
-  _fbSet(_fbRefFn(_fbDb,`households/${_householdId}/shopping`),obj).catch(()=>{});
-}
-
-const savePantryLS=p=>{localStorage.setItem("nutrition_pantry",JSON.stringify(p));_fbSyncPantry(p);};
-const saveShopping=s=>{localStorage.setItem("nutrition_shopping",JSON.stringify(s));_fbSyncShopping(s);};
-const getRecentFoodLabels=(pid,days=7)=>{
-  const j=loadJournal(pid||"default");
-  const labels=new Set();
-  for(let i=0;i<days;i++){
-    const d=new Date();d.setDate(d.getDate()-i);
-    const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    (j[k]?.entries||[]).forEach(e=>e.label&&labels.add(e.label.replace(/🍳|🍽|🥚|🧀|🥑|🍌|🥗/g,'').replace(/\(.*?\)/g,'').trim()));
-  }
-  return [...labels].filter(Boolean).slice(0,30);
-};
-
-const DAYS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
-const getDateLabel = s => {
-  let d;
-  if (s) {
-    const [y,m,day] = s.split('-').map(Number);
-    d = new Date(y, m-1, day);
-  } else {
-    d = new Date();
-  }
-  const lang=localStorage.getItem('nutrition_lang')||'he';
-  if(lang==='en') return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
-  return `יום ${DAYS[d.getDay()]}, ${d.toLocaleDateString("he-IL")}`;
-};
-const getTodayKey = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-};
-
-const cleanQ = s => s.replace(/[^֐-׿\w\s]/g,'').trim().toLowerCase();
-const loadRecentFoods=()=>ls.get(`nutrition_recent_${window._activePid||"default"}`)||[];
-const addToRecentFoods=(food)=>{
-  const pid=window._activePid||"default";
-  const cur=ls.get(`nutrition_recent_${pid}`)||[];
-  const updated=[{label:food.label,kcal:food.kcal,carbs:food.carbs,protein:food.protein,fat:food.fat||0},...cur.filter(f=>f.label!==food.label)].slice(0,5);
-  ls.set(`nutrition_recent_${pid}`,updated);
-};
-
-function searchFood(q) {
-  const query = cleanQ(q);
-  if (!query) return null;
-  const customDB = loadCustomDB(window._activePid||"default");
-  for (const f of [...customDB, ...FOOD_DB]) {
-    if (f.names.some(n => n.toLowerCase() === query)) return f;
-  }
-  if (query.includes("+") || query.split(/\s+/).length > 4) return null;
-  for (const f of [...customDB, ...FOOD_DB]) {
-    if (f.names.some(n => n.toLowerCase().startsWith(query) || n.toLowerCase().includes(query))) return f;
-  }
-  return null;
-}
-
-function searchAllFoods(q) {
-  const query = cleanQ(q);
-  if (!query || query.length < 2) return [];
-  const customDB = loadCustomDB(window._activePid||"default");
-  const seen = new Set();
-  const results = [];
-  const add = (f, score) => { if (!seen.has(f.label)) { seen.add(f.label); results.push({f, score}); } };
-  for (const f of [...customDB, ...FOOD_DB]) {
-    const names = f.names.map(n => n.toLowerCase());
-    if (names.some(n => n === query)) add(f, 3);
-    else if (names.some(n => n.startsWith(query))) add(f, 2);
-    else if (names.some(n => n.includes(query))) add(f, 1);
-  }
-  return results.sort((a,b) => b.score - a.score).map(r => r.f);
-}
-function unitToG(amt, unit) {
-  // convert spoon/cup units to grams/ml equivalent
-  if(unit==="כף") return amt * 15;
-  if(unit==="כפית") return amt * 5;
-  if(unit==="כוס") return amt * 240;
-  return amt; // g, ml, יח׳, קוביות — pass through
-}
-function calcNutrition(f, amt, unit) {
-  const a = unit ? unitToG(amt, unit) : amt;
-  let r;
-  if(f.cubes_per_bar) {
-    // values are per whole bar; divide by total cubes
-    r = a / f.cubes_per_bar;
-  } else if(f.serving_size) {
-    // values are per serving_size units
-    r = a / f.serving_size;
-  } else if(unit === "מנה" || unit === "serving" || f.unit === "מנה") {
-    // values are already per 1 serving; use amount as direct multiplier
-    r = a;
-  } else {
-    // values are per 100g/ml
-    r = a / 100;
-  }
-  return { kcal:Math.round(f.kcal*r), carbs:parseFloat((f.carbs*r).toFixed(1)), protein:parseFloat((f.protein*r).toFixed(1)), fat:parseFloat((f.fat*r).toFixed(1)) };
-}
-
-const C = { accent:"#0d9488", warn:"#d97706", danger:"#dc2626", blue:"#2563eb", muted:"#64748b", text:"#0f172a", border:"rgba(148,163,184,.25)" };
-const sugarColor = v => { const n=Number(v); return n>=100?'#dc2626':n>=86?'#f59e0b':n>0?'#15803d':'#94a3b8'; };
-// Returns color based on % of daily goal: dark-green → amber → orange → red
-const goalColor=(consumed,max)=>{
-  if(!max||isNaN(consumed)) return "#166534";
-  const p=consumed/max;
-  if(p>=0.85) return "#dc2626";
-  if(p>=0.6) return "#ea580c";
-  if(p>=0.35) return "#ca8a04";
-  return "#166534";
-};
-const goalGrad=(consumed,max)=>{
-  if(!max) return ["#166534","#22c55e"];
-  const p=consumed/max;
-  if(p>=0.85) return ["#dc2626","#f87171"];
-  if(p>=0.6) return ["#ea580c","#fb923c"];
-  if(p>=0.35) return ["#ca8a04","#fbbf24"];
-  return ["#166534","#22c55e"];
-};
-// Protein: inverted scale — red when low, green when at/near goal
-const goalColorInv=(consumed,max)=>{
-  if(!max||isNaN(consumed)) return "#dc2626";
-  const p=consumed/max;
-  if(p>=0.85) return "#166534";
-  if(p>=0.6) return "#ca8a04";
-  if(p>=0.35) return "#ea580c";
-  return "#dc2626";
-};
-const goalGradInv=(consumed,max)=>{
-  if(!max) return ["#dc2626","#f87171"];
-  const p=consumed/max;
-  if(p>=0.85) return ["#166534","#22c55e"];
-  if(p>=0.6) return ["#ca8a04","#fbbf24"];
-  if(p>=0.35) return ["#ea580c","#fb923c"];
-  return ["#dc2626","#f87171"];
-};
-const MAX_KCAL=1800, MAX_CARBS=80;
-const QUICK_FOODS = [
-  {id:"cheese",label:"🧀 אצבע גבינה",labelEn:"🧀 Cheese Finger",kcal:60,carbs:1,protein:6,fat:3.5},
-  {id:"egg_lunch",label:"🥚 לאנץ׳ ביצים",labelEn:"🥚 Egg Lunch",kcal:335,carbs:6,protein:22,fat:24},
-  {id:"yolk",label:"🟡 חלמון ביצה",labelEn:"🟡 Egg Yolk",kcal:55,carbs:0.3,protein:2.7,fat:4.5},
-  {id:"egg1",label:"🥚 ביצה קשה",labelEn:"🥚 Hard Boiled Egg",kcal:70,carbs:0.5,protein:6,fat:5},
-  {id:"yogurt",label:"🍓 יוגורט + גרנולה ביתית",labelEn:"🍓 Yogurt + Homemade Granola",kcal:143,carbs:13.7,protein:5,fat:5},
-  {id:"scone",label:"🫓 סקון בוקר",labelEn:"🫓 Morning Scone",kcal:364,carbs:52,protein:7,fat:15},
-  {id:"scone_spread",label:"🍓 סקון - מריחה",labelEn:"🍓 Scone Spread",kcal:75,carbs:8,protein:0.3,fat:4},
-];
-const VAR_FOODS = {
-  crackers:{label:"🫙 קרקרים",labelEn:"🫙 Crackers",kcalPer100:483,carbsPer100:27,protPer100:17,fatPer100:33,def:30},
-  granola:{label:"🥣 גרנולה ביתית",labelEn:"🥣 Homemade Granola",kcalPer100:500,carbsPer100:41.8,protPer100:13.6,fatPer100:33.7,def:40},
-};
-const getFoodLabel = food => {
-  const lang = localStorage.getItem('nutrition_lang') || 'he';
-  return (lang === 'en' && food.labelEn) ? food.labelEn : food.label;
-};
-const MILK={kcal:0.5,carbs:0.047,protein:0.034,fat:0.02};
+prewarmFirebaseIfConfigured(ls);
 
 // ── CalcLoader ────────────────────────────────────────────────────────────────
 function CalcLoader({size=32}){
@@ -552,12 +145,6 @@ function VPopup({label,value,setValue,step,min,kcal,carbs,onAdd}){
   );
 }
 
-const loadSpecialEdits=()=>ls.get("nutrition_special_edits")||{};
-const saveSpecialEdit=(id,data)=>{const e=loadSpecialEdits();ls.set("nutrition_special_edits",{...e,[id]:data});};
-const getSpecialEdit=(id)=>loadSpecialEdits()[id]||null;
-const loadHiddenSpecial=()=>ls.get("nutrition_hidden_special")||[];
-const toggleHiddenSpecial=(id)=>{const h=loadHiddenSpecial();ls.set("nutrition_hidden_special",h.includes(id)?h.filter(x=>x!==id):[...h,id]);};
-const isHiddenSpecial=(id)=>loadHiddenSpecial().includes(id);
 
 function VarButton({foodKey,onAdd,editMode,onEdit}){
   const base=VAR_FOODS[foodKey];
@@ -2701,7 +2288,7 @@ function ShoppingListModal({onClose,lang,pid,syncTick}){
   const clearBought=()=>save(items.filter(i=>!i.checked));
   const addManual=()=>{
     if(!newName.trim())return;
-    save([...items,{id:Date.now()+Math.random(),name:newName.trim(),qty:newQty.trim(),checked:false,auto:false,addedBy:_memberName||""}]);
+    save([...items,{id:Date.now()+Math.random(),name:newName.trim(),qty:newQty.trim(),checked:false,auto:false,addedBy:fbState.memberName||""}]);
     setNewName("");setNewQty("");
   };
 
@@ -2715,7 +2302,7 @@ function ShoppingListModal({onClose,lang,pid,syncTick}){
         body:JSON.stringify({shoppingList:{pantry:pantryStr,recentFoods,isHe,lang}})});
       const d=await r.json();
       if(d.error)throw new Error(d.error);
-      const newItems=(d.items||[]).map(i=>({id:Date.now()+Math.random(),name:i.name,qty:i.qty||"",checked:false,auto:true,addedBy:_memberName||""}));
+      const newItems=(d.items||[]).map(i=>({id:Date.now()+Math.random(),name:i.name,qty:i.qty||"",checked:false,auto:true,addedBy:fbState.memberName||""}));
       // merge: don't duplicate existing unchecked items
       const existingNames=new Set(items.filter(i=>!i.checked).map(i=>i.name.toLowerCase()));
       const fresh=newItems.filter(i=>!existingNames.has(i.name.toLowerCase()));
@@ -3750,45 +3337,6 @@ function SplashScreen({onDone,lang}){
 }
 
 // ── i18n ───────────────────────────────────────────────────────────────────────
-const LANG={
-  he:{greeting:"שלום",calories:"קלוריות היום",consumed:"נאכל",target:"עד",sugar:"סוכר",left:"נותרו",
-      kcal:"קק״ל",mgdl:"mg/dL",goal:"עד",goalLabel:"יעד",
-      carbs:"פחמ׳",carbsFull:"פחמימות",protein:"חלבון",fat:"שומן",noLimit:"ללא הגבלה",
-      quickAdd:"הוספה מהירה",edit:"✏️ ערוך",done:"✓ סיום",reset:"↺ אפס",newBtn:"+ חדש",presets:"⭐ קבועים",
-      todayLog:"יומן היום",items:"פריטים",allLog:"הכל ›",addItem:"הוסף פריט",
-      noEntries:"לחצי על מאכל להוספה",total:"סה״כ",
-      home:"בית",journal:"יומן",db:"מאגר",backup:"גיבוי",profile:"פרופיל",
-      photo:"📷 תמונה",mealBtn:"🍽 ארוחה",whatEat:"🍳 מה אוכלים",
-      daySaved:"שמור",yesterday:"📋 אתמול",clear:"נקה",people:"אנשים",
-      close:"סגור",cancel:"ביטול",save:"שמור",add:"הוסף",howMuchG:"כמה גרם?",
-      yogurtLabel:"🥛 יוגורט 10%",coffeeLabel:"☕ קפה עם חלב 2%",
-      journalTitle:"יומן תזונה",daysSaved:"ימים שמורים",days:"ימים",
-      journalTab:"📋 יומן",weekTab:"📊 שבועי",
-      noDays:"אין ימים שמורים עדיין",noData:"אין נתונים שמורים",
-      details:"🍽 פירוט",statsTab:"📊 ערכים",loadEdit:"✏️ טען לעריכה",
-      bloodSugarLabel:"🩸 סוכר בוקר",avgDaily:"ממוצע יומי",per100:"ל-100",
-      dbTitle:"🗂 מאגר מאכלים אישי",search:"חיפוש...",
-      dbEmpty:"המאגר ריק עדיין",noResults:"לא נמצאו תוצאות"},
-  en:{greeting:"Hello",calories:"Today's Calories",consumed:"Eaten",target:"Goal",sugar:"Sugar",left:"Left",
-      kcal:"kcal",mgdl:"mg/dL",goal:"Limit",goalLabel:"Goal",
-      carbs:"Carbs",carbsFull:"Carbs",protein:"Protein",fat:"Fat",noLimit:"No limit",
-      quickAdd:"Quick Add",edit:"✏️ Edit",done:"✓ Done",reset:"↺ Reset",newBtn:"+ New",presets:"⭐ Presets",
-      todayLog:"Today's Log",items:"items",allLog:"All ›",addItem:"Add Item",
-      noEntries:"Tap a food to add",total:"Total",
-      home:"Home",journal:"Journal",db:"Foods",backup:"Backup",profile:"Profile",
-      photo:"📷 Photo",mealBtn:"🍽 Meal",whatEat:"🍳 What to eat",
-      daySaved:"Saved",yesterday:"📋 Yesterday",clear:"Clear",people:"people",
-      close:"Close",cancel:"Cancel",save:"Save",add:"Add",howMuchG:"How much (g)?",
-      yogurtLabel:"🥛 Yogurt 10%",coffeeLabel:"☕ Coffee with Milk 2%",
-      journalTitle:"Nutrition Journal",daysSaved:"days saved",days:"days",
-      journalTab:"📋 Journal",weekTab:"📊 Weekly",
-      noDays:"No saved days yet",noData:"No saved data",
-      details:"🍽 Details",statsTab:"📊 Stats",loadEdit:"✏️ Load to edit",
-      bloodSugarLabel:"🩸 Morning Sugar",avgDaily:"Daily average",per100:"per 100",
-      dbTitle:"🗂 Personal Food Database",search:"Search...",
-      dbEmpty:"Database is empty",noResults:"No results found"}
-};
-const getT=()=>LANG[localStorage.getItem('nutrition_lang')||'he']||LANG.he;
 
 // ── InfoModal ──────────────────────────────────────────────────────────────────
 function InfoModal({onClose,lang}){
@@ -3844,8 +3392,6 @@ function InfoModal({onClose,lang}){
 }
 
 // ── Recipe Book ───────────────────────────────────────────────────────────────
-const loadRecipes=pid=>ls.get(`nutrition_recipes_${pid||'default'}`) || [];
-const saveRecipes=(r,pid)=>ls.set(`nutrition_recipes_${pid||'default'}`,r);
 
 function formatRecipeShare(recipe,isHe){
   const lines=[`📖 ${recipe.name}`,''];
@@ -4248,20 +3794,6 @@ function RecipeBookModal({onClose,lang,pid,onAddToDay,onSaveQuickFood,initialEdi
   );
 }
 
-// ── MealPlannerModal ───────────────────────────────────────────────────────────
-const API="https://nutrition-ai.lior0gal.workers.dev";
-const FRIDGE_CATS=[
-  {key:"cheeses", he:"גבינות",       en:"Cheeses"},
-  {key:"veggies", he:"ירקות ופירות", en:"Vegetables & Fruits"},
-  {key:"protein", he:"חלבון",        en:"Protein"},
-  {key:"legumes", he:"קטניות",       en:"Legumes"},
-  {key:"carbs",   he:"פחמימה",       en:"Carbs"},
-  {key:"nuts",    he:"פיצוחים",      en:"Nuts & Seeds"},
-  {key:"spices",  he:"תבלינים",      en:"Spices"},
-  {key:"other",   he:"אחר",          en:"Other"},
-];
-const loadFridge=()=>{try{return JSON.parse(localStorage.getItem("nutrition_fridge")||"{}");}catch{return {};}};
-const saveFridgeLS=f=>localStorage.setItem("nutrition_fridge",JSON.stringify(f));
 
 function MealPlannerModal({onAdd,onClose,lang,profile,onSaveRecipe}){
   const T=LANG[lang]||LANG.he;
@@ -4811,8 +4343,8 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
   const[syncLabel,setSyncLabel]=useState('');
 
   useEffect(()=>{
-    if(!householdCfg||!_fbDb||!_fbOnValue||!_fbRefFn)return;
-    const unsub=_fbOnValue(_fbRefFn(_fbDb,`households/${_householdId}/members`),snap=>{
+    if(!householdCfg||!fbState.db||!fbState.onValue||!fbState.refFn)return;
+    const unsub=fbState.onValue(fbState.refFn(fbState.db,`households/${fbState.householdId}/members`),snap=>{
       setMembers(snap.val()||{});
     });
     return()=>unsub();
@@ -4822,8 +4354,8 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
   useEffect(()=>{
     if(!householdCfg)return;
     const update=()=>{
-      if(!_lastSyncAt){setSyncLabel('');return;}
-      const s=Math.round((Date.now()-_lastSyncAt)/1000);
+      if(!fbState.lastSyncAt){setSyncLabel('');return;}
+      const s=Math.round((Date.now()-fbState.lastSyncAt)/1000);
       if(s<60)setSyncLabel(isHe?`סונכרן לפני ${s} שניות`:`Synced ${s}s ago`);
       else setSyncLabel(isHe?`סונכרן לפני ${Math.round(s/60)} דקות`:`Synced ${Math.round(s/60)}m ago`);
     };
@@ -4844,9 +4376,9 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
   };
 
   const registerMember=async(hid,name)=>{
-    if(!_fbDb)return;
+    if(!fbState.db)return;
     const did=getDeviceId();
-    await _fbSet(_fbRefFn(_fbDb,`households/${hid}/members/${did}`),{name,joinedAt:Date.now()}).catch(()=>{});
+    await fbState.set(fbState.refFn(fbState.db,`households/${hid}/members/${did}`),{name,joinedAt:Date.now()}).catch(()=>{});
   };
 
   const parseConfig=text=>{
@@ -4948,7 +4480,7 @@ function HouseholdModal({householdCfg,onConnect,onHouseholdReady,onLeave,onClose
   const handleLeave=()=>{
     if(!confirmLeave){setConfirmLeave(true);setTimeout(()=>setConfirmLeave(false),3000);return;}
     ls.set('nutrition_household',null);
-    _fbDb=null;_fbRefFn=null;_fbSet=null;_fbOnValue=null;_householdId=null;_memberName="";_lastSyncAt=0;
+    fbReset();
     onLeave();
   };
 
@@ -5611,20 +5143,20 @@ function App(){
     _fbInit(householdCfg).then(ok=>{
       if(!ok)return;
       setHhSynced(true);
-      const unsubPantry=_fbOnValue(_fbRefFn(_fbDb,`households/${_householdId}/pantry`),snap=>{
+      const unsubPantry=fbState.onValue(fbState.refFn(fbState.db,`households/${fbState.householdId}/pantry`),snap=>{
         const data=snap.val();
         if(data&&typeof data==='object'){
           localStorage.setItem("nutrition_pantry",JSON.stringify(data));
-          _lastSyncAt=Date.now();
+          fbState.lastSyncAt=Date.now();
           setSyncTick(t=>t+1);
         }
       });
-      const unsubShopping=_fbOnValue(_fbRefFn(_fbDb,`households/${_householdId}/shopping`),snap=>{
+      const unsubShopping=fbState.onValue(fbState.refFn(fbState.db,`households/${fbState.householdId}/shopping`),snap=>{
         const data=snap.val();
         if(data!==null){
           const arr=Array.isArray(data)?data:Object.values(data||{});
           localStorage.setItem("nutrition_shopping",JSON.stringify(arr.filter(Boolean)));
-          _lastSyncAt=Date.now();
+          fbState.lastSyncAt=Date.now();
           setSyncTick(t=>t+1);
         }
       });
