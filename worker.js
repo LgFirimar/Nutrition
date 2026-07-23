@@ -224,12 +224,15 @@ Return ONLY JSON, exactly this format:
           ? `המשתמש אכל לאחרונה: ${(recentFoods||[]).join(', ')||'לא ידוע'}.\nבמזווה/מקרר יש: ${pantry||'ריק'}.\nהצע 6-10 פריטים לקנות בסופר — עדיפות לפריטים שחסרים במזווה ומופיעים בהרגלי האכילה.\n{"items":[{"name":"שם מוצר","qty":"כמות מומלצת"}]}`
           : `Recently eaten: ${(recentFoods||[]).join(', ')||'unknown'}.\nPantry/fridge has (may be in Hebrew): ${pantry||'empty'}.\nSuggest 6-10 items to buy — prioritize items missing from pantry that match eating habits.\n{"items":[{"name":"product name in English","qty":"recommended quantity"}]}`;
       } else if (dailyPlan) {
-        // Compact format: ask only for ideas/notes/insight (~200 tokens output → ~5s, no timeout risk)
+        // Compact format: ask only for ideas/notes/insight (~350-500 tokens output typically, up to ~10s, no timeout risk)
         // Frontend reconstructs the full plan with macro targets computed from profile.
+        // NOTE: max_tokens was 500 but measured runs regularly landed at 480-500 output tokens
+        // (hitting the cap and truncating mid-JSON), especially once the prompt asks for full,
+        // natural sentences instead of clipped phrasing. Bumped for headroom — verified empirically.
         const { profile: dp, history, lang: dpLang } = dailyPlan;
         const isHeDp = (dpLang || lang || 'he') !== 'en';
         model = 'claude-sonnet-4-6';
-        max_tokens = 500;
+        max_tokens = 900;
         const prefs0 = dp?.dietPrefs || [];
         const iv0 = prefs0.some(p=>p==='vegan'||/vegan|טבעוני/i.test(p));
         const ivg0 = iv0 || prefs0.some(p=>p==='veg'||/vegetarian|צמחוני/i.test(p));
@@ -271,7 +274,9 @@ Return the JSON as a single object on one line (no unnecessary line breaks betwe
         const { idea, targetKcal, targetCarbs, targetProtein, targetFat, lang: riLang } = recipeIdea;
         const isHeRi = (riLang || lang || 'he') !== 'en';
         model = 'claude-sonnet-4-6';
-        max_tokens = 700;
+        // Full-sentence steps run 500-700+ output tokens; 700 was measured hitting the cap
+        // (truncated/invalid JSON) in 2 of 3 trials. Bumped for headroom — verified empirically.
+        max_tokens = 1100;
         system = isHeRi
           ? 'שף ותזונאי. כתוב בעברית תקנית, ברורה ותקינה דקדוקית — שמות מצרכים ושלבי הכנה הם משפטים מלאים עם רווח נכון בין כל מילה למילה, ללא שגיאות כתיב. החזר JSON בלבד, ללא markdown.'
           : 'Chef and nutritionist. Write in clear, natural, grammatically correct English — ingredient names and preparation steps are full sentences with normal spacing, no spelling mistakes. Return ONLY JSON, no markdown.';
