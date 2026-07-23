@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { loadJournal, ls } from '../lib/storage.js';
 import { C } from '../lib/nutrition.js';
-import { RecipeIdeaSheet } from './MealPlanner.jsx';
-
-// Daily eating-plan rules modal.
+import { RecipeIdeaSheet } from './RecipeIdeaSheet.jsx';
 
 export function DailyPlanModal({onClose, pid, lang, profile, onSaveRules}){
   const isHe=(lang||'he')!=='en';

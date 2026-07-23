@@ -1,8 +1,6 @@
 import React from 'react';
-import { LANG } from '../lib/lang.js';
 import { C } from '../lib/nutrition.js';
-
-// "About" info modal.
+import { LANG } from '../lib/lang.js';
 
 export function InfoModal({onClose,lang}){
   const T=LANG[lang]||LANG.he;

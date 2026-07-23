@@ -38,20 +38,31 @@ migrateOldData();
 
 // ── Household / Firebase ──────────────────────────────────────────────────────
 prewarmFirebaseIfConfigured(ls);
-import { EntryRow } from './components/Shared.jsx';
-import { VarButton, YogurtBtn, CoffeeBtn, QuickFoodChip, EditQuickFoodModal } from './components/QuickFoodButtons.jsx';
-import { DBManagerModal } from './components/FoodDatabase.jsx';
-import { PhotoMealPanel, MealPanel, SmartAddPanel, NewButtonModal } from './components/MealLogging.jsx';
-import { JournalView } from './components/Journal.jsx';
-import { PantryModal, ShoppingListModal } from './components/Pantry.jsx';
-import { ExportImportModal } from './components/Backup.jsx';
-import { ProfileSetupWizard, SetupScreen, ProfileModal } from './components/ProfileSetup.jsx';
-import { SplashScreen } from './components/Splash.jsx';
+import { CoffeeBtn } from './components/CoffeeBtn.jsx';
+import { DBManagerModal } from './components/DBManagerModal.jsx';
+import { DailyPlanModal } from './components/DailyPlanModal.jsx';
+import { EditQuickFoodModal } from './components/EditQuickFoodModal.jsx';
+import { EntryRow } from './components/EntryRow.jsx';
+import { ExportImportModal } from './components/ExportImportModal.jsx';
+import { HouseholdModal } from './components/HouseholdModal.jsx';
+import { HouseholdWelcome } from './components/HouseholdWelcome.jsx';
 import { InfoModal } from './components/InfoModal.jsx';
-import { RecipeBookModal } from './components/Recipes.jsx';
-import { MealPlannerModal } from './components/MealPlanner.jsx';
-import { HouseholdWelcome, HouseholdModal } from './components/HouseholdModals.jsx';
-import { DailyPlanModal } from './components/DailyPlan.jsx';
+import { JournalView } from './components/JournalView.jsx';
+import { MealPanel } from './components/MealPanel.jsx';
+import { MealPlannerModal } from './components/MealPlannerModal.jsx';
+import { NewButtonModal } from './components/NewButtonModal.jsx';
+import { PantryModal } from './components/PantryModal.jsx';
+import { PhotoMealPanel } from './components/PhotoMealPanel.jsx';
+import { ProfileModal } from './components/ProfileModal.jsx';
+import { ProfileSetupWizard } from './components/ProfileSetupWizard.jsx';
+import { QuickFoodChip } from './components/QuickFoodChip.jsx';
+import { RecipeBookModal } from './components/RecipeBookModal.jsx';
+import { SetupScreen } from './components/SetupScreen.jsx';
+import { ShoppingListModal } from './components/ShoppingListModal.jsx';
+import { SmartAddPanel } from './components/SmartAddPanel.jsx';
+import { SplashScreen } from './components/SplashScreen.jsx';
+import { VarButton } from './components/VarButton.jsx';
+import { YogurtBtn } from './components/YogurtBtn.jsx';
 
 function App(){
   const [profiles,setProfiles]=useState(()=>loadProfiles());

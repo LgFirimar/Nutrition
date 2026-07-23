@@ -1,8 +1,5 @@
 import React, { useRef, useEffect } from 'react';
 
-// App splash/loading screen.
-// Lazily import the (large, background-removed) splash icon loader — see src/imgUtils.js.
-// Kicked off at module load so the icons are usually ready by the time the splash paints.
 const imgUtilsReady = import('../imgUtils.js');
 
 export function SplashScreen({onDone,lang}){

@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { LANG } from '../lib/lang.js';
 import { loadJournal, saveJournal } from '../lib/storage.js';
 import { C, getDateLabel, getTodayKey, sugarColor } from '../lib/nutrition.js';
-import { MetricWeekChart, SugarWeekChart } from './Charts.jsx';
-
-// Journal (saved days) view.
+import { MetricWeekChart } from './MetricWeekChart.jsx';
+import { SugarWeekChart } from './SugarWeekChart.jsx';
 
 export function JournalView({onClose,onLoadDay,pid,lang,profile}){
   const T=LANG[lang]||LANG.he;
