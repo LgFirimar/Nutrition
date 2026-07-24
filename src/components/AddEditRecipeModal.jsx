@@ -40,8 +40,8 @@ export function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
     try{
       const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({mealPlan:{selectedMeal:name,people:servings,lang}})});
+      if(!r.ok){const eb=await r.json().catch(()=>({}));setError(eb.error||`Server error ${r.status}`);setLoadingRecipe(false);return;}
       const d=await r.json();
-      if(!r.ok){setError(d.error||`Server error ${r.status}`);setLoadingRecipe(false);return;}
       if(d.recipe) applyRecipe(d.recipe);
       else setError(isHe?'לא הצלחתי לטעון מתכון':'Could not load recipe');
     }catch{setError(isHe?'שגיאה':'Error');}
@@ -92,6 +92,7 @@ export function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
     try{
       const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({mealDescription:`${isHe?'מתכון':'Recipe'} ${isHe?'ל':'for'}-${servings} ${isHe?'מנות':'servings'}:\n${desc}`})});
+      if(!r.ok) throw new Error();
       const d=await r.json();
       if(d.kcal) setNutrition({kcal:Math.round(d.kcal/servings),carbs:parseFloat(((d.carbs||0)/servings).toFixed(1)),protein:parseFloat(((d.protein||0)/servings).toFixed(1)),fat:parseFloat(((d.fat||0)/servings).toFixed(1))});
       else setError(isHe?'לא הצלחתי לחשב':'Could not calculate');

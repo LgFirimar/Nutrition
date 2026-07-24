@@ -11,6 +11,8 @@ export function PantryModal({onClose,lang,syncTick}){
   const [open,setOpen]=useState(()=>Object.fromEntries(FRIDGE_CATS.map(c=>[c.key,false])));
   const [imgLoading,setImgLoading]=useState({});
   const [scanLoading,setScanLoading]=useState(false);
+  const [scanError,setScanError]=useState(false);
+  const [imgError,setImgError]=useState({});
   const [scanResults,setScanResults]=useState(null);
   const imgRefs=useRef({});
   const bulkInputRef=useRef(null);
@@ -21,7 +23,7 @@ export function PantryModal({onClose,lang,syncTick}){
 
   const handleBulkScan=e=>{
     const file=e.target.files[0]; if(!file)return; e.target.value="";
-    setScanLoading(true);
+    setScanLoading(true);setScanError(false);
     const reader=new FileReader();
     reader.onload=async ev=>{
       const b64=ev.target.result.split(',')[1];
@@ -31,7 +33,8 @@ export function PantryModal({onClose,lang,syncTick}){
         if(!res.ok)throw new Error();
         const d=await res.json();
         if(d.items?.length) setScanResults(d.items.map((item,i)=>({...item,_id:i,checked:true})));
-      }catch{}
+        else setScanError(true);
+      }catch{setScanError(true);}
       setScanLoading(false);
     };
     reader.readAsDataURL(file);
@@ -96,7 +99,7 @@ export function PantryModal({onClose,lang,syncTick}){
   const handlePantryImage=(e,cat)=>{
     const file=e.target.files[0];
     if(!file)return; e.target.value="";
-    setImgLoading(l=>({...l,[cat]:true}));
+    setImgLoading(l=>({...l,[cat]:true}));setImgError(l=>({...l,[cat]:false}));
     const reader=new FileReader();
     reader.onload=async ev=>{
       const b64=ev.target.result.split(',')[1];
@@ -106,7 +109,8 @@ export function PantryModal({onClose,lang,syncTick}){
         if(!res.ok) throw new Error();
         const d=await res.json();
         if(d.name) setInputs(i=>({...i,[cat]:{name:d.name,qty:d.qty||""}}));
-      }catch{}
+        else setImgError(l=>({...l,[cat]:true}));
+      }catch{setImgError(l=>({...l,[cat]:true}));}
       setImgLoading(l=>({...l,[cat]:false}));
     };
     reader.readAsDataURL(file);
@@ -132,6 +136,7 @@ export function PantryModal({onClose,lang,syncTick}){
           style={{width:"100%",background:"rgba(99,102,241,.07)",border:"1px solid rgba(99,102,241,.25)",borderRadius:10,color:"#6366f1",padding:"10px",fontSize:12,fontWeight:700,cursor:"pointer",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
           {scanLoading?<CalcLoader/>:"📸"} {isHe?"סרוק חשבונית / מדפי מזווה":"Scan receipt / pantry shelf"}
         </button>
+        {scanError&&<div style={{fontSize:11,color:C.danger,marginBottom:10,textAlign:"center"}}>{isHe?"הסריקה נכשלה. בדקו את החיבור ונסו שוב.":"Scan failed. Check your connection and try again."}</div>}
         <div style={{fontSize:11,color:C.muted,marginBottom:14}}>{isHe?"מה יש בבית? הכנס פריטים עם כמויות:":"What do you have at home? Add items with quantities:"}</div>
         {/* Scan confirmation overlay */}
         {scanResults&&(
@@ -212,6 +217,7 @@ export function PantryModal({onClose,lang,syncTick}){
                 </button>
                 <button onClick={()=>addItem(cat.key)} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"0 10px",cursor:"pointer",fontSize:16}}>+</button>
               </div>
+              {imgError[cat.key]&&<div style={{fontSize:10.5,color:C.danger,marginBottom:6}}>{isHe?"זיהוי התמונה נכשל, נסו שוב":"Image recognition failed, try again"}</div>}
               {(pantry[cat.key]||[]).map(item=>(
                 <div key={item.id} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 0",borderBottom:`1px solid ${C.border}`}}>
                   <span style={{flex:1,fontSize:12,color:C.text}}>{item.name}</span>

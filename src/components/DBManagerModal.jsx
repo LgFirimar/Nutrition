@@ -17,6 +17,7 @@ export function DBManagerModal({onClose,pid,lang}){
   const [editQty,setEditQty]=useState(1);
   const [editLoading,setEditLoading]=useState(false);
   const [editPreview,setEditPreview]=useState(null);
+  const [editError,setEditError]=useState(false);
   const editImgRef=useRef(null);
   // Add new item via text
   const [showAdd,setShowAdd]=useState(false);
@@ -43,6 +44,7 @@ export function DBManagerModal({onClose,pid,lang}){
         ?{dbEditText:textOrImg.val}
         :{dbEditImageData:textOrImg.b64,dbEditImageMediaType:textOrImg.mime,...(textOrImg.hint?{dbEditImageHint:textOrImg.hint}:{})};
       const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      if(!res.ok)throw new Error();
       const d=await res.json();
       if(!d.kcal)throw new Error();
       addRawRef.current=d;
@@ -112,7 +114,7 @@ export function DBManagerModal({onClose,pid,lang}){
 
   const askClaudeText=async()=>{
     if(!editClaudeText.trim())return;
-    setEditLoading(true);setEditPreview(null);
+    setEditLoading(true);setEditPreview(null);setEditError(false);
     try{
       const res=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({dbEditText:editClaudeText})});
@@ -120,13 +122,13 @@ export function DBManagerModal({onClose,pid,lang}){
       const d=await res.json();
       if(!d.kcal) throw new Error();
       applyClaudeResult(d);
-    }catch{setEditLoading(false);}
+    }catch{setEditLoading(false);setEditError(true);}
   };
 
   const handleEditImage=e=>{
     const file=e.target.files[0];
     if(!file)return; e.target.value="";
-    setEditLoading(true);setEditPreview(null);
+    setEditLoading(true);setEditPreview(null);setEditError(false);
     const reader=new FileReader();
     reader.onload=async ev=>{
       const b64=ev.target.result.split(',')[1];
@@ -137,7 +139,7 @@ export function DBManagerModal({onClose,pid,lang}){
         const d=await res.json();
         if(!d.kcal) throw new Error();
         applyClaudeResult(d);
-      }catch{setEditLoading(false);}
+      }catch{setEditLoading(false);setEditError(true);}
     };
     reader.readAsDataURL(file);
   };
@@ -260,6 +262,7 @@ export function DBManagerModal({onClose,pid,lang}){
                           </button>
                         </div>
                         {editPreview&&<div style={{marginTop:6,fontSize:11,color:C.accent,background:"#f0fae8",borderRadius:8,padding:"6px 10px"}}>✨ {editPreview.label} — עודכן למנה ({editQty} {editQty===1?"מנה":"מנות"})</div>}
+                        {editError&&<div style={{marginTop:6,fontSize:11,color:C.danger}}>{isHe?"שגיאה בחישוב — בדקו את החיבור ונסו שוב":"Calculation error — check your connection and try again"}</div>}
                       </div>
                     </div>
                   )}

@@ -54,8 +54,8 @@ export function ShoppingListModal({onClose,lang,pid,syncTick}){
     try{
       const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({shoppingList:{pantry:pantryStr,recentFoods,isHe,lang}})});
-      const d=await r.json();
-      if(d.error)throw new Error(d.error);
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok||d.error)throw new Error(d.error||`Server error ${r.status}`);
       const newItems=(d.items||[]).map(i=>({id:Date.now()+Math.random(),name:i.name,qty:i.qty||"",checked:false,auto:true,addedBy:fbState.memberName||""}));
       // merge: don't duplicate existing unchecked items
       const existingNames=new Set(items.filter(i=>!i.checked).map(i=>i.name.toLowerCase()));
