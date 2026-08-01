@@ -91,7 +91,9 @@ export function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
     setLoading(true);setError('');
     try{
       const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({mealDescription:`${isHe?'מתכון':'Recipe'} ${isHe?'ל':'for'}-${servings} ${isHe?'מנות':'servings'}:\n${desc}`})});
+        body:JSON.stringify({mealDescription:isHe
+          ?`כל מצרכי המתכון (הכמות הכוללת של כל המרכיבים ביחד, לפני חלוקה למנות בודדות):\n${desc}`
+          :`All ingredients of the full recipe batch (the combined total quantity of every ingredient together, before dividing into individual servings):\n${desc}`})});
       if(!r.ok) throw new Error();
       const d=await r.json();
       if(d.kcal) setNutrition({kcal:Math.round(d.kcal/servings),carbs:parseFloat(((d.carbs||0)/servings).toFixed(1)),protein:parseFloat(((d.protein||0)/servings).toFixed(1)),fat:parseFloat(((d.fat||0)/servings).toFixed(1))});
