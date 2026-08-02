@@ -151,6 +151,7 @@ button:active{opacity:0.75;transform:scale(0.97)}
 
 /* Grid helpers */
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .preview-box{background:rgba(255,255,255,.6);border-radius:10px;padding:6px;text-align:center}
 .preview-val{font-size:17px;font-weight:900}

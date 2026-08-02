@@ -12,7 +12,7 @@ export function JournalView({onClose,onLoadDay,pid,lang,profile}){
   const [detailMode,setDetailMode]=useState("full");
   const [view,setView]=useState("list");
   const [activeChart,setActiveChart]=useState("kcal");
-  const [metricRanges,setMetricRanges]=useState({kcal:7,carbs:7,protein:7});
+  const [metricRanges,setMetricRanges]=useState({kcal:7,carbs:7,protein:7,fat:7});
   const isHe=(lang||'he')!=='en';
   const todayKey=getTodayKey();
   const days=Object.keys(journal).sort((a,b)=>b.localeCompare(a));
@@ -102,20 +102,25 @@ export function JournalView({onClose,onLoadDay,pid,lang,profile}){
             {weekDays.length===0 && <div style={{textAlign:"center",color:C.muted,fontSize:13,padding:30}}>{T.noData}</div>}
             {weekDays.length>0 && <>
               <div style={{fontSize:11,color:C.muted,letterSpacing:1.5,marginBottom:10}}>{T.avgDaily}</div>
-              <div className="g3" style={{marginBottom:12}}>
-                {[{l:T.kcal,vFn:()=>Math.round(calcAvgMetric('kcal',metricRanges.kcal)),c:C.accent,m:"kcal"},{l:T.carbsFull,vFn:()=>calcAvgMetric('carbs',metricRanges.carbs).toFixed(1)+"g",c:C.warn,m:"carbs"},{l:T.protein,vFn:()=>calcAvgMetric('protein',metricRanges.protein).toFixed(1)+"g",c:C.blue,m:"protein"}].map(({l,vFn,c,m})=>{
+              <div className="g4" style={{marginBottom:12}}>
+                {[{l:T.kcal,vFn:()=>Math.round(calcAvgMetric('kcal',metricRanges.kcal)),c:C.accent,m:"kcal"},{l:T.carbsFull,vFn:()=>calcAvgMetric('carbs',metricRanges.carbs).toFixed(1)+"g",c:C.warn,m:"carbs"},{l:T.protein,vFn:()=>calcAvgMetric('protein',metricRanges.protein).toFixed(1)+"g",c:C.blue,m:"protein"},{l:T.fat,vFn:()=>calcAvgMetric('fat',metricRanges.fat).toFixed(1)+"g",c:"#7c3aed",m:"fat"}].map(({l,vFn,c,m})=>{
                   const isActive=activeChart===m;
                   return(
                     <div key={l} onClick={()=>setActiveChart(isActive?null:m)}
-                      style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(14px)",WebkitBackdropFilter:"blur(14px)",borderRadius:16,padding:"14px 10px",textAlign:"center",border:`${isActive?"2":"1"}px solid ${isActive?c:"rgba(255,255,255,.88)"}`,boxShadow:"0 3px 14px rgba(80,130,180,.08)",cursor:"pointer",transition:"border .15s"}}>
-                      <div style={{fontSize:22,fontWeight:900,color:c}}>{vFn()}</div>
-                      <div style={{fontSize:10,color:C.muted,marginTop:4}}>{l}</div>
+                      style={{background:"rgba(255,255,255,.68)",backdropFilter:"blur(14px)",WebkitBackdropFilter:"blur(14px)",borderRadius:14,padding:"12px 4px",textAlign:"center",border:`${isActive?"2":"1"}px solid ${isActive?c:"rgba(255,255,255,.88)"}`,boxShadow:"0 3px 14px rgba(80,130,180,.08)",cursor:"pointer",transition:"border .15s"}}>
+                      <div style={{fontSize:17,fontWeight:900,color:c}}>{vFn()}</div>
+                      <div style={{fontSize:9,color:C.muted,marginTop:4}}>{l}</div>
                       <div style={{fontSize:8,color:isActive?c:"#cbd5e1",marginTop:3}}>{isActive?"▲":"▼"}</div>
                     </div>
                   );
                 })}
               </div>
-              {activeChart&&<MetricWeekChart key={activeChart} journal={journal} metric={activeChart} color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:C.blue} label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:T.protein} lang={lang} range={metricRanges[activeChart]} setRange={r=>setMR(activeChart,r)} goal={activeChart==="kcal"?profile?.maxKcal||1800:activeChart==="carbs"?profile?.maxCarbs||80:profile?.maxProtein||120} goalDir={activeChart==="protein"?"min":"max"}/>}
+              {activeChart&&<MetricWeekChart key={activeChart} journal={journal} metric={activeChart}
+                color={activeChart==="kcal"?C.accent:activeChart==="carbs"?C.warn:activeChart==="protein"?C.blue:"#7c3aed"}
+                label={activeChart==="kcal"?T.kcal:activeChart==="carbs"?T.carbsFull:activeChart==="protein"?T.protein:T.fat}
+                lang={lang} range={metricRanges[activeChart]} setRange={r=>setMR(activeChart,r)}
+                goal={activeChart==="kcal"?profile?.maxKcal||1800:activeChart==="carbs"?profile?.maxCarbs||80:activeChart==="protein"?profile?.maxProtein||120:null}
+                goalDir={activeChart==="protein"?"min":"max"}/>}
               <SugarWeekChart journal={journal} lang={lang}/>
               <div className="card">
                 {weekDays.map((key,i)=>(
