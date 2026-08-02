@@ -355,12 +355,21 @@ Return exactly this JSON structure:
 
       const data = await response.json();
       const text = data.content[0].text.trim();
-      // Extract first complete JSON object using bracket counting
+      // Extract the LAST complete top-level JSON object via bracket counting, not the first.
+      // Prompts that ask the model to "show your work" before the answer (e.g. mealDescription's
+      // ingredient-by-ingredient breakdown) can incidentally produce an early, unrelated balanced
+      // brace pair in prose/markdown before the real answer (live-verified 2026-08-02: one trial
+      // returned literal "{}" - matched and returned as-is by a first-match scan, silently
+      // discarding the real JSON that followed). Every prompt in this worker that asks for
+      // reasoning explicitly instructs the model to put the real JSON on the LAST line, so the
+      // last complete brace pair is always the correct one to prefer - and for the many branches
+      // whose system prompt is "return ONLY JSON" there's normally just one candidate anyway, so
+      // this is a strict improvement with no downside for those.
       let jsonStr = null, depth = 0, start = -1;
       for(let i = 0; i < text.length; i++){
         const c = text[i];
         if(c==='{'){if(depth===0)start=i; depth++;}
-        else if(c==='}' && depth>0){depth--; if(depth===0){jsonStr=text.slice(start,i+1);break;}}
+        else if(c==='}' && depth>0){depth--; if(depth===0){jsonStr=text.slice(start,i+1);}}
       }
       if(!jsonStr) jsonStr = text.replace(/```json|```/g,'').trim();
       const json = JSON.parse(jsonStr);

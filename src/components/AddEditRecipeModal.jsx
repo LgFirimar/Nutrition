@@ -90,10 +90,17 @@ export function AddEditRecipeModal({recipe,onSave,onClose,lang,onAddToDay}){
     const desc=parsedIngredients.map(i=>[i.amount,i.unit,i.item].filter(Boolean).join(' ')).join(', ');
     setLoading(true);setError('');
     try{
+      // No "servings"/"recipe" framing here on purpose - live-tested (2026-08-02) against
+      // the real API: any explanatory sentence before the ingredient list - even one that
+      // explicitly says "don't divide this" - measurably pushed the model toward (a) already
+      // scaling its answer down as if asked for a per-serving amount (causing this code's own
+      // ÷servings below to double-divide), and (b) occasionally answering in markdown prose
+      // instead of the required JSON, which the worker can't parse (500 error). A bare,
+      // unframed ingredient list - identical in shape to the single-meal "meal" flow this
+      // worker branch was built for - was stable across repeated trials with two different
+      // recipes and produced correct whole-batch totals. Keep this plain.
       const r=await fetch("https://nutrition-ai.lior0gal.workers.dev",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({mealDescription:isHe
-          ?`כל מצרכי המתכון (הכמות הכוללת של כל המרכיבים ביחד, לפני חלוקה למנות בודדות):\n${desc}`
-          :`All ingredients of the full recipe batch (the combined total quantity of every ingredient together, before dividing into individual servings):\n${desc}`})});
+        body:JSON.stringify({mealDescription:desc})});
       if(!r.ok) throw new Error();
       const d=await r.json();
       if(d.kcal) setNutrition({kcal:Math.round(d.kcal/servings),carbs:parseFloat(((d.carbs||0)/servings).toFixed(1)),protein:parseFloat(((d.protein||0)/servings).toFixed(1)),fat:parseFloat(((d.fat||0)/servings).toFixed(1))});
