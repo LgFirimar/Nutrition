@@ -597,7 +597,7 @@ function App(){
               {entries.map(e=><EntryRow key={e.uid} entry={e} onRemove={removeEntry} onUpdate={updateEntry} lang={lang}/>)}
               <div className="summary-row">
                 <span style={{fontSize:12,fontWeight:700,color:C.accent}}>{T.total}</span>
-                <span style={{fontSize:12,color:C.accent}}>{Math.round(totals.kcal)} {T.kcal} · {totals.carbs.toFixed(1)}g {T.carbs} · {totals.protein.toFixed(1)}g {T.protein}</span>
+                <span style={{fontSize:12,color:C.accent}}>{Math.round(totals.kcal)} {T.kcal} · {totals.carbs.toFixed(1)}g {T.carbs} · {totals.protein.toFixed(1)}g {T.protein} · {(totals.fat||0).toFixed(1)}g {T.fat}</span>
               </div>
             </>
         }
