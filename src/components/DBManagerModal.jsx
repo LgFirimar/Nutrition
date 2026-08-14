@@ -82,7 +82,7 @@ export function DBManagerModal({onClose,pid,lang}){
 
   const startEdit=(f,i)=>{
     setEditing(i);
-    setEditData({label:f.label,kcal:String(f.kcal),carbs:String(f.carbs),protein:String(f.protein),fat:String(f.fat||0),unit:f.unit||"g"});
+    setEditData({label:f.label,kcal:String(f.kcal),carbs:String(f.carbs),protein:String(f.protein),fat:String(f.fat||0),unit:f.unit||"g",gramsPerUnit:String(f.gramsPerUnit||"")});
     setEditClaudeText(f.sourceText||f.label.replace(/^[^\w֐-׿]+/,'')); setEditQty(1); setEditPreview(null);
   };
 
@@ -95,6 +95,7 @@ export function DBManagerModal({onClose,pid,lang}){
       protein:parseFloat(editData.protein)||0,
       fat:parseFloat(editData.fat)||0,
       unit:editData.unit||f.unit,
+      ...(parseFloat(editData.gramsPerUnit)>0?{gramsPerUnit:parseFloat(editData.gramsPerUnit)}:{}),
       names:[...(f.names||[]),editData.label.toLowerCase()].filter((v,i,a)=>a.indexOf(v)===i),
     }:f);
     saveCustomDB(updated,apid()); setDb(updated); setEditing(null);
@@ -234,6 +235,13 @@ export function DBManagerModal({onClose,pid,lang}){
                         <select value={editData.unit} onChange={e=>setEditData(d=>({...d,unit:e.target.value}))} className="inp" style={{flex:1,fontSize:12}}>
                           <option value="g">גר׳</option><option value="ml">מ״ל</option><option value="יח׳">יח׳</option><option value="קוביות">קוביות</option><option value="מנה">מנה</option>
                         </select>
+                        {(editData.unit==="g"||editData.unit==="ml")&&(
+                          <div style={{position:"relative",flex:1}}>
+                            <input type="number" value={editData.gramsPerUnit} onChange={e=>setEditData(d=>({...d,gramsPerUnit:e.target.value}))}
+                              placeholder="ג׳/יח׳" className="inp" style={{width:"100%",fontSize:12,paddingLeft:2}}/>
+                            <div style={{position:"absolute",top:"50%",left:4,transform:"translateY(-50%)",fontSize:9,color:C.muted,pointerEvents:"none"}}>ג׳/יח׳</div>
+                          </div>
+                        )}
                         <button onClick={()=>setEditing(null)} className="btn-muted" style={{flex:1,padding:"8px"}}>{T.cancel}</button>
                         <button onClick={()=>saveEdit(f.label)} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"8px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{T.save}</button>
                       </div>

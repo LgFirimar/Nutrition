@@ -139,16 +139,14 @@ export function calcNutrition(f, amt, unit) {
   const a = unit ? unitToG(amt, unit) : amt;
   let r;
   if(f.cubes_per_bar) {
-    // values are per whole bar; divide by total cubes
     r = a / f.cubes_per_bar;
   } else if(f.serving_size) {
-    // values are per serving_size units
     r = a / f.serving_size;
   } else if(unit === "מנה" || unit === "serving" || f.unit === "מנה") {
-    // values are already per 1 serving; use amount as direct multiplier
     r = a;
+  } else if((unit === "יח׳" || unit === "קוביות") && f.gramsPerUnit) {
+    r = a * f.gramsPerUnit / 100;
   } else {
-    // values are per 100g/ml
     r = a / 100;
   }
   return { kcal:Math.round(f.kcal*r), carbs:parseFloat((f.carbs*r).toFixed(1)), protein:parseFloat((f.protein*r).toFixed(1)), fat:parseFloat((f.fat*r).toFixed(1)) };
