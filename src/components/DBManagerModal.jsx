@@ -74,7 +74,8 @@ export function DBManagerModal({onClose,pid,lang}){
     setShowAdd(false);setAddText("");setAddData(null);setAddQty(1);
   };
 
-  const byLabel=(a,b)=>a.label.localeCompare(b.label,'he');
+  const heKey=s=>s.replace(/^[^א-תa-zA-Z0-9]+/,'');
+  const byLabel=(a,b)=>heKey(a.label).localeCompare(heKey(b.label),'he');
   const filtered=(search.trim()?db.filter(f=>f.label.toLowerCase().includes(search.toLowerCase())||f.names.some(n=>n.toLowerCase().includes(search.toLowerCase()))):db).slice().sort(byLabel);
   const apid=()=>window._activePid||pid||'default';
 
