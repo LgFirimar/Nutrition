@@ -145,7 +145,7 @@ export function calcNutrition(f, amt, unit) {
   } else if(unit === "מנה" || unit === "serving" || f.unit === "מנה") {
     r = a;
   } else if((unit === "יח׳" || unit === "קוביות") && f.gramsPerUnit) {
-    r = a * f.gramsPerUnit / 100;
+    r = a; // stored values are per-unit (piece); gramsPerUnit records weight only
   } else {
     r = a / 100;
   }
