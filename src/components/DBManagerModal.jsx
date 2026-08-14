@@ -30,9 +30,10 @@ export function DBManagerModal({onClose,pid,lang}){
   const addRawRef=useRef(null); // stores raw Claude response for qty recalc
 
   // Recalc numbers when qty changes and raw data exists (keeps label/unit edits)
+  // Skip when gramsPerUnit>0: values are already per-piece, qty doesn't divide them
   useEffect(()=>{
     const raw=addRawRef.current;
-    if(!raw)return;
+    if(!raw||raw.gramsPerUnit>0)return;
     const qty=Math.max(1,addQty);
     setAddData(d=>d?{...d,kcal:String(Math.round((raw.kcal||0)/qty)),carbs:String(parseFloat(((raw.carbs||0)/qty).toFixed(1))),protein:String(parseFloat(((raw.protein||0)/qty).toFixed(1))),fat:String(parseFloat(((raw.fat||0)/qty).toFixed(1)))}:d);
   },[addQty]);
@@ -48,8 +49,9 @@ export function DBManagerModal({onClose,pid,lang}){
       const d=await res.json();
       if(!d.kcal)throw new Error();
       addRawRef.current=d;
-      const qty=Math.max(1,addQty);
-      setAddData({label:d.label||"",kcal:String(Math.round((d.kcal||0)/qty)),carbs:String(parseFloat(((d.carbs||0)/qty).toFixed(1))),protein:String(parseFloat(((d.protein||0)/qty).toFixed(1))),fat:String(parseFloat(((d.fat||0)/qty).toFixed(1))),unit:"g"});
+      const isPerPiece=d.gramsPerUnit>0;
+      const qty=isPerPiece?1:Math.max(1,addQty);
+      setAddData({label:d.label||"",kcal:String(Math.round((d.kcal||0)/qty)),carbs:String(parseFloat(((d.carbs||0)/qty).toFixed(1))),protein:String(parseFloat(((d.protein||0)/qty).toFixed(1))),fat:String(parseFloat(((d.fat||0)/qty).toFixed(1))),unit:"g",gramsPerUnit:isPerPiece?String(parseFloat(d.gramsPerUnit.toFixed(2))):"",});
     }catch{setAddError(isHe?"שגיאה בחישוב — נסה שנית":"Calculation error — try again");}
     setAddLoading(false);
   };
@@ -64,7 +66,8 @@ export function DBManagerModal({onClose,pid,lang}){
   const saveNewItem=()=>{
     if(!addData)return;
     const label=addData.label||addText.trim()||"פריט חדש";
-    const entry={names:[label.toLowerCase().replace(/^[^\w]/,'')],label,kcal:parseFloat(addData.kcal)||0,carbs:parseFloat(addData.carbs)||0,protein:parseFloat(addData.protein)||0,fat:parseFloat(addData.fat)||0,unit:addData.unit||"g",defaultAmt:100,...(addText.trim()?{sourceText:addText.trim()}:{})};
+    const gpu=parseFloat(addData.gramsPerUnit);
+    const entry={names:[label.toLowerCase().replace(/^[^\w]/,'')],label,kcal:parseFloat(addData.kcal)||0,carbs:parseFloat(addData.carbs)||0,protein:parseFloat(addData.protein)||0,fat:parseFloat(addData.fat)||0,unit:addData.unit||"g",defaultAmt:gpu>0?1:100,...(gpu>0?{gramsPerUnit:gpu}:{}),...(addText.trim()?{sourceText:addText.trim()}:{})};
     const apid=window._activePid||pid||'default';
     const updated=[...db.filter(f=>f.label!==label),entry];
     saveCustomDB(updated,apid);setDb(updated);
@@ -102,12 +105,14 @@ export function DBManagerModal({onClose,pid,lang}){
   };
 
   const applyClaudeResult=(d)=>{
-    const q=Math.max(1,editQty);
+    const isPerPiece=d.gramsPerUnit>0;
+    const q=isPerPiece?1:Math.max(1,editQty);
     setEditData(ed=>({...ed,
       kcal:String(Math.round((d.kcal||0)/q)),
       carbs:String(parseFloat(((d.carbs||0)/q).toFixed(1))),
       protein:String(parseFloat(((d.protein||0)/q).toFixed(1))),
       fat:String(parseFloat(((d.fat||0)/q).toFixed(1))),
+      ...(isPerPiece?{gramsPerUnit:String(parseFloat(d.gramsPerUnit.toFixed(2)))}:{}),
     }));
     setEditPreview(d);
     setEditLoading(false);
@@ -196,6 +201,13 @@ export function DBManagerModal({onClose,pid,lang}){
                   <select value={addData.unit} onChange={e=>setAddData(d=>({...d,unit:e.target.value}))} className="inp" style={{flex:1,fontSize:12}}>
                     <option value="g">{isHe?"גר׳":"g"}</option><option value="ml">מ״ל</option><option value="יח׳">יח׳</option><option value="מנה">{isHe?"מנה":"serving"}</option>
                   </select>
+                  {(addData.unit==="g"||addData.unit==="ml"||!addData.unit)&&(
+                    <div style={{position:"relative",flex:1}}>
+                      <input type="number" value={addData.gramsPerUnit||""} onChange={e=>setAddData(d=>({...d,gramsPerUnit:e.target.value}))}
+                        placeholder="ג׳/יח׳" className="inp" style={{width:"100%",fontSize:12}}/>
+                      <div style={{position:"absolute",top:"50%",left:4,transform:"translateY(-50%)",fontSize:9,color:C.muted,pointerEvents:"none"}}>ג׳/יח׳</div>
+                    </div>
+                  )}
                   <button onClick={saveNewItem} style={{flex:2,background:C.accent,border:"none",borderRadius:8,color:"#fff",padding:"8px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{isHe?"💾 שמור פריט":"💾 Save Item"}</button>
                 </div>
               </div>

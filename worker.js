@@ -113,12 +113,25 @@ Include every distinct item you can identify. Use Hebrew names.`}
         ]}];
       } else if (dbEditImageData) {
         model = 'claude-sonnet-4-6';
-        max_tokens = 512;
-        system = 'You are a precise nutrition calculator with expert knowledge of food composition databases.';
-        const hintLine = dbEditImageHint ? `\nUser description: ${dbEditImageHint}` : '';
+        max_tokens = 600;
+        system = 'You are a precise nutrition label reader and food database assistant. Read labels exactly — never estimate when a label is visible.';
+        const hintLine = dbEditImageHint ? `\nUser note: ${dbEditImageHint}` : '';
         messages = [{role:'user', content:[
           {type:'image', source:{type:'base64', media_type:dbEditImageMediaType||'image/jpeg', data:dbEditImageData}},
-          {type:'text', text:`Calculate nutritional values for the total food visible in this image as 1 serving.${hintLine}\nReturn ONLY this JSON on the last line: {"label":"emoji + שם בעברית","kcal":0,"carbs":0,"protein":0,"fat":0}`}
+          {type:'text', text:`Analyze this image for a food nutrition database entry.${hintLine}
+
+If this is a NUTRITION LABEL (facts table with nutrient rows):
+- Count-based serving ("Per X pieces", "X pcs", "X קוביות", "X יחידות", "X squares", "X cubes"):
+  → kcal/carbs/protein/fat = label values DIVIDED by X (per-piece values)
+  → gramsPerUnit = serving_total_grams / X  (e.g. 38g / 6 pieces = 6.33)
+- Per 100g/ml label → values as-is, gramsPerUnit=0
+- Weight-based serving only (e.g. "per 38g serving", no piece count) → values as-is, gramsPerUnit=0
+Read numbers DIRECTLY from label — do NOT estimate.
+
+If this is a FOOD PHOTO (no label): estimate per 100g, gramsPerUnit=0.
+
+Return ONLY this JSON on the last line:
+{"label":"emoji + שם בעברית","kcal":0,"carbs":0,"protein":0,"fat":0,"gramsPerUnit":0}`}
         ]}];
       } else if (dbEditText) {
         model = 'claude-sonnet-4-6';
