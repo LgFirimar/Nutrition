@@ -136,6 +136,8 @@ function App(){
   const [saveFlash,setSaveFlash]=useState(false);
   const [clearConfirm,setClearConfirm]=useState(false);
   const [sugarFlash,setSugarFlash]=useState(false);
+  const [sugarUnit,setSugarUnit]=useState(()=>localStorage.getItem('nutrition_sugar_unit')||'mgdl');
+  const toggleSugarUnit=()=>{const u=sugarUnit==='mgdl'?'mmol':'mgdl';setSugarUnit(u);localStorage.setItem('nutrition_sugar_unit',u);};
   const [activeDate,setActiveDate]=useState(()=>getTodayKey());
   const [showDatePicker,setShowDatePicker]=useState(false);
 
@@ -189,6 +191,13 @@ function App(){
     else delete j[activeDate].bloodSugar;
     saveJournal(j,pid);
     if(val){setSugarFlash(true);setTimeout(()=>setSugarFlash(false),1500);}
+  };
+  const sugarMgdl=parseFloat(bloodSugar)||0;
+  const sugarDisplay=bloodSugar?(sugarUnit==='mmol'?String(parseFloat((sugarMgdl/18.018).toFixed(1))):bloodSugar):'';
+  const handleSugarChange=e=>{
+    const v=e.target.value;
+    if(!v){setBloodSugar("");return;}
+    setBloodSugar(sugarUnit==='mmol'?String(Math.round(parseFloat(v)*18.018)):v);
   };
 
   const copyPrevDay=()=>{
@@ -462,12 +471,21 @@ function App(){
                   )}
                   <div style={{height:1,background:"rgba(148,163,184,.2)"}}></div>
                   {activeRing==='kcal'?(
-                    <label style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"text"}}>
-                      <span style={{fontSize:12,color:"#475569",flexShrink:0}}>🩸 {T.sugar}{sugarFlash&&<span style={{marginRight:4,fontSize:10,color:C.accent}}> ✓</span>}</span>
-                      <input type="number" value={bloodSugar} onChange={e=>setBloodSugar(e.target.value)}
-                        onBlur={e=>saveBloodSugar(e.target.value)}
-                        placeholder="— mg/dL" style={{flex:1,minWidth:0,background:"transparent",border:"none",textAlign:"right",fontSize:13,fontWeight:700,color:sugarColor(bloodSugar),fontFamily:"inherit",paddingRight:2}}/>
-                    </label>
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      <label style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"text"}}>
+                        <span style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+                          <span style={{fontSize:12,color:"#475569"}}>🩸 {T.sugar}</span>
+                          <button onClick={e=>{e.preventDefault();toggleSugarUnit();}} style={{fontSize:9,color:C.muted,background:"rgba(148,163,184,.15)",border:"none",borderRadius:4,padding:"1px 4px",cursor:"pointer",fontFamily:"inherit",lineHeight:1.4}}>{sugarUnit==='mgdl'?'mg/dL':'mmol/L'}</button>
+                          {sugarFlash&&<span style={{fontSize:10,color:C.accent}}>✓</span>}
+                        </span>
+                        <input type="number" value={sugarDisplay} onChange={handleSugarChange}
+                          onBlur={()=>saveBloodSugar(bloodSugar)}
+                          placeholder={sugarUnit==='mmol'?"— mmol/L":"— mg/dL"} style={{flex:1,minWidth:0,background:"transparent",border:"none",textAlign:"right",fontSize:13,fontWeight:700,color:sugarColor(bloodSugar),fontFamily:"inherit",paddingRight:2}}/>
+                      </label>
+                      {bloodSugar&&<div style={{textAlign:"right",fontSize:10,color:C.muted,paddingRight:2}}>
+                        {sugarUnit==='mgdl'?`= ${parseFloat((sugarMgdl/18.018).toFixed(1))} mmol/L`:`= ${sugarMgdl} mg/dL`}
+                      </div>}
+                    </div>
                   ):(
                     <button onClick={()=>setActiveRing('kcal')} style={{background:"none",border:"none",fontSize:10,color:C.muted,cursor:"pointer",textAlign:"start",padding:0,opacity:.75}}>↩ {T.calories}</button>
                   )}
