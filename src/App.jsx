@@ -481,13 +481,13 @@ function App(){
                           <input type="number" value={sugarDisplay} onChange={handleSugarChange}
                             onBlur={()=>saveBloodSugar(bloodSugar)}
                             placeholder="—" style={{width:64,background:"transparent",border:"none",textAlign:"right",fontSize:13,fontWeight:700,color:sugarColor(bloodSugar),fontFamily:"inherit",paddingRight:0}}/>
-                          <button onClick={e=>{e.preventDefault();toggleSugarUnit();}} style={{fontSize:11,color:"#fff",background:C.accent,border:"none",borderRadius:6,padding:"2px 7px",cursor:"pointer",fontFamily:"inherit",lineHeight:1.5,fontWeight:600,flexShrink:0}}>{sugarUnit==='mgdl'?'mg/dL':'mmol/L'}</button>
+                          <button onClick={e=>{e.preventDefault();toggleSugarUnit();}} style={{fontSize:11,color:"#fff",background:"#3b82f6",border:"none",borderRadius:6,padding:"2px 7px",cursor:"pointer",fontFamily:"inherit",lineHeight:1.5,fontWeight:600,flexShrink:0}}>{sugarUnit==='mgdl'?'mg/dL':'mmol/L'}</button>
                         </span>
                       </label>
-                      {bloodSugar&&<div style={{textAlign:"center",fontSize:12,fontWeight:600,color:C.muted,marginTop:2}}>
+                      {bloodSugar&&<div style={{textAlign:"center",fontSize:13,fontWeight:600,color:"#334155",marginTop:4,letterSpacing:"0.01em"}}>
                         {sugarUnit==='mgdl'
-                          ?<>{bloodSugar} <span style={{fontWeight:400,fontSize:11}}>mg/dL</span> = {parseFloat((sugarMgdl/18.018).toFixed(1))} <span style={{fontWeight:400,fontSize:11}}>mmol/L</ span></>
-                          :<>{sugarDisplay} <span style={{fontWeight:400,fontSize:11}}>mmol/L</span> = {sugarMgdl} <span style={{fontWeight:400,fontSize:11}}>mg/dL</span></>}
+                          ?<><span style={{fontSize:15,fontWeight:700}}>{bloodSugar}</span> <span style={{fontWeight:400,fontSize:11,color:C.muted}}>mg/dL</span> <span style={{margin:"0 6px",color:C.muted,fontWeight:400}}>=</span> <span style={{fontSize:15,fontWeight:700}}>{parseFloat((sugarMgdl/18.018).toFixed(1))}</span> <span style={{fontWeight:400,fontSize:11,color:C.muted}}>mmol/L</span></>
+                          :<><span style={{fontSize:15,fontWeight:700}}>{sugarDisplay}</span> <span style={{fontWeight:400,fontSize:11,color:C.muted}}>mmol/L</span> <span style={{margin:"0 6px",color:C.muted,fontWeight:400}}>=</span> <span style={{fontSize:15,fontWeight:700}}>{sugarMgdl}</span> <span style={{fontWeight:400,fontSize:11,color:C.muted}}>mg/dL</span></>}
                       </div>}
                     </div>
                   ):(
