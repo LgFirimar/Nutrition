@@ -275,18 +275,13 @@ function _fbSyncShopping(s){
 }
 
 const savePantryLS=p=>{localStorage.setItem("nutrition_pantry",JSON.stringify(p));_fbSyncPantry(p);};
-const loadClaudeWebhook=()=>localStorage.getItem("nutrition_claude_webhook")||"";
-const saveClaudeWebhookLS=url=>localStorage.setItem("nutrition_claude_webhook",url);
+const AI_WORKER="https://nutrition-ai.lior0gal.workers.dev";
 const saveShopping=s=>{
   localStorage.setItem("nutrition_shopping",JSON.stringify(s));
   _fbSyncShopping(s);
-  // Notify Claude webhook if configured
-  const hook=loadClaudeWebhook();
-  if(hook){
-    fetch(hook,{method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({event:"shopping_list_updated",items:s,updatedAt:new Date().toISOString()})
-    }).catch(()=>{});
-  }
+  fetch(`${AI_WORKER}/shopping`,{method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({items:s,updatedAt:new Date().toISOString()})
+  }).catch(()=>{});
 };
 const getRecentFoodLabels=(pid,days=7)=>{
   const j=loadJournal(pid||"default");
@@ -2660,8 +2655,6 @@ function ShoppingListModal({onClose,lang,pid,syncTick}){
   const [newName,setNewName]=useState("");
   const [newQty,setNewQty]=useState("");
   const [error,setError]=useState("");
-  const [showWebhook,setShowWebhook]=useState(false);
-  const [webhookUrl,setWebhookUrl]=useState(loadClaudeWebhook);
 
   useEffect(()=>{if(syncTick>0)setItems(loadShopping());},[syncTick]);
 
@@ -2725,29 +2718,8 @@ function ShoppingListModal({onClose,lang,pid,syncTick}){
             <img src="/Nutrition/shopping-cart.png" style={{width:44,height:44,objectFit:"contain"}} alt=""/>
             {isHe?"רשימת קניות":"Shopping List"}
           </div>
-          <div style={{display:"flex",gap:6,alignItems:"center"}}>
-            <button onClick={()=>setShowWebhook(v=>!v)} title={isHe?"חיבור לקלוד":"Connect to Claude"} style={{background:"none",border:"none",fontSize:16,cursor:"pointer",color:webhookUrl?C.accent:C.muted,padding:"2px 4px"}}>⚡</button>
-            <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
-          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:C.muted}}>×</button>
         </div>
-        {showWebhook&&(
-          <div style={{background:"rgba(13,148,136,.06)",border:"1px solid rgba(13,148,136,.2)",borderRadius:10,padding:"10px 12px",marginBottom:12,display:"flex",flexDirection:"column",gap:6}}>
-            <div style={{fontSize:11,fontWeight:700,color:C.accent}}>{isHe?"⚡ חיבור לקלוד — Webhook URL":"⚡ Claude Webhook URL"}</div>
-            <input value={webhookUrl} onChange={e=>setWebhookUrl(e.target.value)}
-              placeholder="https://api.anthropic.com/integrations/v1/code/webhook-triggers/..."
-              style={{fontSize:11,padding:"6px 8px",borderRadius:7,border:`1px solid ${C.border}`,fontFamily:"monospace",width:"100%",boxSizing:"border-box"}}/>
-            <div style={{display:"flex",gap:6}}>
-              <button onClick={()=>{saveClaudeWebhookLS(webhookUrl);setShowWebhook(false);}}
-                style={{flex:1,background:C.accent,color:"#fff",border:"none",borderRadius:7,padding:"6px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                {isHe?"שמור":"Save"}
-              </button>
-              {webhookUrl&&<button onClick={()=>{setWebhookUrl("");saveClaudeWebhookLS("");setShowWebhook(false);}}
-                style={{background:"none",border:`1px solid ${C.border}`,borderRadius:7,padding:"6px 10px",fontSize:12,color:C.muted,cursor:"pointer"}}>
-                {isHe?"נתק":"Disconnect"}
-              </button>}
-            </div>
-          </div>
-        )}
 
         {/* Generate button */}
         {loading&&<div style={{textAlign:'center',marginBottom:8}}><CalcLoader size={64}/></div>}
