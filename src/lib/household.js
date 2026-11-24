@@ -179,7 +179,14 @@ function _fbSyncShopping(s){
 }
 
 export const savePantryLS=p=>{localStorage.setItem("nutrition_pantry",JSON.stringify(p));_fbSyncPantry(p);};
-export const saveShopping=s=>{localStorage.setItem("nutrition_shopping",JSON.stringify(s));_fbSyncShopping(s);};
+const AI_WORKER="https://nutrition-ai.lior0gal.workers.dev";
+export const saveShopping=s=>{
+  localStorage.setItem("nutrition_shopping",JSON.stringify(s));
+  _fbSyncShopping(s);
+  fetch(`${AI_WORKER}/shopping`,{method:"POST",headers:{"content-type":"application/json"},
+    body:JSON.stringify({items:s,updatedAt:new Date().toISOString()})
+  }).catch(()=>{});
+};
 
 // Reset all household/Firebase session state (used when a member leaves the household).
 export function fbReset(){

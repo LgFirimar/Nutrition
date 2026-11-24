@@ -2,7 +2,7 @@ export default {
   async fetch(request, env, ctx) {
     const cors = {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     };
 
@@ -66,6 +66,28 @@ export default {
 <footer>As of ${new Date().toLocaleString('he-IL',{timeZone:'Asia/Jerusalem'})}</footer>
 </body></html>`;
       return new Response(html, { headers: { ...cors, 'Content-Type': 'text/html; charset=utf-8' } });
+    }
+    // ───────────────────────────────────────────────────────────────────────────
+
+    // ── Shopping list storage ───────────────────────────────────────────────────
+    if (url.pathname === '/shopping') {
+      if (!env.ANALYTICS_KV) {
+        return new Response('KV not configured', { status: 500, headers: cors });
+      }
+      if (request.method === 'GET') {
+        const data = await env.ANALYTICS_KV.get('shopping_list', 'json');
+        return new Response(JSON.stringify(data || { items: [], updatedAt: null }), {
+          headers: { ...cors, 'Content-Type': 'application/json' },
+        });
+      }
+      if (request.method === 'POST') {
+        const body = await request.json();
+        await env.ANALYTICS_KV.put('shopping_list', JSON.stringify({
+          items: body.items || [],
+          updatedAt: body.updatedAt || new Date().toISOString(),
+        }));
+        return new Response('{}', { headers: { ...cors, 'Content-Type': 'application/json' } });
+      }
     }
     // ───────────────────────────────────────────────────────────────────────────
 
