@@ -16,7 +16,7 @@ import {
 import { LANG, getT } from './lib/lang.js';
 import {
   fbState, fbReset, autoSetupHousehold, _fbInit, savePantryLS, saveShopping,
-  prewarmFirebaseIfConfigured,
+  prewarmFirebaseIfConfigured, syncShoppingToWorker,
 } from './lib/household.js';
 
 migrateOldData();
@@ -141,6 +141,9 @@ function App(){
   const [activeDate,setActiveDate]=useState(()=>getTodayKey());
   const [showDatePicker,setShowDatePicker]=useState(false);
 
+  // Sync shopping list to Worker on startup
+  useEffect(()=>{syncShoppingToWorker(loadShopping());},[]);
+
   // Firebase household sync
   useEffect(()=>{
     hhUnsubRef.current.forEach(u=>u?.());
@@ -162,9 +165,11 @@ function App(){
         const data=snap.val();
         if(data!==null){
           const arr=Array.isArray(data)?data:Object.values(data||{});
-          localStorage.setItem("nutrition_shopping",JSON.stringify(arr.filter(Boolean)));
+          const filtered=arr.filter(Boolean);
+          localStorage.setItem("nutrition_shopping",JSON.stringify(filtered));
           fbState.lastSyncAt=Date.now();
           setSyncTick(t=>t+1);
+          syncShoppingToWorker(filtered);
         }
       });
       hhUnsubRef.current=[unsubPantry,unsubShopping];

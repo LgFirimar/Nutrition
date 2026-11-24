@@ -180,12 +180,14 @@ function _fbSyncShopping(s){
 
 export const savePantryLS=p=>{localStorage.setItem("nutrition_pantry",JSON.stringify(p));_fbSyncPantry(p);};
 const AI_WORKER="https://nutrition-ai.lior0gal.workers.dev";
+export const syncShoppingToWorker=items=>fetch(`${AI_WORKER}/shopping`,{
+  method:"POST",headers:{"content-type":"application/json"},
+  body:JSON.stringify({items,updatedAt:new Date().toISOString()})
+}).catch(()=>{});
 export const saveShopping=s=>{
   localStorage.setItem("nutrition_shopping",JSON.stringify(s));
   _fbSyncShopping(s);
-  fetch(`${AI_WORKER}/shopping`,{method:"POST",headers:{"content-type":"application/json"},
-    body:JSON.stringify({items:s,updatedAt:new Date().toISOString()})
-  }).catch(()=>{});
+  syncShoppingToWorker(s);
 };
 
 // Reset all household/Firebase session state (used when a member leaves the household).
