@@ -1,0 +1,42 @@
+// ── Translations (Hebrew/English) ──────────────────────────────────────────────
+// Moved out of App.jsx as part of splitting the 6000+ line single-file component
+// into modules. Pure cut-and-paste — no behavior changes.
+export const LANG={
+  he:{greeting:"שלום",calories:"קלוריות היום",consumed:"נאכל",target:"עד",sugar:"סוכר",left:"נותרו",
+      kcal:"קק״ל",mgdl:"mg/dL",goal:"עד",goalLabel:"יעד",
+      carbs:"פחמ׳",carbsFull:"פחמימות",protein:"חלבון",fat:"שומן",noLimit:"ללא הגבלה",
+      quickAdd:"הוספה מהירה",edit:"✏️ ערוך",done:"✓ סיום",reset:"↺ אפס",newBtn:"+ חדש",presets:"⭐ קבועים",
+      todayLog:"יומן היום",items:"פריטים",allLog:"הכל ›",addItem:"הוסף פריט",
+      noEntries:"לחצי על מאכל להוספה",total:"סה״כ",
+      home:"בית",journal:"יומן",db:"מאגר",backup:"גיבוי",profile:"פרופיל",
+      photo:"📷 תמונה",mealBtn:"🍽 ארוחה",whatEat:"🍳 מה אוכלים",
+      daySaved:"שמור",yesterday:"📋 אתמול",clear:"נקה",people:"אנשים",
+      close:"סגור",cancel:"ביטול",save:"שמור",add:"הוסף",howMuchG:"כמה גרם?",
+      yogurtLabel:"🥛 יוגורט 10%",coffeeLabel:"☕ קפה עם חלב 2%",
+      journalTitle:"יומן תזונה",daysSaved:"ימים שמורים",days:"ימים",
+      journalTab:"📋 יומן",weekTab:"📊 שבועי",
+      noDays:"אין ימים שמורים עדיין",noData:"אין נתונים שמורים",
+      details:"🍽 פירוט",statsTab:"📊 ערכים",loadEdit:"✏️ טען לעריכה",
+      bloodSugarLabel:"🩸 סוכר בוקר",avgDaily:"ממוצע יומי",per100:"ל-100",
+      dbTitle:"🗂 מאגר מאכלים אישי",search:"חיפוש...",
+      dbEmpty:"המאגר ריק עדיין",noResults:"לא נמצאו תוצאות"},
+  en:{greeting:"Hello",calories:"Today's Calories",consumed:"Eaten",target:"Goal",sugar:"Sugar",left:"Left",
+      kcal:"kcal",mgdl:"mg/dL",goal:"Limit",goalLabel:"Goal",
+      carbs:"Carbs",carbsFull:"Carbs",protein:"Protein",fat:"Fat",noLimit:"No limit",
+      quickAdd:"Quick Add",edit:"✏️ Edit",done:"✓ Done",reset:"↺ Reset",newBtn:"+ New",presets:"⭐ Presets",
+      todayLog:"Today's Log",items:"items",allLog:"All ›",addItem:"Add Item",
+      noEntries:"Tap a food to add",total:"Total",
+      home:"Home",journal:"Journal",db:"Foods",backup:"Backup",profile:"Profile",
+      photo:"📷 Photo",mealBtn:"🍽 Meal",whatEat:"🍳 What to eat",
+      daySaved:"Saved",yesterday:"📋 Yesterday",clear:"Clear",people:"people",
+      close:"Close",cancel:"Cancel",save:"Save",add:"Add",howMuchG:"How much (g)?",
+      yogurtLabel:"🥛 Yogurt 10%",coffeeLabel:"☕ Coffee with Milk 2%",
+      journalTitle:"Nutrition Journal",daysSaved:"days saved",days:"days",
+      journalTab:"📋 Journal",weekTab:"📊 Weekly",
+      noDays:"No saved days yet",noData:"No saved data",
+      details:"🍽 Details",statsTab:"📊 Stats",loadEdit:"✏️ Load to edit",
+      bloodSugarLabel:"🩸 Morning Sugar",avgDaily:"Daily average",per100:"per 100",
+      dbTitle:"🗂 Personal Food Database",search:"Search...",
+      dbEmpty:"Database is empty",noResults:"No results found"}
+};
+export const getT=()=>LANG[localStorage.getItem('nutrition_lang')||'he']||LANG.he;

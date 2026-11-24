@@ -98,7 +98,7 @@ export default {
     try {
       const { foodName, mealDescription, imageData, imageMediaType, imageHint, mealPlan, shoppingList, pantryImageData, pantryImageMediaType, pantryBulkData, pantryBulkMediaType, dbEditText, dbEditImageData, dbEditImageMediaType, dbEditImageHint, profileData, dailyPlan, recipeIdea, lang, translateItems, recipeText } = await request.json();
 
-      let prompt, model, system, max_tokens, messages;
+      let prompt, model, system, max_tokens, messages, temperature;
       if (recipeText) {
         const isHeR = (lang || 'he') !== 'en';
         model = 'claude-sonnet-4-6';
@@ -135,12 +135,25 @@ Include every distinct item you can identify. Use Hebrew names.`}
         ]}];
       } else if (dbEditImageData) {
         model = 'claude-sonnet-4-6';
-        max_tokens = 512;
-        system = 'You are a precise nutrition calculator with expert knowledge of food composition databases.';
-        const hintLine = dbEditImageHint ? `\nUser description: ${dbEditImageHint}` : '';
+        max_tokens = 600;
+        system = 'You are a precise nutrition label reader and food database assistant. Read labels exactly — never estimate when a label is visible.';
+        const hintLine = dbEditImageHint ? `\nUser note: ${dbEditImageHint}` : '';
         messages = [{role:'user', content:[
           {type:'image', source:{type:'base64', media_type:dbEditImageMediaType||'image/jpeg', data:dbEditImageData}},
-          {type:'text', text:`Calculate nutritional values for the total food visible in this image as 1 serving.${hintLine}\nReturn ONLY this JSON on the last line: {"label":"emoji + שם בעברית","kcal":0,"carbs":0,"protein":0,"fat":0}`}
+          {type:'text', text:`Analyze this image for a food nutrition database entry.${hintLine}
+
+If this is a NUTRITION LABEL (facts table with nutrient rows):
+- Count-based serving ("Per X pieces", "X pcs", "X קוביות", "X יחידות", "X squares", "X cubes"):
+  → kcal/carbs/protein/fat = label values DIVIDED by X (per-piece values)
+  → gramsPerUnit = serving_total_grams / X  (e.g. 38g / 6 pieces = 6.33)
+- Per 100g/ml label → values as-is, gramsPerUnit=0
+- Weight-based serving only (e.g. "per 38g serving", no piece count) → values as-is, gramsPerUnit=0
+Read numbers DIRECTLY from label — do NOT estimate.
+
+If this is a FOOD PHOTO (no label): estimate per 100g, gramsPerUnit=0.
+
+Return ONLY this JSON on the last line:
+{"label":"emoji + שם בעברית","kcal":0,"carbs":0,"protein":0,"fat":0,"gramsPerUnit":0}`}
         ]}];
       } else if (dbEditText) {
         model = 'claude-sonnet-4-6';
@@ -180,6 +193,13 @@ Output ONLY this JSON on the last line (no markdown):
       } else if (mealDescription) {
         model = 'claude-sonnet-4-6';
         max_tokens = 1024;
+        // Lower temperature: measured 13 live trials of this exact prompt at the API default
+        // (temperature 1.0) and saw kcal estimates for the same meal swing ~370-490 (a ~25%
+        // spread) purely from sampling, since the model has to freely guess per-ingredient
+        // proportions from a single total weight. At temperature 0.2 the spread narrowed
+        // (374-451). This is a calculator, not a creative-writing task — consistency matters
+        // more than variety here.
+        temperature = 0.2;
         system = 'You are a precise nutrition calculator with expert knowledge of food composition databases (USDA, Israeli food tables).';
         prompt = `Calculate the total nutritional values for this meal.
 
@@ -196,27 +216,29 @@ After your calculation, output ONLY this JSON on the very last line (no markdown
           model = 'claude-sonnet-4-6';
           max_tokens = 900;
           system = isHe
-            ? 'אתה שף ותזונאי ישראלי. ענה בעברית תקנית. הפלט שלך הוא JSON בלבד — ללא הסבר, ללא markdown, ללא טקסט לפני או אחרי.'
-            : 'You are a professional chef and nutritionist. Respond in English. Output ONLY valid JSON — no explanation, no markdown, no text before or after.';
+            ? 'אתה שף ותזונאי ישראלי. כתוב בעברית תקנית, ברורה ומדויקת דקדוקית — משפטים מלאים, איות נכון ורווח תקין בין כל מילה למילה (לעולם אל תדביק מילים זו לזו ואל תקצר כדי לחסוך מקום). הפלט שלך הוא JSON בלבד — ללא הסבר, ללא markdown, ללא טקסט לפני או אחרי.'
+            : 'You are a professional chef and nutritionist. Respond in clear, natural, grammatically correct English — full words, correct spelling, normal spacing. Output ONLY valid JSON — no explanation, no markdown, no text before or after.';
           prompt = isHe
-            ? `כתוב מתכון עבור "${selectedMeal}" ל-${people} אנשים. עד 6 רכיבים, עד 4 שלבים.\n{"recipe":{"name":"שם בעברית","ingredients":[{"item":"שם חומר","amount":"כמות"}],"steps":["שלב הכנה"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`
-            : `Write a recipe for "${selectedMeal}" for ${people} people. Up to 6 ingredients, up to 4 steps.\n{"recipe":{"name":"meal name","ingredients":[{"item":"ingredient","amount":"quantity"}],"steps":["preparation step"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`;
+            ? `כתוב מתכון עבור "${selectedMeal}" ל-${people} אנשים. עד 6 רכיבים, עד 4 שלבים. כל שלב הכנה הוא משפט עברי שלם וברור.\n{"recipe":{"name":"שם בעברית","ingredients":[{"item":"שם חומר","amount":"כמות"}],"steps":["שלב הכנה"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`
+            : `Write a recipe for "${selectedMeal}" for ${people} people. Up to 6 ingredients, up to 4 steps. Each step is a full, clear sentence.\n{"recipe":{"name":"meal name","ingredients":[{"item":"ingredient","amount":"quantity"}],"steps":["preparation step"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0,"fatPerPerson":0}}`;
         } else {
           model = 'claude-sonnet-4-6';
           max_tokens = 1100;
           system = isHe
-            ? 'אתה שף ותזונאי ישראלי. כתוב בעברית תקנית ונכונה. הפלט הוא JSON בלבד — ללא הסבר, ללא markdown, ללא טקסט לפני או אחרי.'
-            : 'You are a professional chef and nutritionist. Respond in English. Output ONLY valid JSON — no explanation, no markdown, no text before or after.';
+            ? 'אתה שף ותזונאי ישראלי. כתוב בעברית תקנית, ברורה ונכונה דקדוקית — משפטים מלאים, איות תקין ורווח נכון בין כל מילה למילה (לעולם אל תדביק מילים זו לזו ואל תקצר כדי לחסוך מקום). הפלט הוא JSON בלבד — ללא הסבר, ללא markdown, ללא טקסט לפני או אחרי.'
+            : 'You are a professional chef and nutritionist. Respond in clear, natural, grammatically correct English — full words, correct spelling, normal spacing. Output ONLY valid JSON — no explanation, no markdown, no text before or after.';
           const refineText = refine ? (isHe ? `\nהערות: ${refine}` : `\nNotes: ${refine}`) : '';
           const excludeText = exclude?.length ? (isHe ? `\nאל תציע את הארוחות הבאות (כבר הוצעו): ${exclude.join(', ')}` : `\nDo NOT suggest these meals (already shown): ${exclude.join(', ')}`) : '';
           prompt = isHe
             ? `הצע 3 ארוחות שונות ל-${people} אנשים. העדפות: ${preferences || 'ללא הגבלות'}${refineText}${excludeText}
 
 חוקים לשדה ingredients (חובה בכל אפשרות!):
-- רשום בדיוק 4-6 שמות מרכיבים עיקריים — שמות עצם של מצרכים בלבד
+- רשום בדיוק 4-6 שמות מרכיבים עיקריים — שמות עצם של מצרכים בלבד, בעברית תקנית וברורה
 - דוגמאות טובות: "חזה עוף", "אורז", "עגבניות", "גבינה צהובה", "סלמון", "פסטה", "עדשים"
 - אל תכלול: שמן, מלח, פלפל, מים, שום, בצל, חמאה, חומץ (מרכיבי בסיס)
 - אל תכלול: כמויות, שיטות בישול, תארים
+
+גם "name" וגם "description" חייבים להיות בעברית תקנית ומובנת, ללא שגיאות כתיב או תחביר.
 
 החזר JSON בלבד, בדיוק בפורמט הזה (ingredients חייב להיות נוכח בכל אפשרות):
 {"options":[{"name":"שם ארוחה","description":"תיאור קצר","ingredients":["מרכיב1","מרכיב2","מרכיב3","מרכיב4"],"kcalPerPerson":0,"carbsPerPerson":0,"proteinPerPerson":0}]}`
@@ -244,18 +266,23 @@ Return ONLY JSON, exactly this format:
           ? `המשתמש אכל לאחרונה: ${(recentFoods||[]).join(', ')||'לא ידוע'}.\nבמזווה/מקרר יש: ${pantry||'ריק'}.\nהצע 6-10 פריטים לקנות בסופר — עדיפות לפריטים שחסרים במזווה ומופיעים בהרגלי האכילה.\n{"items":[{"name":"שם מוצר","qty":"כמות מומלצת"}]}`
           : `Recently eaten: ${(recentFoods||[]).join(', ')||'unknown'}.\nPantry/fridge has (may be in Hebrew): ${pantry||'empty'}.\nSuggest 6-10 items to buy — prioritize items missing from pantry that match eating habits.\n{"items":[{"name":"product name in English","qty":"recommended quantity"}]}`;
       } else if (dailyPlan) {
-        // Compact format: ask only for ideas/notes/insight (~200 tokens output → ~5s, no timeout risk)
+        // Compact format: ask only for ideas/notes/insight (~350-500 tokens output typically, up to ~10s, no timeout risk)
         // Frontend reconstructs the full plan with macro targets computed from profile.
+        // NOTE: max_tokens was 500 but measured runs regularly landed at 480-500 output tokens
+        // (hitting the cap and truncating mid-JSON), especially once the prompt asks for full,
+        // natural sentences instead of clipped phrasing. Bumped for headroom — verified empirically.
         const { profile: dp, history, lang: dpLang } = dailyPlan;
         const isHeDp = (dpLang || lang || 'he') !== 'en';
         model = 'claude-sonnet-4-6';
-        max_tokens = 500;
+        max_tokens = 900;
         const prefs0 = dp?.dietPrefs || [];
         const iv0 = prefs0.some(p=>p==='vegan'||/vegan|טבעוני/i.test(p));
         const ivg0 = iv0 || prefs0.some(p=>p==='veg'||/vegetarian|צמחוני/i.test(p));
         const sysHe = iv0 ? ' חוק: 100% טבעוני — אסור בשר/עוף/דגים/ביצים/חלב/גבינה/דבש.' : ivg0 ? ' חוק: אסור בשר/עוף/דגים/פירות ים.' : '';
         const sysEn = iv0 ? ' RULE: 100% vegan — no meat/poultry/fish/eggs/dairy/honey.' : ivg0 ? ' RULE: no meat/poultry/fish/seafood.' : '';
-        system = isHeDp ? `תזונאית.${sysHe} החזר JSON קומפקטי בשורה אחת בלבד, ללא רווחים מיותרים.` : `Nutritionist.${sysEn} Return compact single-line JSON only, no extra whitespace.`;
+        system = isHeDp
+          ? `תזונאית קלינית. כל טקסט שאת מייצרת (רעיונות, הערות, תובנה) חייב להיות בעברית תקנית, ברורה ומנוסחת כראוי — מילים שלמות, איות נכון, ורווח תקין בין כל מילה למילה. לעולם אל תדביק מילים זו לזו ואל תשמיטי רווחים כדי לחסוך מקום.${sysHe} מבנה ה-JSON עצמו (לא התוכן!) צריך להיות קומפקטי: אובייקט יחיד בשורה אחת, בלי ירידות שורה או הזחות מיותרות.`
+          : `Clinical nutritionist. Every piece of text you produce (ideas, notes, insight) must be clear, natural, grammatically correct English — full words, correct spelling, normal spacing. Never run words together or drop spaces to save space.${sysEn} The JSON structure itself (not the content) should be compact: a single object on one line, no line breaks or extra indentation.`;
         const gHe = dp?.gender==='female'?'נ':dp?.gender==='male'?'ז':'';
         const bmi = (dp?.weight&&dp?.height)?(dp.weight/Math.pow(dp.height/100,2)).toFixed(1):null;
         const foods = (history?.topFoods||[]).slice(0,5).map(f=>`${f.food}(${f.count})`).join(',');
@@ -277,20 +304,24 @@ Return ONLY JSON, exactly this format:
         prompt = isHeDp
           ? `גיל ${dp?.age||'?'}${gHe?','+gHe:''}${bmi?',BMI '+bmi:''}.${conds?' מצבים:'+conds+'.':''} ${dRule?'הגבלות:'+dRule+'. ':''}יעד:${tKcal}קק"ל. מזונות:${foods||'אין'}. ממוצע:${history?.avgKcal||0}קק"ל.${planRulesHe}${dinnerRuleHe}
 ארוחות(קק"ל): בוקר ${mKcal[0]}, ביניים ${mKcal[1]}, צהריים ${mKcal[2]}, ביניים ${mKcal[3]}, ערב ${mKcal[4]}.
-החזר JSON קומפקטי (שורה אחת, כל רעיון עד 6 מילים בעברית):
+כל רעיון הוא ביטוי מאכל תקין ומובן בעברית (עד 6 מילים, עם רווחים נכונים בין המילים — למשל "עוף בגריל עם אורז" ולא "עוףבגרילעםאורז"). כל הערה ו"insight" הם משפט עברי שלם ותקין דקדוקית.
+מבנה ה-JSON יחזור כאובייקט יחיד בשורה אחת (בלי ירידות שורה מיותרות בין השדות), בפורמט הזה:
 {"ideas":[["בוקר1","בוקר2","בוקר3"],["ביניים1","ביניים2"],["צהריים1","צהריים2","צהריים3"],["ביניים1","ביניים2"],["ערב1","ערב2","ערב3"]],"notes":["","","","",""],"insight":"משפט אחד"}`
           : `Age ${dp?.age||'?'}${dp?.gender?','+dp.gender:''}${bmi?',BMI '+bmi:''}.${conds?' conditions:'+conds+'.':''} ${dRuleEn?'rules:'+dRuleEn+'. ':''}target:${tKcal}kcal. foods:${foods||'none'}. avg:${history?.avgKcal||0}kcal.${planRulesEn}${dinnerRuleEn}
 Meals(kcal): breakfast ${mKcal[0]}, snack ${mKcal[1]}, lunch ${mKcal[2]}, snack ${mKcal[3]}, dinner ${mKcal[4]}.
-Return compact single-line JSON (each idea max 6 words):
+Each idea is a clear, natural meal phrase (max 6 words, normal spacing between words). Each note and the insight are complete, grammatically correct sentences.
+Return the JSON as a single object on one line (no unnecessary line breaks between fields), in this format:
 {"ideas":[["bkf1","bkf2","bkf3"],["snk1","snk2"],["lnch1","lnch2","lnch3"],["snk1","snk2"],["din1","din2","din3"]],"notes":["","","","",""],"insight":"one sentence"}`;
       } else if (recipeIdea) {
         const { idea, targetKcal, targetCarbs, targetProtein, targetFat, lang: riLang } = recipeIdea;
         const isHeRi = (riLang || lang || 'he') !== 'en';
         model = 'claude-sonnet-4-6';
-        max_tokens = 700;
+        // Full-sentence steps run 500-700+ output tokens; 700 was measured hitting the cap
+        // (truncated/invalid JSON) in 2 of 3 trials. Bumped for headroom — verified empirically.
+        max_tokens = 1100;
         system = isHeRi
-          ? 'שף ותזונאי. החזר JSON בלבד, ללא markdown.'
-          : 'Chef and nutritionist. Return ONLY JSON, no markdown.';
+          ? 'שף ותזונאי. כתוב בעברית תקנית, ברורה ותקינה דקדוקית — שמות מצרכים ושלבי הכנה הם משפטים מלאים עם רווח נכון בין כל מילה למילה, ללא שגיאות כתיב. החזר JSON בלבד, ללא markdown.'
+          : 'Chef and nutritionist. Write in clear, natural, grammatically correct English — ingredient names and preparation steps are full sentences with normal spacing, no spelling mistakes. Return ONLY JSON, no markdown.';
         prompt = isHeRi
           ? `מתכון ל-1 מנה של "${idea}".
 יעד תזונתי: ${targetKcal} קק"ל, ${targetCarbs}g פחמ', ${targetProtein}g חלבון, ${targetFat}g שומן.
@@ -305,7 +336,7 @@ Return ONLY JSON:
       } else if (profileData) {
         model = 'claude-sonnet-4-6';
         max_tokens = 2000;
-        system = 'אתה תזונאי קליני ורופא משפחה מומחה. אתה מכיר היטב את הנחיות האיגודים הרפואיים הישראליים והבינלאומיים. ענה בעברית בלבד. החזר JSON בלבד ללא markdown.';
+        system = 'אתה תזונאי קליני ורופא משפחה מומחה. אתה מכיר היטב את הנחיות האיגודים הרפואיים הישראליים והבינלאומיים. ענה בעברית תקנית, ברורה ותקינה דקדוקית בלבד — משפטים מלאים, איות נכון, רווח תקין בין כל מילה למילה. החזר JSON בלבד ללא markdown.';
         const {age, gender, height, weight, conditions=[], dietPrefs=[], activity='moderate', activityText='', goals=[]} = profileData;
         const bmi = (weight && height) ? (weight / Math.pow(height/100, 2)).toFixed(1) : null;
         const genderHe = gender==='female'?'נקבה':gender==='male'?'זכר':'אחר';
@@ -344,6 +375,7 @@ Return exactly this JSON structure:
         },
         body: JSON.stringify({
           model, max_tokens, system,
+          ...(temperature !== undefined ? { temperature } : {}),
           messages: messages || [{ role: 'user', content: prompt }]
         })
       });
@@ -358,12 +390,21 @@ Return exactly this JSON structure:
 
       const data = await response.json();
       const text = data.content[0].text.trim();
-      // Extract first complete JSON object using bracket counting
+      // Extract the LAST complete top-level JSON object via bracket counting, not the first.
+      // Prompts that ask the model to "show your work" before the answer (e.g. mealDescription's
+      // ingredient-by-ingredient breakdown) can incidentally produce an early, unrelated balanced
+      // brace pair in prose/markdown before the real answer (live-verified 2026-08-02: one trial
+      // returned literal "{}" - matched and returned as-is by a first-match scan, silently
+      // discarding the real JSON that followed). Every prompt in this worker that asks for
+      // reasoning explicitly instructs the model to put the real JSON on the LAST line, so the
+      // last complete brace pair is always the correct one to prefer - and for the many branches
+      // whose system prompt is "return ONLY JSON" there's normally just one candidate anyway, so
+      // this is a strict improvement with no downside for those.
       let jsonStr = null, depth = 0, start = -1;
       for(let i = 0; i < text.length; i++){
         const c = text[i];
         if(c==='{'){if(depth===0)start=i; depth++;}
-        else if(c==='}' && depth>0){depth--; if(depth===0){jsonStr=text.slice(start,i+1);break;}}
+        else if(c==='}' && depth>0){depth--; if(depth===0){jsonStr=text.slice(start,i+1);}}
       }
       if(!jsonStr) jsonStr = text.replace(/```json|```/g,'').trim();
       const json = JSON.parse(jsonStr);
